@@ -1,0 +1,1 @@
+"C:\Program Files\S3 Browser\s3browser-con.exe" sync CliqMind "C:\RaaiVan\DB_Backup" "s3:cmdbbackup" nds

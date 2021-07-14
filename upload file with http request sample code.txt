@@ -1,0 +1,17 @@
+NameValueCollection p = new NameValueCollection();
+p.Add("username", "developer");
+p.Add("password", "developer");
+
+Dictionary<string, object> res = PublicMethods.fromJSON(PublicMethods.web_request("http://localhost:20470/api/authenticate", p));
+string ticket = (string)res["Ticket"];
+try
+{
+    string response = PublicMethods.upload_file(paramsContainer.Tenant.Id,
+        "http://localhost:20470/upload/upload_file?ticket=" + ticket, PublicMethods.map_path("~/1.png"));
+
+    string x = response.ToString();
+}
+catch (Exception ex)
+{
+    string strEx = ex.ToString();
+}
