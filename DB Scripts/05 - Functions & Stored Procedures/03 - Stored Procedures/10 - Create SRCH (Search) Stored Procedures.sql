@@ -30,69 +30,69 @@ BEGIN
 		SELECT TOP(@Count) 
 			ND.NodeID AS ID,
 			CASE
-				WHEN ND.Deleted = 1 OR ISNULL(ND.Searchable, 1) = 0 OR ISNULL(S.NoContent, 0) = 1 
+				WHEN ND.Deleted = 1 OR COALESCE(ND.Searchable, 1) = 0 OR COALESCE(S.NoContent, 0) = 1 
 					THEN CAST(1 AS bit)
 				ELSE CAST(0 AS bit)
 			END AS Deleted,
 			CASE
-				WHEN ND.Deleted = 1 OR ISNULL(ND.Searchable, 1) = 0 OR ISNULL(S.NoContent, 0) = 1 THEN NULL
+				WHEN ND.Deleted = 1 OR COALESCE(ND.Searchable, 1) = 0 OR COALESCE(S.NoContent, 0) = 1 THEN NULL
 				ELSE ND.NodeTypeID
 			END AS TypeID,
 			CASE
-				WHEN ND.Deleted = 1 OR ISNULL(ND.Searchable, 1) = 0 OR ISNULL(S.NoContent, 0) = 1 THEN NULL
+				WHEN ND.Deleted = 1 OR COALESCE(ND.Searchable, 1) = 0 OR COALESCE(S.NoContent, 0) = 1 THEN NULL
 				ELSE ND.TypeName
 			END AS [Type],
 			CASE
-				WHEN ND.Deleted = 1 OR ISNULL(ND.Searchable, 1) = 0 OR ISNULL(S.NoContent, 0) = 1 THEN NULL
+				WHEN ND.Deleted = 1 OR COALESCE(ND.Searchable, 1) = 0 OR COALESCE(S.NoContent, 0) = 1 THEN NULL
 				ELSE ND.NodeAdditionalID
 			END AS AdditionalID,
 			CASE
-				WHEN ND.Deleted = 1 OR ISNULL(ND.Searchable, 1) = 0 OR ISNULL(S.NoContent, 0) = 1 THEN NULL
+				WHEN ND.Deleted = 1 OR COALESCE(ND.Searchable, 1) = 0 OR COALESCE(S.NoContent, 0) = 1 THEN NULL
 				ELSE ND.NodeName
 			END AS Title,
 			CASE
-				WHEN ND.Deleted = 1 OR ISNULL(ND.Searchable, 1) = 0 OR ISNULL(S.NoContent, 0) = 1 THEN NULL
+				WHEN ND.Deleted = 1 OR COALESCE(ND.Searchable, 1) = 0 OR COALESCE(S.NoContent, 0) = 1 THEN NULL
 				ELSE ND.[Description]
 			END AS [Description],
 			CASE
-				WHEN ND.Deleted = 1 OR ISNULL(ND.Searchable, 1) = 0 OR ISNULL(S.NoContent, 0) = 1 THEN NULL
+				WHEN ND.Deleted = 1 OR COALESCE(ND.Searchable, 1) = 0 OR COALESCE(S.NoContent, 0) = 1 THEN NULL
 				ELSE REPLACE(ND.Tags, N'~', N' ')
 			END AS Tags,
 			CASE
-				WHEN ND.Deleted = 1 OR ISNULL(ND.Searchable, 1) = 0 OR ISNULL(S.NoContent, 0) = 1 THEN NULL
-				ELSE ISNULL([dbo].[WK_FN_GetWikiContent](@ApplicationID, ND.NodeID), N'') +  N' ' +
-					ISNULL([dbo].[FG_FN_GetOwnerFormContents](@ApplicationID, ND.NodeID, 3), N'')
+				WHEN ND.Deleted = 1 OR COALESCE(ND.Searchable, 1) = 0 OR COALESCE(S.NoContent, 0) = 1 THEN NULL
+				ELSE COALESCE([dbo].[WK_FN_GetWikiContent](@ApplicationID, ND.NodeID), N'') +  N' ' +
+					COALESCE([dbo].[FG_FN_GetOwnerFormContents](@ApplicationID, ND.NodeID, 3), N'')
 			END AS Content,
 			CASE
-				WHEN ND.Deleted = 1 OR ISNULL(ND.Searchable, 1) = 0 OR ISNULL(S.NoContent, 0) = 1 THEN NULL
+				WHEN ND.Deleted = 1 OR COALESCE(ND.Searchable, 1) = 0 OR COALESCE(S.NoContent, 0) = 1 THEN NULL
 				ELSE [dbo].[CN_FN_GetNodeFileContents](@ApplicationID, ND.NodeID)
 			END AS FileContent
 		FROM [dbo].[CN_View_Nodes_Normal] AS ND
 			LEFT JOIN [dbo].[CN_Services] AS S
 			ON S.ApplicationID = @ApplicationID AND S.NodeTypeID = ND.NodeTypeID AND S.Deleted = 0
 		WHERE ND.ApplicationID = @ApplicationID
-		ORDER BY ISNULL(ND.IndexLastUpdateDate, N'1977-01-01 00:00:00.000')
+		ORDER BY COALESCE(ND.IndexLastUpdateDate, N'1977-01-01 00:00:00.000')
 	END
 	ELSE IF @ItemType = N'NodeType' BEGIN
 		SELECT TOP(@Count) 
 			NT.NodeTypeID AS ID,
 			CASE
-				WHEN NT.Deleted = 1 OR ISNULL(S.NoContent, 0) = 1 THEN CAST(1 AS bit)
+				WHEN NT.Deleted = 1 OR COALESCE(S.NoContent, 0) = 1 THEN CAST(1 AS bit)
 				ELSE CAST(0 AS bit)
 			END AS Deleted,
 			CASE
-				WHEN NT.Deleted = 1 OR ISNULL(S.NoContent, 0) = 1 THEN NULL
+				WHEN NT.Deleted = 1 OR COALESCE(S.NoContent, 0) = 1 THEN NULL
 				ELSE NT.Name
 			END AS Title,
 			CASE
-				WHEN NT.Deleted = 1 OR ISNULL(S.NoContent, 0) = 1 THEN NULL
+				WHEN NT.Deleted = 1 OR COALESCE(S.NoContent, 0) = 1 THEN NULL
 				ELSE NT.[Description]
 			END AS [Description]
 		FROM [dbo].[CN_NodeTypes] AS NT
 			LEFT JOIN [dbo].[CN_Services] AS S
 			ON S.ApplicationID = @ApplicationID AND S.NodeTypeID = NT.NodeTypeID AND S.Deleted = 0
 		WHERE NT.ApplicationID = @ApplicationID
-		ORDER BY ISNULL(NT.IndexLastUpdateDate, N'1977-01-01 00:00:00.000')
+		ORDER BY COALESCE(NT.IndexLastUpdateDate, N'1977-01-01 00:00:00.000')
 	END
 	ELSE IF @ItemType = N'Question' BEGIN
 		SELECT TOP(@Count) 
@@ -112,7 +112,7 @@ BEGIN
 			END AS Content
 		FROM [dbo].[QA_Questions] AS QA
 		WHERE QA.ApplicationID = @ApplicationID
-		ORDER BY ISNULL(QA.IndexLastUpdateDate, N'1977-01-01 00:00:00.000')
+		ORDER BY COALESCE(QA.IndexLastUpdateDate, N'1977-01-01 00:00:00.000')
 	END
 	ELSE IF @ItemType = N'File' BEGIN
 		;WITH X (ID, OwnerID, [Type], Title, FileContent)
@@ -133,7 +133,7 @@ BEGIN
 				ON AF.FileNameGuid = FC.FileID
 			WHERE FC.ApplicationID = @ApplicationID AND 
 				FC.NotExtractable = 0 AND FC.FileNotFound = 0
-			ORDER BY ISNULL(FC.IndexLastUpdateDate, N'1977-01-01 00:00:00.000')
+			ORDER BY COALESCE(FC.IndexLastUpdateDate, N'1977-01-01 00:00:00.000')
 		)
 		(
 			SELECT	X.ID,
@@ -176,10 +176,10 @@ BEGIN
 				ELSE CAST(1 AS bit)
 			END AS [Deleted],
 			UN.UserName AS AdditionalID,
-			ISNULL(UN.FirstName, N'') + N' ' + ISNULL(UN.LastName, N'') AS Title
+			COALESCE(UN.FirstName, N'') + N' ' + COALESCE(UN.LastName, N'') AS Title
 		FROM [dbo].[Users_Normal] AS UN
 		WHERE UN.ApplicationID = @ApplicationID
-		ORDER BY ISNULL(UN.IndexLastUpdateDate, N'1977-01-01 00:00:00.000')
+		ORDER BY COALESCE(UN.IndexLastUpdateDate, N'1977-01-01 00:00:00.000')
 	END
 END
 

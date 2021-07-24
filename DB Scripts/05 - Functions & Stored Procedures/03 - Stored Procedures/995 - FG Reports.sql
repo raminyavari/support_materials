@@ -47,7 +47,7 @@ BEGIN
 	SELECT	FI.InstanceID, 
 			FI.CreationDate,
 			FI.CreatorUserID,
-			LTRIM(RTRIM(ISNULL(UN.FirstName, N'') + N' ' + ISNULL(UN.LastName, N''))),
+			LTRIM(RTRIM(COALESCE(UN.FirstName, N'') + N' ' + COALESCE(UN.LastName, N''))),
 			UN.UserName
 	FROM [dbo].[FG_FormInstances] AS FI
 		LEFT JOIN [dbo].[Users_Normal] AS UN
@@ -145,7 +145,7 @@ BEGIN
 	
 	SELECT	A.Title, 
 			A.UserID AS UserID_Hide,
-			LTRIM(RTRIM(ISNULL(A.FirstName, N'') + N' ' + ISNULL(A.LastName, N''))) AS FullName, 
+			LTRIM(RTRIM(COALESCE(A.FirstName, N'') + N' ' + COALESCE(A.LastName, N''))) AS FullName, 
 			A.UserName, 
 			A.MembershipNodeID AS NodeID_Hide,
 			ND.Name AS NodeName,
@@ -181,7 +181,7 @@ BEGIN
 				LEFT JOIN [dbo].[CN_View_NodeMembers] AS NM
 				ON @NodeTypeID IS NOT NULL AND NM.ApplicationID = @ApplicationID AND
 					NM.NodeTypeID = @NodeTypeID AND NM.UserID = UN.UserID AND NM.IsPending = 0
-			WHERE ISNULL(X.Value, N'') <> N''
+			WHERE COALESCE(X.Value, N'') <> N''
 			GROUP BY X.ElementID, X.UserID
 		) AS A
 		LEFT JOIN [dbo].[CN_Nodes] AS ND

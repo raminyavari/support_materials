@@ -29,9 +29,9 @@ BEGIN
 	;WITH hierarchy (ID, ParentID, [Level], Name)
 	AS
 	(
-		SELECT CategoryID AS ID, ParentID AS ParentID, 0 AS [Level], Name
-		FROM [dbo].[QA_FAQCategories]
-		WHERE ApplicationID = @ApplicationID AND CategoryID = @CategoryID
+		SELECT F.CategoryID AS ID, F.ParentID AS ParentID, 0 AS [Level], F.Name
+		FROM [dbo].[QA_FAQCategories] AS F
+		WHERE F.ApplicationID = @ApplicationID AND F.CategoryID = @CategoryID
 		
 		UNION ALL
 		
@@ -44,8 +44,8 @@ BEGIN
 	)
 	INSERT INTO @OutputTable(CategoryID, ParentID, [Level], Name)
 	SELECT * 
-	FROM hierarchy
-	ORDER BY hierarchy.[Level] ASC
+	FROM hierarchy AS H
+	ORDER BY H.[Level] ASC
 	
 	RETURN
 END
@@ -73,7 +73,7 @@ WITH ENCRYPTION
 AS
 BEGIN
 	INSERT INTO @OutputTable(CategoryID, ParentID, [Level], Name)
-	SELECT CategoryID AS ID, ParentID AS ParentID, 0 AS [Level], Name AS Name
+	SELECT C.CategoryID AS ID, C.ParentID AS ParentID, 0 AS [Level], C.Name AS Name
 	FROM @CategoryIDs AS N
 		INNER JOIN [dbo].[QA_FAQCategories] AS C
 		ON C.ApplicationID = @ApplicationID AND C.CategoryID = N.Value
@@ -110,7 +110,7 @@ BEGIN
 	;WITH Partitioned AS
 	(
 		SELECT	AN.AnswerID,
-				CAST(SUBSTRING(ISNULL(AN.AnswerBody, N''), 1, 4000) AS nvarchar(4000)) AS Content,
+				CAST(SUBSTRING(COALESCE(AN.AnswerBody, N''), 1, 4000) AS nvarchar(4000)) AS Content,
 				ROW_NUMBER() OVER (PARTITION BY AN.QuestionID ORDER BY AN.AnswerID) AS Number,
 				COUNT(*) OVER (PARTITION BY AN.QuestionID) AS [Count]
 		FROM [dbo].[QA_Answers] AS AN
@@ -119,9 +119,9 @@ BEGIN
 	),
 	Fetched AS
 	(
-		SELECT	AnswerID, Content AS FullContent, Content, Number, [COUNT] 
-		FROM Partitioned 
-		WHERE Number = 1
+		SELECT P.AnswerID, P.Content AS FullContent, P.Content, P.Number, P.[Count] 
+		FROM Partitioned AS P
+		WHERE P.Number = 1
 
 		UNION ALL
 
@@ -131,9 +131,9 @@ BEGIN
 			ON P.AnswerID = C.AnswerID AND P.Number = C.Number + 1
 		WHERE P.Number <= 95
 	)
-	SELECT TOP(1) @Ret = FullContent
-	FROM Fetched
-	WHERE Fetched.Number = (CASE WHEN Fetched.[Count] > 90 THEN 90 ELSE Fetched.[Count] END)
+	SELECT TOP(1) @Ret = F.FullContent
+	FROM Fetched AS F
+	WHERE F.Number = (CASE WHEN F.[Count] > 90 THEN 90 ELSE F.[Count] END)
 	
 	RETURN @Ret
 END

@@ -23,10 +23,10 @@ WITH ENCRYPTION
 AS
 BEGIN
 	RETURN (
-		SELECT TOP(1) NodeTypeID 
-		FROM [dbo].[CN_NodeTypes]
-		WHERE ApplicationID = @ApplicationID AND AdditionalID = @AdditionalID AND
-			ISNULL(@AdditionalID, N'') <> N''
+		SELECT TOP(1) NT.NodeTypeID 
+		FROM [dbo].[CN_NodeTypes] AS NT
+		WHERE NT.ApplicationID = @ApplicationID AND NT.AdditionalID = @AdditionalID AND
+			COALESCE(@AdditionalID, N'') <> N''
 	)
 END
 
@@ -53,9 +53,9 @@ BEGIN
 	;WITH hierarchy (ID, ParentID, [Level], Name)
 	AS
 	(
-		SELECT NodeTypeID AS ID, ParentID AS ParentID, 0 AS [Level], Name AS Name
-		FROM [dbo].[CN_NodeTypes]
-		WHERE ApplicationID = @ApplicationID AND AdditionalID = N'6'
+		SELECT NT.NodeTypeID AS ID, NT.ParentID AS ParentID, 0 AS [Level], NT.Name AS Name
+		FROM [dbo].[CN_NodeTypes] AS NT
+		WHERE NT.ApplicationID = @ApplicationID AND NT.AdditionalID = N'6'
 		
 		UNION ALL
 		
@@ -67,8 +67,8 @@ BEGIN
 		WHERE NT.NodeTypeID <> HR.ID AND NT.Deleted = 0
 	)
 	INSERT INTO @OutputTable (NodeTypeID, ParentID, [Level], Name)
-	SELECT ID, ParentID, [Level], Name
-	FROM hierarchy
+	SELECT H.ID, H.ParentID, H.[Level], H.Name
+	FROM hierarchy AS H
 	
 	RETURN
 END
@@ -116,9 +116,9 @@ WITH ENCRYPTION
 AS
 BEGIN
 	RETURN (
-		SELECT PropertyID 
-		FROM [dbo].[CN_Properties]
-		WHERE ApplicationID = @ApplicationID AND AdditionalID = @AdditionalID
+		SELECT P.PropertyID 
+		FROM [dbo].[CN_Properties] AS P
+		WHERE P.ApplicationID = @ApplicationID AND P.AdditionalID = @AdditionalID
 	)
 END
 
@@ -138,9 +138,9 @@ WITH ENCRYPTION
 AS
 BEGIN
 	RETURN (
-		SELECT PropertyID 
-		FROM [dbo].[CN_Properties]
-		WHERE ApplicationID = @ApplicationID AND AdditionalID = N'1'
+		SELECT P.PropertyID 
+		FROM [dbo].[CN_Properties] AS P
+		WHERE P.ApplicationID = @ApplicationID AND P.AdditionalID = N'1'
 	)
 END
 
@@ -160,9 +160,9 @@ WITH ENCRYPTION
 AS
 BEGIN
 	RETURN (
-		SELECT PropertyID 
-		FROM [dbo].[CN_Properties]
-		WHERE ApplicationID = @ApplicationID AND AdditionalID = N'2'
+		SELECT P.PropertyID 
+		FROM [dbo].[CN_Properties] AS P
+		WHERE P.ApplicationID = @ApplicationID AND P.AdditionalID = N'2'
 	)
 END
 
@@ -182,9 +182,9 @@ WITH ENCRYPTION
 AS
 BEGIN
 	RETURN (
-		SELECT PropertyID 
-		FROM [dbo].[CN_Properties]
-		WHERE ApplicationID = @ApplicationID AND AdditionalID = N'3'
+		SELECT P.PropertyID 
+		FROM [dbo].[CN_Properties] AS P
+		WHERE P.ApplicationID = @ApplicationID AND P.AdditionalID = N'3'
 	)
 END
 
@@ -210,7 +210,7 @@ WITH ENCRYPTION
 AS
 BEGIN
 	INSERT INTO @OutputTable(NodeID, ParentID, [Level], Name)
-	SELECT NodeID AS ID, ParentNodeID AS ParentID, 0 AS [Level], Name AS Name
+	SELECT ND.NodeID AS ID, ND.ParentNodeID AS ParentID, 0 AS [Level], ND.Name AS Name
 	FROM @NodeIDs AS N
 		INNER JOIN [dbo].[CN_Nodes] AS ND
 		ON ND.ApplicationID = @ApplicationID AND ND.NodeID = N.Value
@@ -250,7 +250,7 @@ BEGIN
 	;WITH hierarchy (ID, ParentID, [Level], Name)
 	AS
 	(
-		SELECT NodeID AS ID, ParentNodeID AS ParentID, 0 AS [Level], Name AS Name
+		SELECT ND.NodeID AS ID, ND.ParentNodeID AS ParentID, 0 AS [Level], ND.Name AS Name
 		FROM @NodeIDs AS N
 			INNER JOIN [dbo].[CN_Nodes] AS ND
 			ON ND.ApplicationID = @ApplicationID AND ND.NodeID = N.Value
@@ -266,9 +266,9 @@ BEGIN
 	)
 	
 	INSERT INTO @OutputTable (NodeID, ParentID, [Level], Name)
-	SELECT ID, ParentID, [Level], Name
-	FROM hierarchy
-	ORDER BY hierarchy.[Level] ASC
+	SELECT H.ID, H.ParentID, H.[Level], H.Name
+	FROM hierarchy AS H
+	ORDER BY H.[Level] ASC
 	
 	RETURN
 END
@@ -295,7 +295,7 @@ WITH ENCRYPTION
 AS
 BEGIN
 	INSERT INTO @OutputTable(NodeTypeID, ParentID, [Level], Name)
-	SELECT NodeTypeID AS ID, ParentID AS ParentID, 0 AS [Level], Name AS Name
+	SELECT NT.NodeTypeID AS ID, NT.ParentID AS ParentID, 0 AS [Level], NT.Name AS Name
 	FROM @NodeTypeIDs AS N
 		INNER JOIN [dbo].[CN_NodeTypes] AS NT
 		ON NT.ApplicationID = @ApplicationID AND NT.NodeTypeID = N.Value
@@ -335,7 +335,7 @@ BEGIN
 	;WITH hierarchy (ID, ParentID, [Level], Name)
 	AS
 	(
-		SELECT NodeTypeID AS ID, ParentID AS ParentID, 0 AS [Level], Name AS Name
+		SELECT ND.NodeTypeID AS ID, ND.ParentID AS ParentID, 0 AS [Level], ND.Name AS Name
 		FROM @NodeTypeIDs AS N
 			INNER JOIN [dbo].[CN_NodeTypes] AS ND
 			ON ND.ApplicationID = @ApplicationID AND ND.NodeTypeID = N.Value
@@ -353,11 +353,11 @@ BEGIN
 	SELECT *
 	FROM (
 			SELECT	ID, 
-					CAST(MAX(CAST(ParentID AS varchar(50))) AS uniqueidentifier) AS ParentID, 
-					MIN([Level]) AS [Level], 
-					MAX(Name) AS Name
-			FROM hierarchy
-			GROUP BY ID
+					CAST(MAX(CAST(H.ParentID AS varchar(50))) AS uniqueidentifier) AS ParentID, 
+					MIN(H.[Level]) AS [Level], 
+					MAX(H.Name) AS Name
+			FROM hierarchy AS H
+			GROUP BY H.ID
 		) AS X
 	ORDER BY X.[Level] ASC
 	
@@ -404,9 +404,9 @@ BEGIN
 	)
 	
 	INSERT INTO @OutputTable (NodeID, ParentID, [Level], Name)
-	SELECT hierarchy.ID, hierarchy.ParentID, hierarchy.[Level], hierarchy.Name
-	FROM hierarchy
-	ORDER BY hierarchy.[Level] ASC
+	SELECT H.ID, H.ParentID, H.[Level], H.Name
+	FROM hierarchy AS H
+	ORDER BY H.[Level] ASC
 	
 	RETURN
 END
@@ -619,7 +619,7 @@ BEGIN
 		ON Base.ApplicationID = @ApplicationID AND Base.NodeID = DT.NodeID
 		INNER JOIN [dbo].[CN_View_Nodes_Normal] AS Related
 		ON Related.ApplicationID = @ApplicationID AND Related.NodeID = DT.RelatedNodeID
-	WHERE ISNULL(Related.[Status], N'Accepted') = N'Accepted' AND ISNULL(Related.Searchable, 1) = 1
+	WHERE COALESCE(Related.[Status], N'Accepted') = N'Accepted' AND COALESCE(Related.Searchable, 1) = 1
 
 	RETURN
 END
@@ -645,7 +645,7 @@ BEGIN
 	;WITH Partitioned AS
 	(
 		SELECT	OID.OwnerID,
-				CAST(SUBSTRING(ISNULL(FC.Content, N''), 1, 4000) AS nvarchar(4000)) AS Content,
+				CAST(SUBSTRING(COALESCE(FC.Content, N''), 1, 4000) AS nvarchar(4000)) AS Content,
 				ROW_NUMBER() OVER (PARTITION BY OID.OwnerID ORDER BY FC.FileID ASC, OID.ID ASC) AS Number,
 				COUNT(*) OVER (PARTITION BY OID.OwnerID) AS [Count]
 		FROM (
@@ -676,8 +676,9 @@ BEGIN
 	),
 	Fetched AS
 	(
-		SELECT	OwnerID, Content AS FullContent, Content, Number, [COUNT] 
-		FROM Partitioned WHERE Number = 1
+		SELECT	P.OwnerID, P.Content AS FullContent, P.Content, P.Number, P.[Count] 
+		FROM Partitioned AS P
+		WHERE P.Number = 1
 
 		UNION ALL
 
@@ -687,9 +688,9 @@ BEGIN
 			ON P.OwnerID = C.OwnerID AND P.Number = C.Number + 1
 		WHERE P.Number <= 95
 	)
-	SELECT TOP(1) @Ret = FullContent
-	FROM Fetched
-	WHERE Fetched.Number = (CASE WHEN Fetched.[Count] > 90 THEN 90 ELSE Fetched.[Count] END)
+	SELECT TOP(1) @Ret = F.FullContent
+	FROM Fetched AS F
+	WHERE F.Number = (CASE WHEN F.[Count] > 90 THEN 90 ELSE F.[Count] END)
 	
 	RETURN @Ret
 END

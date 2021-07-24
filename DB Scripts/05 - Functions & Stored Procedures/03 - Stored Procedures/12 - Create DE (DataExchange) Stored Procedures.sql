@@ -37,7 +37,7 @@ BEGIN TRANSACTION
 	INSERT INTO @NotExisting
 	SELECT * 
 	FROM @Nodes AS ExternalNodes
-	WHERE NOT((ExternalNodes.NodeID IS NULL OR ISNULL(ExternalNodes.NodeAdditionalID, N'') = N'') AND
+	WHERE NOT((ExternalNodes.NodeID IS NULL OR COALESCE(ExternalNodes.NodeAdditionalID, N'') = N'') AND
 		(ExternalNodes.Name IS NULL OR ExternalNodes.Name = N'')) AND
 		NOT EXISTS(
 			SELECT TOP(1) * 
@@ -62,7 +62,7 @@ BEGIN TRANSACTION
 			CreationDate,
 			Deleted
 		)
-		SELECT @ApplicationID, ISNULL(NE.NodeID, NEWID()), @NodeTypeID, NE.NodeAdditionalID, 
+		SELECT @ApplicationID, COALESCE(NE.NodeID, NEWID()), @NodeTypeID, NE.NodeAdditionalID, 
 			[dbo].[GFN_VerifyString](NE.Name), [dbo].[GFN_VerifyString](NE.Abstract), 
 			[dbo].[GFN_VerifyString](NE.Tags), @CreatorUserID, @CreationDate, 0
 		FROM @NotExisting AS NE
@@ -77,18 +77,18 @@ BEGIN TRANSACTION
 	IF EXISTS(
 		SELECT TOP(1) * 
 		FROM @Nodes 
-		WHERE ISNULL(NodeAdditionalID, N'') <> N'' AND ISNULL(Name, N'') <> N''
+		WHERE COALESCE(NodeAdditionalID, N'') <> N'' AND COALESCE(Name, N'') <> N''
 	) BEGIN
 		UPDATE ND
 			SET Name = [dbo].[GFN_VerifyString](ExternalNodes.Name),
-				Tags = ISNULL([dbo].[GFN_VerifyString](ExternalNodes.Tags), ND.Tags),
-				[Description] = ISNULL([dbo].[GFN_VerifyString](ExternalNodes.Abstract), ND.[Description])
+				Tags = COALESCE([dbo].[GFN_VerifyString](ExternalNodes.Tags), ND.Tags),
+				[Description] = COALESCE([dbo].[GFN_VerifyString](ExternalNodes.Abstract), ND.[Description])
 		FROM @Nodes AS ExternalNodes
 			INNER JOIN [dbo].[CN_Nodes] AS ND
 			ON ND.[AdditionalID] = ExternalNodes.NodeAdditionalID
 		WHERE ND.ApplicationID = @ApplicationID AND 
-			ISNULL(ExternalNodes.NodeAdditionalID, N'') <> N'' AND
-			ND.[NodeTypeID] = @NodeTypeID AND ISNULL(ExternalNodes.Name, N'') <> N''
+			COALESCE(ExternalNodes.NodeAdditionalID, N'') <> N'' AND
+			ND.[NodeTypeID] = @NodeTypeID AND COALESCE(ExternalNodes.Name, N'') <> N''
 			
 		IF @@ROWCOUNT <= 0 BEGIN
 			SELECT -1
@@ -107,14 +107,14 @@ BEGIN TRANSACTION
 		) AS X
 		INNER JOIN [dbo].[CN_Nodes] AS ND
 		ON ND.ApplicationID = @ApplicationID AND ND.NodeTypeID = @NodeTypeID AND
-			ISNULL(ND.AdditionalID, N'') <> N'' AND ND.AdditionalID = X.NodeAdditionalID
+			COALESCE(ND.AdditionalID, N'') <> N'' AND ND.AdditionalID = X.NodeAdditionalID
 	-- end of Update Sequence Number
 	
 	DECLARE @HaveParent ExchangeNodeTableType
 	INSERT INTO @HaveParent(NodeAdditionalID, ParentAdditionalID)
 	SELECT ND.NodeAdditionalID, ND.ParentAdditionalID
 	FROM @Nodes AS ND
-	WHERE ISNULL(ND.NodeAdditionalID, N'') <> N'' AND ISNULL(ND.ParentAdditionalID, N'') <> ''
+	WHERE COALESCE(ND.NodeAdditionalID, N'') <> N'' AND COALESCE(ND.ParentAdditionalID, N'') <> ''
 	
 	IF EXISTS(SELECT TOP(1) * FROM @HaveParent) BEGIN
 		UPDATE ND
@@ -140,7 +140,7 @@ BEGIN TRANSACTION
 	INSERT INTO @HaveNotParent(NodeAdditionalID, ParentAdditionalID)
 	SELECT ND.NodeAdditionalID, ND.ParentAdditionalID
 	FROM @Nodes AS ND
-	WHERE ISNULL(ND.NodeAdditionalID, N'') <> N'' AND ISNULL(ND.ParentAdditionalID, N'') = ''
+	WHERE COALESCE(ND.NodeAdditionalID, N'') <> N'' AND COALESCE(ND.ParentAdditionalID, N'') = ''
 	
 	IF EXISTS(SELECT TOP(1) * FROM @HaveNotParent) BEGIN
 		UPDATE ND
@@ -206,7 +206,7 @@ BEGIN
 				LEFT JOIN [dbo].[CN_Nodes] AS N
 				ON N.ApplicationID = @ApplicationID AND N.NodeTypeID = @NodeTypeID AND
 					N.AdditionalID = V.NewAdditionalID AND N.NodeID <> V.NodeID
-			WHERE ISNULL(V.NewAdditionalID, N'') <> N'' AND N.NodeID IS NULL
+			WHERE COALESCE(V.NewAdditionalID, N'') <> N'' AND N.NodeID IS NULL
 		) AS X
 		INNER JOIN [dbo].[CN_Nodes] AS ND
 		ON ND.ApplicationId = @ApplicationID AND ND.NodeID = X.NodeID
@@ -301,9 +301,9 @@ BEGIN
 	FROM @Users AS Ref
 		LEFT JOIN [dbo].[Users_Normal] AS UN
 		ON UN.ApplicationID = @ApplicationID AND LOWER(UN.UserName) = LOWER(Ref.UserName) AND
-			ISNULL(Ref.NewUserName, N'') = N''
-	WHERE ISNULL(Ref.[Password], N'') <> N'' AND ISNULL(Ref.PasswordSalt, N'') <> N'' AND
-		ISNULL(Ref.EncryptedPassword, N'') <> N'' AND UN.UserID IS NULL
+			COALESCE(Ref.NewUserName, N'') = N''
+	WHERE COALESCE(Ref.[Password], N'') <> N'' AND COALESCE(Ref.PasswordSalt, N'') <> N'' AND
+		COALESCE(Ref.EncryptedPassword, N'') <> N'' AND UN.UserID IS NULL
 	
 	INSERT INTO @FirstPasswords (FirstValue, SecondValue)
 	SELECT U.UserID, U.EncryptedPassword
@@ -328,7 +328,7 @@ BEGIN
 		LEFT JOIN @FirstPasswords AS F
 		ON F.FirstValue = UN.UserID
 	WHERE Ref.ResetPassword = 1 AND F.FirstValue IS NULL AND 
-		ISNULL(Ref.[Password], N'') <> N'' AND ISNULL(Ref.PasswordSalt, N'') <> N''
+		COALESCE(Ref.[Password], N'') <> N'' AND COALESCE(Ref.PasswordSalt, N'') <> N''
 	
 	UPDATE M
 		SET [Password] = C.[Password],
@@ -352,21 +352,21 @@ BEGIN
 	FROM @TempUsers AS Ref
 		INNER JOIN [dbo].[USR_Profile] AS P
 		ON P.[UserID] = Ref.UserID
-	WHERE ISNULL(Ref.FirstName, N'') <> N''
+	WHERE COALESCE(Ref.FirstName, N'') <> N''
 	
 	UPDATE P
 		SET LastName = Ref.LastName
 	FROM @TempUsers AS Ref
 		INNER JOIN [dbo].[USR_Profile] AS P
 		ON P.[UserID] = Ref.UserID
-	WHERE ISNULL(Ref.LastName, N'') <> N''
+	WHERE COALESCE(Ref.LastName, N'') <> N''
 	
 	UPDATE P
 		SET EmploymentType = Ref.EmploymentType
 	FROM @TempUsers AS Ref
 		INNER JOIN [dbo].[USR_Profile] AS P
 		ON P.[UserID] = Ref.UserID
-	WHERE ISNULL(Ref.EmploymentType, N'') <> N''
+	WHERE COALESCE(Ref.EmploymentType, N'') <> N''
 	
 	UPDATE USR
 		SET UserName = X.NewUserName,
@@ -377,7 +377,7 @@ BEGIN
 				LEFT JOIN [dbo].[Users_Normal] AS UN
 				ON UN.ApplicationID = @ApplicationID AND 
 					UN.LoweredUserName = LOWER(U.NewUserName) AND U.UserID <> UN.UserId
-			WHERE ISNULL(U.NewUserName, N'') <> N'' AND UN.UserId IS NULL
+			WHERE COALESCE(U.NewUserName, N'') <> N'' AND UN.UserId IS NULL
 		) AS X
 		INNER JOIN [dbo].[aspnet_Users] AS USR
 		ON USR.UserId = X.UserID
@@ -415,8 +415,8 @@ BEGIN TRANSACTION
 	INSERT INTO @MBRS (NodeID, UserID, IsAdmin, UniqueAdmin)
 	SELECT	ND.NodeID,
 			UN.UserID,
-			CAST(MAX(CAST(ISNULL(M.IsAdmin, 0) AS int)) AS bit),
-			CAST(MAX(CAST(ISNULL(S.UniqueAdminMember, 0) AS int)) AS bit)
+			CAST(MAX(CAST(COALESCE(M.IsAdmin, 0) AS int)) AS bit),
+			CAST(MAX(CAST(COALESCE(S.UniqueAdminMember, 0) AS int)) AS bit)
 	FROM @Members AS M
 		INNER JOIN [dbo].[CN_View_Nodes_Normal] AS ND
 		ON ND.ApplicationID = @ApplicationID AND 
@@ -450,7 +450,7 @@ BEGIN TRANSACTION
 	UPDATE NM
 		SET IsAdmin = (
 			CASE
-				WHEN NIDs.UniqueAdmin = 0 THEN ISNULL(Ref.IsAdmin, NM.IsAdmin) 
+				WHEN NIDs.UniqueAdmin = 0 THEN COALESCE(Ref.IsAdmin, NM.IsAdmin) 
 				WHEN Ref.NodeID IS NULL
 					THEN (CASE WHEN NIDs.AdminsCount = 0 THEN NM.IsAdmin ELSE 0 END)
 				ELSE (CASE WHEN NIDs.AdminsCount <= 1 THEN Ref.IsAdmin ELSE 0 END)
@@ -560,7 +560,7 @@ BEGIN TRANSACTION
 				0,
 				NEWID()
 		FROM @XPRTS AS X
-		WHERE ISNULL(X.[Exists], 0) = 0
+		WHERE COALESCE(X.[Exists], 0) = 0
 		
 		IF @@ROWCOUNT <= 0 BEGIN
 			SELECT -1
@@ -724,7 +724,7 @@ BEGIN
 		INNER JOIN [dbo].[Users_Normal] AS UN
 		ON UN.ApplicationID = @ApplicationID AND 
 			UN.UserName IS NOT NULL AND LOWER(UN.UserName) = LOWER(A.UserName)
-	WHERE ISNULL(A.NodeTypeAdditionalID, N'') <> N'' AND ISNULL(A.NodeAdditionalID, N'') <> N'' AND 
+	WHERE COALESCE(A.NodeTypeAdditionalID, N'') <> N'' AND COALESCE(A.NodeAdditionalID, N'') <> N'' AND 
 		A.Percentage IS NOT NULL AND A.Percentage > 0 AND A.Percentage <= 100
 	GROUP BY ND.NodeID, UN.UserID
 	
@@ -856,7 +856,7 @@ BEGIN
 	
 	
 	INSERT INTO @Values (ObjectID, RoleID, PermissionType, Allow, DropAll)
-	SELECT DISTINCT ND.NodeID, ISNULL(UN.UserID, GRP.NodeID), I.PermissionType, I.Allow, I.DropAll
+	SELECT DISTINCT ND.NodeID, COALESCE(UN.UserID, GRP.NodeID), I.PermissionType, I.Allow, I.DropAll
 	FROM @Items AS I
 		INNER JOIN [dbo].[CN_View_Nodes_Normal] AS ND
 		ON ND.ApplicationID = @ApplicationID AND ND.TypeAdditionalID = I.NodeTypeAdditionalID AND
@@ -888,7 +888,7 @@ BEGIN
 	
 	-- Part 2: Update Existing Items
 	UPDATE A
-		SET Allow = ISNULL(V.Allow, 0),
+		SET Allow = COALESCE(V.Allow, 0),
 			ExpirationDate = NULL,
 			Deleted = 0,
 			LastModifierUserID = @CurrentUserID,
@@ -912,7 +912,7 @@ BEGIN
 		CreationDate,
 		Deleted
 	)
-	SELECT @ApplicationID, V.ObjectID, V.RoleID, V.PermissionType, ISNULL(V.Allow, 0), @CurrentUserID, @Now, 0	
+	SELECT @ApplicationID, V.ObjectID, V.RoleID, V.PermissionType, COALESCE(V.Allow, 0), @CurrentUserID, @Now, 0	
 	FROM @Values AS V
 		LEFT JOIN [dbo].[PRVC_Audience] AS A
 		ON A.ApplicationID = @ApplicationID AND A.ObjectID = V.ObjectID AND 

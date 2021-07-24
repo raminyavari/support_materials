@@ -97,7 +97,7 @@ BEGIN
 			INSERT INTO @Dashboards(UserID, NodeID, RefItemID, [Type], Info, Removable, SendDate)
 			SELECT	NM.UserID, @NodeID, @HistoryID, N'WorkFlow', @Info, 
 				CASE
-					WHEN ISNULL(@IsDirectorNodeAdmin, 0) = 0 OR NM.IsAdmin = 1 THEN CAST(0 AS bit)
+					WHEN COALESCE(@IsDirectorNodeAdmin, 0) = 0 OR NM.IsAdmin = 1 THEN CAST(0 AS bit)
 					ELSE CAST(1 AS bit)
 				END,
 				@SendDate
@@ -1237,7 +1237,7 @@ BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE @SequenceNumber int = (
-		SELECT ISNULL(MAX(SequenceNumber), 0) 
+		SELECT COALESCE(MAX(SequenceNumber), 0) 
 		FROM [dbo].[WF_StateConnections]
 		WHERE ApplicationID = @ApplicationID AND 
 			WorkFlowID = @WorkFlowID AND InStateID = @InStateID
@@ -2591,7 +2591,7 @@ BEGIN
 		ON S.ApplicationID = @ApplicationID AND S.StateID = SC.OutStateID AND S.Deleted  = 0
 		LEFT JOIN [dbo].[CN_NodeTypes] AS NT
 		ON NT.ApplicationID = @ApplicationID AND NT.NodeTypeID = SC.NodeTypeID
-	ORDER BY ISNULL(SC.SequenceNumber, 1000000) ASC, SC.CreationDate ASC
+	ORDER BY COALESCE(SC.SequenceNumber, 1000000) ASC, SC.CreationDate ASC
 END
 
 GO
@@ -2837,7 +2837,7 @@ BEGIN
 	FROM [dbo].[WF_History]
 	WHERE ApplicationID = @ApplicationID AND OwnerID = @OwnerID AND 
 		(@StateID IS NULL OR StateID = @StateID) AND Deleted = 0 AND
-		(ISNULL(@Done, 0) = 0 OR ActorUserID IS NOT NULL)
+		(COALESCE(@Done, 0) = 0 OR ActorUserID IS NOT NULL)
 	ORDER BY ID DESC
 	
 	EXEC [dbo].[WF_P_GetHistoryByIDs] @ApplicationID, @HistoryIDs
@@ -2932,7 +2932,7 @@ BEGIN TRANSACTION
 		@FormInstanceID uniqueidentifier = NEWID(), @Admin bit,
 		@WorkFlowID uniqueidentifier, @StateID uniqueidentifier
 	
-	SELECT @FormDirectorID = ISNULL(DirectorNodeID, DirectorUserID), 
+	SELECT @FormDirectorID = COALESCE(DirectorNodeID, DirectorUserID), 
 		@WorkFlowID = WorkFlowID, @StateID = StateID
 	FROM [dbo].[WF_History] 
 	WHERE ApplicationID = @ApplicationID AND HistoryID = @HistoryID
@@ -3255,7 +3255,7 @@ BEGIN TRANSACTION
 	)
 	
 	DECLARE @HideContributors bit = (
-		SELECT TOP(1) ISNULL(S.HideOwnerName, 0)
+		SELECT TOP(1) COALESCE(S.HideOwnerName, 0)
 		FROM [dbo].[WF_WorkFlowStates] AS S
 		WHERE S.ApplicationID = @ApplicationID AND 
 			S.WorkFlowID = @WorkFlowID AND S.StateID = @StateID
@@ -3604,7 +3604,7 @@ BEGIN
 	)
 	
 	DECLARE @HideContributors bit = (
-		SELECT TOP(1) ISNULL(S.HideOwnerName, 0)
+		SELECT TOP(1) COALESCE(S.HideOwnerName, 0)
 		FROM [dbo].[WF_WorkFlowStates] AS S
 		WHERE S.ApplicationID = @ApplicationID AND 
 			S.WorkFlowID = @WorkFlowID AND S.StateID = @StartStateID
@@ -3747,7 +3747,7 @@ BEGIN
 
 	SET @NullTagLabel = [dbo].[GFN_VerifyString](@NullTagLabel)
 
-	SELECT ISNULL(TG.Tag, @NullTagLabel) AS Tag, Counts.CNT AS [Count]
+	SELECT COALESCE(TG.Tag, @NullTagLabel) AS Tag, Counts.CNT AS [Count]
 	FROM
 		(
 			SELECT Owners.TagID, COUNT(OwnerID) AS CNT 

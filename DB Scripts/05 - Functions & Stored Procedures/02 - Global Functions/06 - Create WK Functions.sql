@@ -27,7 +27,7 @@ BEGIN
 			INNER JOIN [dbo].[WK_Paragraphs] AS P
 			ON P.ApplicationID = @ApplicationID AND P.TitleID = TT.TitleID
 		WHERE TT.ApplicationID = @ApplicationID AND TT.OwnerID = @OwnerID AND 
-			TT.Deleted = 0 AND P.Deleted = 0 AND ISNULL(P.BodyText, N'') <> N'' AND
+			TT.Deleted = 0 AND P.Deleted = 0 AND COALESCE(P.BodyText, N'') <> N'' AND
 			(P.[Status] = N'Accepted' OR P.[Status] = N'CitationNeeded')
 	) AS bit)
 END
@@ -51,8 +51,8 @@ BEGIN
 	/*
 	RETURN STUFF(
 		(
-			SELECT	N' <h1>' + ISNULL(TT.Title, N'') + N'</h1> ' + 
-					N' <h2>' + ISNULL(P.Title, N'') + N'</h2> ' + ISNULL(P.BodyText, N'')
+			SELECT	N' <h1>' + COALESCE(TT.Title, N'') + N'</h1> ' + 
+					N' <h2>' + COALESCE(P.Title, N'') + N'</h2> ' + COALESCE(P.BodyText, N'')
 			FROM [dbo].[WK_Titles] AS TT
 				INNER JOIN [dbo].[WK_Paragraphs] AS P
 				ON P.ApplicationID = @ApplicationID AND P.TitleID = TT.TitleID
@@ -72,23 +72,23 @@ BEGIN
 	;WITH Partitioned AS
 	(
 		SELECT	TT.OwnerID,
-				N' <h1>' + ISNULL(TT.Title, N'') + N'</h1> ' + 
-				N' <h2>' + ISNULL(P.Title, N'') + N'</h2> ' + 
-				CAST(SUBSTRING(ISNULL(P.BodyText, N''), 1, 4000) AS nvarchar(4000)) AS Content,
+				N' <h1>' + COALESCE(TT.Title, N'') + N'</h1> ' + 
+				N' <h2>' + COALESCE(P.Title, N'') + N'</h2> ' + 
+				CAST(SUBSTRING(COALESCE(P.BodyText, N''), 1, 4000) AS nvarchar(4000)) AS Content,
 				ROW_NUMBER() OVER (PARTITION BY TT.OwnerID ORDER BY P.ParagraphID) AS Number,
 				COUNT(*) OVER (PARTITION BY TT.OwnerID) AS [Count]
 		FROM [dbo].[WK_Titles] AS TT
 			INNER JOIN [dbo].[WK_Paragraphs] AS P
 			ON P.ApplicationID = @ApplicationID AND P.TitleID = TT.TitleID
 		WHERE TT.ApplicationID = @ApplicationID AND TT.OwnerID = @OwnerID AND 
-			TT.Deleted = 0 AND P.Deleted = 0 AND ISNULL(P.BodyText, N'') <> N'' AND
+			TT.Deleted = 0 AND P.Deleted = 0 AND COALESCE(P.BodyText, N'') <> N'' AND
 			(P.[Status] = N'Accepted' OR P.[Status] = N'CitationNeeded')
 	),
 	Fetched AS
 	(
-		SELECT	OwnerID, Content AS FullContent, Content, Number, [Count] 
-		FROM Partitioned 
-		WHERE Number = 1
+		SELECT	P.OwnerID, P.Content AS FullContent, P.Content, P.Number, P.[Count] 
+		FROM Partitioned AS P
+		WHERE P.Number = 1
 
 		UNION ALL
 
@@ -98,9 +98,9 @@ BEGIN
 			ON P.OwnerID = C.OwnerID AND P.Number = C.Number + 1
 		WHERE P.Number <= 95
 	)
-	SELECT TOP(1) @Ret = FullContent
-	FROM Fetched
-	WHERE Fetched.Number = (CASE WHEN Fetched.[Count] > 90 THEN 90 ELSE Fetched.[Count] END)
+	SELECT TOP(1) @Ret = F.FullContent
+	FROM Fetched AS F
+	WHERE F.Number = (CASE WHEN F.[Count] > 90 THEN 90 ELSE F.[Count] END)
 	
 	RETURN @Ret
 END

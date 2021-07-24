@@ -24,7 +24,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	SELECT TOP(ISNULL(@Count, 10))
+	SELECT TOP(COALESCE(@Count, 10))
 		D.ThreadID, 
 		UN.UserName, 
 		UN.FirstName, 
@@ -122,7 +122,7 @@ BEGIN
 		UN.LastName,
 		M.HasAttachment
 	FROM (
-			SELECT TOP(ISNULL(@Count, 20)) *
+			SELECT TOP(COALESCE(@Count, 20)) *
 			FROM [dbo].[MSG_MessageDetails] AS MD
 			WHERE MD.ApplicationID = @ApplicationID AND
 				(@MinID IS NULL OR  MD.ID < @MinID) AND 
@@ -206,7 +206,7 @@ BEGIN TRANSACTION
 	IF @IsGroup IS NULL SET @IsGroup = 0
 	
 	IF @ThreadID IS NOT NULL BEGIN
-		SET @IsGroup = ISNULL(
+		SET @IsGroup = COALESCE(
 			(
 				SELECT TOP(1) MD.IsGroup
 				FROM [dbo].[MSG_MessageDetails] AS MD
@@ -503,7 +503,7 @@ BEGIN
 					ON MD.ThreadID = M.FirstValue AND MD.MessageID = M.SecondValue
 				WHERE MD.ApplicationID = @ApplicationID AND MD.UserID NOT IN (SELECT @UserID)
 			) AS Ref
-		WHERE Ref.RowNumber > ISNULL(@LastID, 0) AND Ref.RowNumber <= (ISNULL(@LastID, 0) + ISNULL(@Count, 3))
+		WHERE Ref.RowNumber > COALESCE(@LastID, 0) AND Ref.RowNumber <= (COALESCE(@LastID, 0) + COALESCE(@Count, 3))
 	)
 	SELECT	Y.ThreadID, 
 			Y.UserID, 
@@ -564,7 +564,7 @@ BEGIN
 	IF @UserID IS NOT NULL AND @ThreadID IS NOT NULL BEGIN
 		UPDATE MD
 			SET Seen = 1,
-				ViewDate = ISNULL(ViewDate, @Now)
+				ViewDate = COALESCE(ViewDate, @Now)
 		FROM [dbo].[MSG_MessageDetails] AS MD
 		WHERE MD.ApplicationID = @ApplicationID AND
 			MD.UserID = @UserID AND MD.ThreadID = @ThreadID AND ViewDate IS NULL
@@ -631,7 +631,7 @@ BEGIN
 					ON MD.MessageID = R.Value
 				WHERE MD.ApplicationID = @ApplicationID AND MD.IsSender = 0
 			) AS Ref
-		WHERE Ref.RowNumber > ISNULL(@LastID, 0) AND Ref.RowNumber <= (ISNULL(@LastID, 0) + ISNULL(@Count, 3))
+		WHERE Ref.RowNumber > COALESCE(@LastID, 0) AND Ref.RowNumber <= (COALESCE(@LastID, 0) + COALESCE(@Count, 3))
 	)
 	SELECT	Y.MessageID, 
 			Y.UserID, 
