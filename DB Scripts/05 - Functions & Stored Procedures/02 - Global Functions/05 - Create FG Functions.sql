@@ -37,14 +37,14 @@ BEGIN
 	IF @Type = N'Text' OR @Type = N'File' BEGIN
 		RETURN 
 			CASE 
-				WHEN @NoTextItem = 1 THEN (CASE WHEN COALESCE(@RefText, N'') = N'' THEN 1 ELSE 0 END)
+				WHEN @NoTextItem = 1 THEN (CASE WHEN ISNULL(@RefText, N'') = N'' THEN 1 ELSE 0 END)
 				WHEN [dbo].[GFN_LikeMatch](@RefText, @TextItems, @Or, @Exact) = 1 THEN 1 
 				ELSE 0 
 			END
 	END
 	ELSE IF @Type = N'MultiLevel' BEGIN
 		RETURN CASE 
-				WHEN COALESCE(@NoTextItem, 0) = 0 AND EXISTS(SELECT TOP(1) * FROM @TextItems AS T WHERE T.Value = @RefText) THEN 1 
+				WHEN ISNULL(@NoTextItem, 0) = 0 AND EXISTS(SELECT TOP(1) * FROM @TextItems AS T WHERE T.Value = @RefText) THEN 1 
 				ELSE 0 
 			END
 	END
@@ -53,10 +53,10 @@ BEGIN
 	
 		RETURN
 			CASE
-				WHEN @NoTextItem = 1 THEN (CASE WHEN COALESCE(@RefText, N'') = N'' THEN 1 ELSE 0 END)
-				WHEN COALESCE((
-					SELECT SUM(CASE WHEN [dbo].[GFN_LikeMatch](LTRIM(RTRIM(COALESCE(Ref.Value, N''))), @TextItems, @Or, @Exact) = 1 THEN 1 ELSE 0 END)
-					FROM [dbo].[GFN_StrToStringTable](COALESCE(@RefText, N''), N'~') AS Ref
+				WHEN @NoTextItem = 1 THEN (CASE WHEN ISNULL(@RefText, N'') = N'' THEN 1 ELSE 0 END)
+				WHEN ISNULL((
+					SELECT SUM(CASE WHEN [dbo].[GFN_LikeMatch](LTRIM(RTRIM(ISNULL(Ref.Value, N''))), @TextItems, @Or, @Exact) = 1 THEN 1 ELSE 0 END)
+					FROM [dbo].[GFN_StrToStringTable](ISNULL(@RefText, N''), N'~') AS Ref
 				), 0) > 0 THEN 1
 				ELSE 0
 			END
@@ -134,7 +134,7 @@ BEGIN
 	
 	DECLARE @Iter int = (SELECT COUNT(*) FROM @Fltrs)
 	DECLARE @Count int = @Iter
-	DECLARE @CompulsoryCount int = (SELECT COUNT(F.ID) FROM @Fltrs AS F WHERE COALESCE(F.Compulsory, 0) = 1)
+	DECLARE @CompulsoryCount int = (SELECT COUNT(F.ID) FROM @Fltrs AS F WHERE ISNULL(F.Compulsory, 0) = 1)
 	
 	DECLARE @RetInstIDs TABLE (
 		InstanceID uniqueidentifier primary key clustered,
@@ -219,17 +219,17 @@ BEGIN
 			UPDATE @RetInstIDs
 				SET [Rank] = [Rank] + (I.Score / @MaxScore),
 					MatchCount = MatchCount + 1,
-					CompulsoryCount = CompulsoryCount + CAST(COALESCE(@Compulsory, 0) AS int)
+					CompulsoryCount = CompulsoryCount + CAST(ISNULL(@Compulsory, 0) AS int)
 			FROM @RetInstIDs AS R
 				INNER JOIN @InstElems AS I
 				ON I.InstanceID = R.InstanceID
-			WHERE COALESCE(I.Score, 0) > 0
+			WHERE ISNULL(I.Score, 0) > 0
 		END
 		ELSE IF @Type = N'File' BEGIN
 			UPDATE @RetInstIDs
 				SET [Rank] = [Rank] + X.Score,
 					MatchCount = MatchCount + 1,
-					CompulsoryCount = CompulsoryCount + CAST(COALESCE(@Compulsory, 0) AS int)
+					CompulsoryCount = CompulsoryCount + CAST(ISNULL(@Compulsory, 0) AS int)
 			FROM @RetInstIDs AS Ref
 				INNER JOIN (
 					SELECT	Ref.InstanceID,
@@ -252,7 +252,7 @@ BEGIN
 			UPDATE @RetInstIDs
 				SET [Rank] = [Rank] + X.Score,
 					MatchCount = MatchCount + 1,
-					CompulsoryCount = CompulsoryCount + CAST(COALESCE(@Compulsory, 0) AS int)
+					CompulsoryCount = CompulsoryCount + CAST(ISNULL(@Compulsory, 0) AS int)
 			FROM @RetInstIDs AS Ref
 				INNER JOIN (
 					SELECT	Ref.InstanceID,
@@ -275,12 +275,12 @@ BEGIN
 			UPDATE @RetInstIDs
 				SET [Rank] = [Rank] + X.Score,
 					MatchCount = MatchCount + 1,
-					CompulsoryCount = CompulsoryCount + CAST(COALESCE(@Compulsory, 0) AS int)
+					CompulsoryCount = CompulsoryCount + CAST(ISNULL(@Compulsory, 0) AS int)
 			FROM @RetInstIDs AS Ref
 				INNER JOIN (
 					SELECT	Ref.InstanceID,
 							[dbo].[FG_FN_CheckElementValue](
-								COALESCE(IE.[Type], @Type), IE.TextValue, IE.FloatValue, IE.BitValue, IE.DateValue, 
+								ISNULL(IE.[Type], @Type), IE.TextValue, IE.FloatValue, IE.BitValue, IE.DateValue, 
 								@Text, @TextItems, @Or, @Exact, @DateFrom, @DateTo, 
 								@FloatFrom, @FloatTo, @Bit, @NoTextItem
 							) AS Score
@@ -299,7 +299,7 @@ BEGIN
 	INSERT INTO @Values (InstanceID, [Rank])
 	SELECT Ref.InstanceID, ref.[Rank]
 	FROM @RetInstIDs AS Ref
-	WHERE Ref.[Rank] > 0 AND (COALESCE(@MatchAll, 0) = 0 OR Ref.MatchCount = @Count) AND 
+	WHERE Ref.[Rank] > 0 AND (ISNULL(@MatchAll, 0) = 0 OR Ref.MatchCount = @Count) AND 
 		Ref.CompulsoryCount = @CompulsoryCount AND (
 			CASE
 				WHEN @Count > @CompulsoryCount THEN 
@@ -337,7 +337,7 @@ BEGIN
 	DECLARE @InstanceIDs GuidTableType
 	
 	INSERT INTO @FormInstanceOwners (InstanceID, OwnerID)
-	SELECT COALESCE(X.InstanceID, [dbo].[GFN_NewGuid]()), Ref.Value
+	SELECT ISNULL(X.InstanceID, [dbo].[GFN_NewGuid]()), Ref.Value
 	FROM @OwnerIDs AS Ref 
 		LEFT JOIN [dbo].[FG_FN_GetOwnerFormInstanceIDs](@ApplicationID, @OwnerIDs, NULL, NULL, NULL) AS X
 		ON X.OwnerID = Ref.Value
@@ -383,7 +383,7 @@ BEGIN
 		RETURN CAST([dbo].[DCT_FN_FilesCount](@ApplicationID, @ElementID) AS nvarchar(max))
 	END
 	ELSE IF @Type = N'Form' BEGIN
-		RETURN CAST(COALESCE((
+		RETURN CAST(ISNULL((
 			SELECT COUNT(FI.InstanceID)
 			FROM [dbo].[FG_FormInstances] AS FI
 			WHERE FI.ApplicationID = @ApplicationID AND FI.OwnerID = @ElementID AND FI.Deleted = 0
@@ -393,7 +393,7 @@ BEGIN
 		RETURN @TextValue
 		
 		/*
-		RETURN CAST(COALESCE((
+		RETURN CAST(ISNULL((
 			SELECT COUNT(S.SelectedID)
 			FROM [dbo].[FG_SelectedItems] AS S
 			WHERE S.ApplicationID = @ApplicationID AND S.ElementID = @ElementID AND S.Deleted = 0
@@ -456,7 +456,7 @@ BEGIN
 		WHERE L.ApplicationID = @ApplicationID AND L.OwnerID = @OwnerID AND L.Deleted = 0
 	)
 	
-	RETURN COALESCE(@Ret, 0)
+	RETURN ISNULL(@Ret, 0)
 END
 
 GO
@@ -522,7 +522,7 @@ BEGIN
 			ON E.ApplicationID = @ApplicationID AND E.InstanceID = I.InstanceID
 		WHERE I.ApplicationID = @ApplicationID AND I.OwnerID = @OwnerID AND 
 			I.Deleted = 0 AND E.Deleted = 0 AND (
-				COALESCE([dbo].[FG_FN_ToString](@ApplicationID, E.ElementID, E.[Type], 
+				ISNULL([dbo].[FG_FN_ToString](@ApplicationID, E.ElementID, E.[Type], 
 					E.TextValue, E.FloatValue, E.BitValue, E.DateValue), N'') <> N''
 			)
 	) AS bit)
@@ -545,7 +545,7 @@ RETURNS nvarchar(max)
 WITH ENCRYPTION
 AS
 BEGIN
-	SET @MaxLevel = COALESCE(@MaxLevel, 0)
+	SET @MaxLevel = ISNULL(@MaxLevel, 0)
 
 	IF @MaxLevel <= 0 RETURN N''
 
@@ -578,7 +578,7 @@ BEGIN
 
 		UNION ALL
 
-		SELECT	P.OwnerID, COALESCE(C.FullContent, N'') + ' ' + COALESCE(P.Content, N''), P.Content, P.Number, P.[Count]
+		SELECT	P.OwnerID, ISNULL(C.FullContent, N'') + ' ' + ISNULL(P.Content, N''), P.Content, P.Number, P.[Count]
 		FROM Partitioned AS P
 			INNER JOIN Fetched AS C 
 			ON P.OwnerID = C.OwnerID AND P.Number = C.Number + 1
@@ -630,8 +630,8 @@ BEGIN
 			(Ref.ElementID IS NULL OR IE.ElementID <> Ref.ElementID) AND
 			(
 				CASE 
-					WHEN E.[Type] = N'Text' AND COALESCE(Ref.TextValue, N'') <> N'' AND 
-						COALESCE(Ref.TextValue, N'') = COALESCE(IE.TextValue, N'') THEN 1
+					WHEN E.[Type] = N'Text' AND ISNULL(Ref.TextValue, N'') <> N'' AND 
+						ISNULL(Ref.TextValue, N'') = ISNULL(IE.TextValue, N'') THEN 1
 					WHEN E.[Type] = N'Numeric' AND Ref.FloatValue IS NOT NULL AND 
 						IE.FloatValue IS NOT NULL AND Ref.FloatValue = IE.FloatValue THEN 1
 					ELSE 0
@@ -701,7 +701,7 @@ BEGIN
 			FROM (
 					SELECT	IDs.Value AS OwnerID,
 							CAST((CASE WHEN MAX(ND.Name) IS NULL THEN 0 ELSE 1 END) AS bit) AS IsNode,
-							COALESCE(@FormID, CAST(MAX(CAST(F.FormID AS varchar(50))) AS uniqueidentifier)) AS FormID,
+							ISNULL(@FormID, CAST(MAX(CAST(F.FormID AS varchar(50))) AS uniqueidentifier)) AS FormID,
 							CAST((CASE WHEN @FormID IS NULL AND MAX(E.Extension) IS NULL THEN 0 ELSE 1 END) AS bit) AS HasForm
 					FROM @OwnerIDs AS IDs
 						LEFT JOIN [dbo].[CN_Nodes] AS ND
@@ -719,7 +719,7 @@ BEGIN
 		INNER JOIN [dbo].[FG_FormInstances] AS FI
 		ON FI.ApplicationID = @ApplicationID AND FI.OwnerID = ExternalIDs.OwnerID AND
 			(ExternalIDs.FormID IS NULL OR FI.FormID = ExternalIDs.FormID) AND FI.Deleted = 0 AND
-			(@IsTemporary IS NULL OR COALESCE(FI.IsTemporary, 0) = @IsTemporary) AND
+			(@IsTemporary IS NULL OR ISNULL(FI.IsTemporary, 0) = @IsTemporary) AND
 			(@CreatorUserID IS NULL OR FI.CreatorUserID = @CreatorUserID)
 	
 	RETURN
@@ -743,7 +743,7 @@ RETURNS bit
 WITH ENCRYPTION
 AS
 BEGIN
-	SET @Name = LOWER(LTRIM(RTRIM(COALESCE(@Name, ''))))
+	SET @Name = LOWER(LTRIM(RTRIM(ISNULL(@Name, ''))))
 	
 	IF @Name = '' OR @ObjectID IS NULL RETURN 0
 	
@@ -762,7 +762,7 @@ BEGIN
 			E.ElementID <> @ObjectID AND LOWER(E.Name) = @Name
 	END
 	
-	RETURN COALESCE(@Ret, 0)
+	RETURN ISNULL(@Ret, 0)
 END
 
 GO

@@ -110,7 +110,7 @@ BEGIN
 	;WITH Partitioned AS
 	(
 		SELECT	AN.AnswerID,
-				CAST(SUBSTRING(COALESCE(AN.AnswerBody, N''), 1, 4000) AS nvarchar(4000)) AS Content,
+				CAST(SUBSTRING(ISNULL(AN.AnswerBody, N''), 1, 4000) AS nvarchar(4000)) AS Content,
 				ROW_NUMBER() OVER (PARTITION BY AN.QuestionID ORDER BY AN.AnswerID) AS Number,
 				COUNT(*) OVER (PARTITION BY AN.QuestionID) AS [Count]
 		FROM [dbo].[QA_Answers] AS AN

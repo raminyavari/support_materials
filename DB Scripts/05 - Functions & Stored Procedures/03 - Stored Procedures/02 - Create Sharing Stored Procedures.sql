@@ -55,7 +55,7 @@ BEGIN TRANSACTION
         @SharedObjectID,
         @SenderUserID,
         @SendDate,
-        COALESCE(@HasPicture, 0),
+        ISNULL(@HasPicture, 0),
         0
     )
     
@@ -265,7 +265,7 @@ BEGIN
 	
 	DECLARE @ShareIDs GuidTableType
 	
-	IF @UserID IS NULL OR @UserID <> @OwnerID OR COALESCE(@News, 0) = 0 BEGIN
+	IF @UserID IS NULL OR @UserID <> @OwnerID OR ISNULL(@News, 0) = 0 BEGIN
 		INSERT INTO @ShareIDs
 		SELECT TOP (@Count)	PS.[ShareID] 
 		FROM [dbo].[SH_PostShares] AS PS
@@ -863,7 +863,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	IF COALESCE(@Count, 0) <= 0 SET @Count = 1000000
+	IF ISNULL(@Count, 0) <= 0 SET @Count = 1000000
 	
 	SELECT TOP(@Count)
 		Ref.RowNumber AS [Order],
@@ -875,9 +875,9 @@ BEGIN
 					SL.UserID
 			FROM [dbo].[SH_ShareLikes] AS SL
 			WHERE SL.ApplicationID = @ApplicationID AND SL.ShareID = @ShareID AND 
-				COALESCE(SL.[Like], 0) = COALESCE(@LikeStatus, 0)
+				ISNULL(SL.[Like], 0) = ISNULL(@LikeStatus, 0)
 		) AS Ref
-	WHERE Ref.RowNumber >= COALESCE(@LowerBoundary, 0)
+	WHERE Ref.RowNumber >= ISNULL(@LowerBoundary, 0)
 END
 
 GO
@@ -899,7 +899,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	IF COALESCE(@Count, 0) <= 0 SET @Count = 1000000
+	IF ISNULL(@Count, 0) <= 0 SET @Count = 1000000
 	
 	SELECT TOP(@Count)
 		Ref.RowNumber AS [Order],
@@ -911,9 +911,9 @@ BEGIN
 					CL.UserID
 			FROM [dbo].[SH_CommentLikes] AS CL
 			WHERE CL.ApplicationID = @ApplicationID AND CL.CommentID = @CommentID AND 
-				COALESCE(CL.[Like], 0) = COALESCE(@LikeStatus, 0)
+				ISNULL(CL.[Like], 0) = ISNULL(@LikeStatus, 0)
 		) AS Ref
-	WHERE Ref.RowNumber >= COALESCE(@LowerBoundary, 0)
+	WHERE Ref.RowNumber >= ISNULL(@LowerBoundary, 0)
 END
 
 GO

@@ -209,7 +209,7 @@ BEGIN TRANSACTION
 	
 	SET @Title = [dbo].[GFN_VerifyString](LTRIM(RTRIM(@Title)))
 	
-	IF COALESCE(@Title, N'') = N'' BEGIN
+	IF ISNULL(@Title, N'') = N'' BEGIN
 		SET @_Result = -1
 		ROLLBACK TRANSACTION
 		RETURN
@@ -232,7 +232,7 @@ BEGIN TRANSACTION
 		INNER JOIN [dbo].[WK_Titles] AS TT
 		ON TT.ApplicationID = @ApplicationID AND TT.TitleID = Ref.TitleID
 		
-	IF COALESCE(@SequenceNo, 0) <= 0 SET @SequenceNo = 1
+	IF ISNULL(@SequenceNo, 0) <= 0 SET @SequenceNo = 1
 	
 	SET @SequenceNo = (@SequenceNo * 2) - 1
 	-- end of Update All Sequence Numbers
@@ -318,7 +318,7 @@ BEGIN
 	
 	SET @Title = [dbo].[GFN_VerifyString](LTRIM(RTRIM(@Title)))
 	
-	IF COALESCE(@Title, N'') = N'' BEGIN
+	IF ISNULL(@Title, N'') = N'' BEGIN
 		SELECT -1
 		RETURN
 	END
@@ -441,7 +441,7 @@ BEGIN TRANSACTION
 		INNER JOIN [dbo].[WK_Paragraphs] AS P
 		ON P.ApplicationID = @ApplicationID AND P.ParagraphID = Ref.ParagraphID
 		
-	IF COALESCE(@SequenceNo, 0) <= 0 SET @SequenceNo = 1
+	IF ISNULL(@SequenceNo, 0) <= 0 SET @SequenceNo = 1
 	
 	SET @SequenceNo = (@SequenceNo * 2) - 1
 	-- end of Update All Sequence Numbers
@@ -717,7 +717,7 @@ BEGIN TRANSACTION
 	FROM @AdminUserIDs AS Ref
 	WHERE Ref.Value <> @LastModifierUserID
 	
-	IF COALESCE(@Apply, 0) = 0 AND @HasAdmin = 1 AND (SELECT COUNT(*) FROM @UIDs) > 0 BEGIN
+	IF ISNULL(@Apply, 0) = 0 AND @HasAdmin = 1 AND (SELECT COUNT(*) FROM @UIDs) > 0 BEGIN
 		DECLARE @OwnerID uniqueidentifier = (
 			SELECT TOP(1) OwnerID
 			FROM [dbo].[WK_Paragraphs] AS P

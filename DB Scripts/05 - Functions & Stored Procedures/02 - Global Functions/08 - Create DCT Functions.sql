@@ -170,7 +170,7 @@ RETURNS bit
 WITH ENCRYPTION
 AS
 BEGIN
-	RETURN CAST(COALESCE((
+	RETURN CAST(ISNULL((
 		SELECT 1
 		FROM [dbo].[DCT_Files] AS F
 		WHERE F.ApplicationID = @ApplicationID AND F.OwnerID = @OwnerID AND F.Deleted = 0
@@ -194,7 +194,7 @@ RETURNS int
 WITH ENCRYPTION
 AS
 BEGIN
-	RETURN CAST(COALESCE((
+	RETURN CAST(ISNULL((
 		SELECT COUNT(F.ID)
 		FROM [dbo].[DCT_Files] AS F
 		WHERE F.ApplicationID = @ApplicationID AND F.OwnerID = @OwnerID AND F.Deleted = 0

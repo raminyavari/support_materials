@@ -26,7 +26,7 @@ BEGIN
 		SELECT TOP(1) NT.NodeTypeID 
 		FROM [dbo].[CN_NodeTypes] AS NT
 		WHERE NT.ApplicationID = @ApplicationID AND NT.AdditionalID = @AdditionalID AND
-			COALESCE(@AdditionalID, N'') <> N''
+			ISNULL(@AdditionalID, N'') <> N''
 	)
 END
 
@@ -619,7 +619,7 @@ BEGIN
 		ON Base.ApplicationID = @ApplicationID AND Base.NodeID = DT.NodeID
 		INNER JOIN [dbo].[CN_View_Nodes_Normal] AS Related
 		ON Related.ApplicationID = @ApplicationID AND Related.NodeID = DT.RelatedNodeID
-	WHERE COALESCE(Related.[Status], N'Accepted') = N'Accepted' AND COALESCE(Related.Searchable, 1) = 1
+	WHERE ISNULL(Related.[Status], N'Accepted') = N'Accepted' AND ISNULL(Related.Searchable, 1) = 1
 
 	RETURN
 END
@@ -645,7 +645,7 @@ BEGIN
 	;WITH Partitioned AS
 	(
 		SELECT	OID.OwnerID,
-				CAST(SUBSTRING(COALESCE(FC.Content, N''), 1, 4000) AS nvarchar(4000)) AS Content,
+				CAST(SUBSTRING(ISNULL(FC.Content, N''), 1, 4000) AS nvarchar(4000)) AS Content,
 				ROW_NUMBER() OVER (PARTITION BY OID.OwnerID ORDER BY FC.FileID ASC, OID.ID ASC) AS Number,
 				COUNT(*) OVER (PARTITION BY OID.OwnerID) AS [Count]
 		FROM (

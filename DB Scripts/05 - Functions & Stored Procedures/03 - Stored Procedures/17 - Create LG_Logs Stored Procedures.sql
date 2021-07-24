@@ -90,7 +90,7 @@ BEGIN
 	
 	DECLARE @ActionsCount int = (SELECT COUNT(*) FROM @Actions)
 	DECLARE @UsersCount int = (SELECT COUNT(*) FROM @UserIDs)
-	SET @Count = COALESCE(@Count, 100)
+	SET @Count = ISNULL(@Count, 100)
 	
 	IF @UsersCount = 0 BEGIN
 		SELECT TOP(@Count) 

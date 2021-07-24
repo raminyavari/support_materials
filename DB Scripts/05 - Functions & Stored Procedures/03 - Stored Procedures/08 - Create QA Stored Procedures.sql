@@ -26,7 +26,7 @@ BEGIN
 
 	SET @Name = [dbo].[GFN_VerifyString](@Name)
 	
-	DECLARE @SeqNo int = COALESCE((
+	DECLARE @SeqNo int = ISNULL((
 		SELECT MAX(SequenceNumber) 
 		FROM [dbo].[QA_WorkFlows]
 		WHERE ApplicationID = @ApplicationID
@@ -194,7 +194,7 @@ BEGIN
 	SET NOCOUNT ON
 	
 	UPDATE [dbo].[QA_WorkFlows]
-		SET InitialCheckNeeded = COALESCE(@Value, 0)
+		SET InitialCheckNeeded = ISNULL(@Value, 0)
 	WHERE ApplicationID = @ApplicationID AND WorkFlowID = @WorkFlowID
 		
 	SELECT @@ROWCOUNT
@@ -220,7 +220,7 @@ BEGIN
 	SET NOCOUNT ON
 	
 	UPDATE [dbo].[QA_WorkFlows]
-		SET FinalConfirmationNeeded = COALESCE(@Value, 0)
+		SET FinalConfirmationNeeded = ISNULL(@Value, 0)
 	WHERE ApplicationID = @ApplicationID AND WorkFlowID = @WorkFlowID
 		
 	SELECT @@ROWCOUNT
@@ -246,7 +246,7 @@ BEGIN
 	SET NOCOUNT ON
 	
 	UPDATE [dbo].[QA_WorkFlows]
-		SET ActionDeadline = CASE WHEN COALESCE(@Value, 0) <= 0 THEN 0 ELSE @Value END
+		SET ActionDeadline = CASE WHEN ISNULL(@Value, 0) <= 0 THEN 0 ELSE @Value END
 	WHERE ApplicationID = @ApplicationID AND WorkFlowID = @WorkFlowID
 		
 	SELECT @@ROWCOUNT
@@ -324,7 +324,7 @@ BEGIN
 	SET NOCOUNT ON
 	
 	UPDATE [dbo].[QA_WorkFlows]
-		SET RemovableAfterConfirmation = COALESCE(@Value, 0)
+		SET RemovableAfterConfirmation = ISNULL(@Value, 0)
 	WHERE ApplicationID = @ApplicationID AND WorkFlowID = @WorkFlowID
 		
 	SELECT @@ROWCOUNT
@@ -376,7 +376,7 @@ BEGIN
 	SET NOCOUNT ON
 	
 	UPDATE [dbo].[QA_WorkFlows]
-		SET DisableComments = COALESCE(@Value, 0)
+		SET DisableComments = ISNULL(@Value, 0)
 	WHERE ApplicationID = @ApplicationID AND WorkFlowID = @WorkFlowID
 		
 	SELECT @@ROWCOUNT
@@ -402,7 +402,7 @@ BEGIN
 	SET NOCOUNT ON
 	
 	UPDATE [dbo].[QA_WorkFlows]
-		SET DisableQuestionLikes = COALESCE(@Value, 0)
+		SET DisableQuestionLikes = ISNULL(@Value, 0)
 	WHERE ApplicationID = @ApplicationID AND WorkFlowID = @WorkFlowID
 		
 	SELECT @@ROWCOUNT
@@ -428,7 +428,7 @@ BEGIN
 	SET NOCOUNT ON
 	
 	UPDATE [dbo].[QA_WorkFlows]
-		SET DisableAnswerLikes = COALESCE(@Value, 0)
+		SET DisableAnswerLikes = ISNULL(@Value, 0)
 	WHERE ApplicationID = @ApplicationID AND WorkFlowID = @WorkFlowID
 		
 	SELECT @@ROWCOUNT
@@ -454,7 +454,7 @@ BEGIN
 	SET NOCOUNT ON
 	
 	UPDATE [dbo].[QA_WorkFlows]
-		SET DisableCommentLikes = COALESCE(@Value, 0)
+		SET DisableCommentLikes = ISNULL(@Value, 0)
 	WHERE ApplicationID = @ApplicationID AND WorkFlowID = @WorkFlowID
 		
 	SELECT @@ROWCOUNT
@@ -480,7 +480,7 @@ BEGIN
 	SET NOCOUNT ON
 	
 	UPDATE [dbo].[QA_WorkFlows]
-		SET DisableBestAnswer = COALESCE(@Value, 0)
+		SET DisableBestAnswer = ISNULL(@Value, 0)
 	WHERE ApplicationID = @ApplicationID AND WorkFlowID = @WorkFlowID
 		
 	SELECT @@ROWCOUNT
@@ -601,8 +601,8 @@ BEGIN
 	INSERT INTO @WorkFlowIDs (Value)
 	SELECT	W.WorkFlowID
 	FROM [dbo].[QA_WorkFlows] AS W
-	WHERE W.ApplicationID = @ApplicationID AND W.Deleted = COALESCE(@Archive, 0)
-	ORDER BY COALESCE(W.SequenceNumber, 1000000) ASC, W.CreationDate ASC
+	WHERE W.ApplicationID = @ApplicationID AND W.Deleted = ISNULL(@Archive, 0)
+	ORDER BY ISNULL(W.SequenceNumber, 1000000) ASC, W.CreationDate ASC
 	
 	EXEC [dbo].[QA_P_GetWorkFlowsByIDs] @ApplicationID, @WorkFlowIDs
 END
@@ -625,13 +625,13 @@ BEGIN
 	
 	DECLARE @WorkFlowIDs KeyLessGuidTableType
 	
-	SELECT TOP(1) @WorkFlowIDOrQuestionIDOrAnswerID = COALESCE(Q.WorkFlowID, @WorkFlowIDOrQuestionIDOrAnswerID)
+	SELECT TOP(1) @WorkFlowIDOrQuestionIDOrAnswerID = ISNULL(Q.WorkFlowID, @WorkFlowIDOrQuestionIDOrAnswerID)
 	FROM [dbo].[QA_Answers] AS A
 		INNER JOIN [dbo].[QA_Questions] AS Q
 		ON Q.ApplicationID = @ApplicationID AND Q.QuestionID = A.QuestionID
 	WHERE A.ApplicationID = @ApplicationID AND A.AnswerID = @WorkFlowIDOrQuestionIDOrAnswerID
 	
-	SELECT TOP(1) @WorkFlowIDOrQuestionIDOrAnswerID = COALESCE(Q.WorkFlowID, @WorkFlowIDOrQuestionIDOrAnswerID)
+	SELECT TOP(1) @WorkFlowIDOrQuestionIDOrAnswerID = ISNULL(Q.WorkFlowID, @WorkFlowIDOrQuestionIDOrAnswerID)
 	FROM [dbo].[QA_Questions] AS Q
 	WHERE Q.ApplicationID = @ApplicationID AND Q.QuestionID = @WorkFlowIDOrQuestionIDOrAnswerID
 	
@@ -760,13 +760,13 @@ BEGIN
 	SET NOCOUNT ON
 	
 	IF @WorkFlowIDOrQuestionIDOrAnswerID IS NOT NULL BEGIN
-		SELECT @WorkFlowIDOrQuestionIDOrAnswerID = COALESCE(Q.WorkFlowID, @WorkFlowIDOrQuestionIDOrAnswerID)
+		SELECT @WorkFlowIDOrQuestionIDOrAnswerID = ISNULL(Q.WorkFlowID, @WorkFlowIDOrQuestionIDOrAnswerID)
 		FROM [dbo].[QA_Answers] AS A
 			INNER JOIN [dbo].[QA_Questions] AS Q
 			ON Q.ApplicationID = @ApplicationID AND Q.QuestionID = A.QuestionID
 		WHERE A.ApplicationID = @ApplicationID AND A.AnswerID = @WorkFlowIDOrQuestionIDOrAnswerID
 		
-		SELECT @WorkFlowIDOrQuestionIDOrAnswerID = COALESCE(WorkFlowID, @WorkFlowIDOrQuestionIDOrAnswerID)
+		SELECT @WorkFlowIDOrQuestionIDOrAnswerID = ISNULL(WorkFlowID, @WorkFlowIDOrQuestionIDOrAnswerID)
 		FROM [dbo].[QA_Questions]
 		WHERE ApplicationID = @ApplicationID AND QuestionID = @WorkFlowIDOrQuestionIDOrAnswerID
 	END
@@ -804,13 +804,13 @@ BEGIN
 	SET NOCOUNT ON
 	
 	IF @WorkFlowIDOrQuestionIDOrAnswerID IS NOT NULL BEGIN
-		SELECT @WorkFlowIDOrQuestionIDOrAnswerID = COALESCE(Q.WorkFlowID, @WorkFlowIDOrQuestionIDOrAnswerID)
+		SELECT @WorkFlowIDOrQuestionIDOrAnswerID = ISNULL(Q.WorkFlowID, @WorkFlowIDOrQuestionIDOrAnswerID)
 		FROM [dbo].[QA_Answers] AS A
 			INNER JOIN [dbo].[QA_Questions] AS Q
 			ON Q.ApplicationID = @ApplicationID AND Q.QuestionID = A.QuestionID
 		WHERE A.ApplicationID = @ApplicationID AND A.AnswerID = @WorkFlowIDOrQuestionIDOrAnswerID
 		
-		SELECT @WorkFlowIDOrQuestionIDOrAnswerID = COALESCE(WorkFlowID, @WorkFlowIDOrQuestionIDOrAnswerID)
+		SELECT @WorkFlowIDOrQuestionIDOrAnswerID = ISNULL(WorkFlowID, @WorkFlowIDOrQuestionIDOrAnswerID)
 		FROM [dbo].[QA_Questions]
 		WHERE ApplicationID = @ApplicationID AND QuestionID = @WorkFlowIDOrQuestionIDOrAnswerID
 	END
@@ -949,13 +949,13 @@ BEGIN
 	SET NOCOUNT ON
 	
 	IF @WorkFlowIDOrQuestionIDOrAnswerID IS NOT NULL BEGIN
-		SELECT @WorkFlowIDOrQuestionIDOrAnswerID = COALESCE(Q.WorkFlowID, @WorkFlowIDOrQuestionIDOrAnswerID)
+		SELECT @WorkFlowIDOrQuestionIDOrAnswerID = ISNULL(Q.WorkFlowID, @WorkFlowIDOrQuestionIDOrAnswerID)
 		FROM [dbo].[QA_Answers] AS A
 			INNER JOIN [dbo].[QA_Questions] AS Q
 			ON Q.ApplicationID = @ApplicationID AND Q.QuestionID = A.QuestionID
 		WHERE A.ApplicationID = @ApplicationID AND A.AnswerID = @WorkFlowIDOrQuestionIDOrAnswerID
 		
-		SELECT @WorkFlowIDOrQuestionIDOrAnswerID = COALESCE(WorkFlowID, @WorkFlowIDOrQuestionIDOrAnswerID)
+		SELECT @WorkFlowIDOrQuestionIDOrAnswerID = ISNULL(WorkFlowID, @WorkFlowIDOrQuestionIDOrAnswerID)
 		FROM [dbo].[QA_Questions]
 		WHERE ApplicationID = @ApplicationID AND QuestionID = @WorkFlowIDOrQuestionIDOrAnswerID
 	END
@@ -985,13 +985,13 @@ BEGIN
 	SET NOCOUNT ON
 	
 	IF @WorkFlowIDOrQuestionIDOrAnswerID IS NOT NULL BEGIN
-		SELECT @WorkFlowIDOrQuestionIDOrAnswerID = COALESCE(Q.WorkFlowID, @WorkFlowIDOrQuestionIDOrAnswerID)
+		SELECT @WorkFlowIDOrQuestionIDOrAnswerID = ISNULL(Q.WorkFlowID, @WorkFlowIDOrQuestionIDOrAnswerID)
 		FROM [dbo].[QA_Answers] AS A
 			INNER JOIN [dbo].[QA_Questions] AS Q
 			ON Q.ApplicationID = @ApplicationID AND Q.QuestionID = A.QuestionID
 		WHERE A.ApplicationID = @ApplicationID AND A.AnswerID = @WorkFlowIDOrQuestionIDOrAnswerID
 		
-		SELECT @WorkFlowIDOrQuestionIDOrAnswerID = COALESCE(WorkFlowID, @WorkFlowIDOrQuestionIDOrAnswerID)
+		SELECT @WorkFlowIDOrQuestionIDOrAnswerID = ISNULL(WorkFlowID, @WorkFlowIDOrQuestionIDOrAnswerID)
 		FROM [dbo].[QA_Questions]
 		WHERE ApplicationID = @ApplicationID AND QuestionID = @WorkFlowIDOrQuestionIDOrAnswerID
 	END
@@ -1026,7 +1026,7 @@ BEGIN
 	
 	SET @Name = [dbo].[GFN_VerifyString](@Name)
 	
-	DECLARE @SeqNo int = COALESCE((
+	DECLARE @SeqNo int = ISNULL((
 		SELECT MAX(SequenceNumber) 
 		FROM [dbo].[QA_FAQCategories]
 		WHERE ApplicationID = @ApplicationID AND 
@@ -1220,7 +1220,7 @@ BEGIN
 	INSERT INTO @CategoryIDs
 	SELECT DISTINCT Ref.Value FROM GFN_StrToGuidTable(@strCategoryIDs, @delimiter) AS Ref
 	
-	IF COALESCE(@RemoveHierarchy, 0) = 0 BEGIN
+	IF ISNULL(@RemoveHierarchy, 0) = 0 BEGIN
 		UPDATE C
 			SET Deleted = 1,
 				LastModifierUserID = @CurrentUserID,
@@ -1376,7 +1376,7 @@ BEGIN
 			I.CategoryID = @CategoryID AND I.QuestionID = Ref.Value
 	WHERE I.QuestionID IS NULL OR I.Deleted = 1
 	
-	DECLARE @SeqNo int = COALESCE((
+	DECLARE @SeqNo int = ISNULL((
 		SELECT MAX(SequenceNumber) 
 		FROM [dbo].[QA_FAQItems]
 		WHERE ApplicationID = @ApplicationID AND CategoryID = @CategoryID
@@ -1450,7 +1450,7 @@ BEGIN
 		WHERE I.CategoryID IS NULL OR I.Deleted = 1
 	)
 	INSERT INTO @CategoryIDs (CategoryID, Seq)
-	SELECT C.CategoryID, COALESCE(MAX(I.SequenceNumber), 0) + 1 AS Seq
+	SELECT C.CategoryID, ISNULL(MAX(I.SequenceNumber), 0) + 1 AS Seq
 	FROM C
 		LEFT JOIN [dbo].[QA_FAQItems] AS I
 		ON I.ApplicationID = @ApplicationID AND I.CategoryID = C.CategoryID
@@ -1827,7 +1827,7 @@ BEGIN TRANSACTION
 	UPDATE [dbo].[QA_Questions]
 		SET BestAnswerID = @AnswerID,
 			PublicationDate = CASE WHEN @Publish = 1
-				THEN COALESCE(PublicationDate, @Now) ELSE PublicationDate END,
+				THEN ISNULL(PublicationDate, @Now) ELSE PublicationDate END,
 			LastModifierUserID = @CurrentUserID,
 			LastModificationDate = @Now
 	WHERE @AnswerID IS NOT NULL AND ApplicationID = @ApplicationID AND QuestionID = @QuestionID
@@ -1880,8 +1880,8 @@ BEGIN TRANSACTION
     UPDATE [dbo].[QA_Questions]
 		SET [Status] = @Status,
 			PublicationDate = CASE WHEN @Publish = 1
-				THEN COALESCE(PublicationDate, @Now) ELSE PublicationDate END,
-			LastModifierUserID = COALESCE(@CurrentUserID, LastModifierUserID),
+				THEN ISNULL(PublicationDate, @Now) ELSE PublicationDate END,
+			LastModifierUserID = ISNULL(@CurrentUserID, LastModifierUserID),
 			LastModificationDate = @Now
 	WHERE ApplicationID = @ApplicationID AND QuestionID = @QuestionID
 	
@@ -2057,7 +2057,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	SELECT TOP(COALESCE(@Count, 1000000))
+	SELECT TOP(ISNULL(@Count, 1000000))
 		Questions.*,
 		(Questions.RowNumber + Questions.RevRowNumber - 1) AS TotalCount,
 		UN.UserName AS SenderUserName,
@@ -2119,7 +2119,7 @@ BEGIN
 									SELECT NodeID, 1 AS IsGroup, 0 AS IsExpertise, 0 AS IsFavorite, 0 AS IsProperty
 									FROM [dbo].[CN_View_NodeMembers]
 									WHERE @Groups = 1 AND ApplicationID = @ApplicationID AND UserID = @UserID AND
-										COALESCE(IsPending, 0) = 0
+										ISNULL(IsPending, 0) = 0
 										
 									UNION ALL
 
@@ -2178,7 +2178,7 @@ BEGIN
 		) AS Questions
 		INNER JOIN [dbo].[Users_Normal] AS UN
 		ON UN.ApplicationID = @ApplicationID AND UN.UserID = Questions.SenderUserID
-	WHERE Questions.RowNumber >= COALESCE(@LowerBoundary, 0)
+	WHERE Questions.RowNumber >= ISNULL(@LowerBoundary, 0)
 	ORDER BY Questions.RowNumber ASC
 END
 
@@ -2200,7 +2200,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	SELECT TOP(COALESCE(@Count, 1000000))
+	SELECT TOP(ISNULL(@Count, 1000000))
 		Questions.*,
 		(Questions.RowNumber + Questions.RevRowNumber - 1) AS TotalCount,
 		UN.UserName AS SenderUserName,
@@ -2247,7 +2247,7 @@ BEGIN
 		) AS Questions
 		INNER JOIN [dbo].[Users_Normal] AS UN
 		ON UN.ApplicationID = @ApplicationID AND UN.UserID = Questions.SenderUserID
-	WHERE Questions.RowNumber >= COALESCE(@LowerBoundary, 0)
+	WHERE Questions.RowNumber >= ISNULL(@LowerBoundary, 0)
 	ORDER BY Questions.RowNumber ASC
 END
 
@@ -2269,7 +2269,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	SELECT TOP(COALESCE(@Count, 1000000))
+	SELECT TOP(ISNULL(@Count, 1000000))
 		Questions.*,
 		(Questions.RowNumber + Questions.RevRowNumber - 1) AS TotalCount,
 		UN.UserName AS SenderUserName,
@@ -2313,7 +2313,7 @@ BEGIN
 		) AS Questions
 		INNER JOIN [dbo].[Users_Normal] AS UN
 		ON UN.ApplicationID = @ApplicationID AND UN.UserID = Questions.SenderUserID
-	WHERE Questions.RowNumber >= COALESCE(@LowerBoundary, 0)
+	WHERE Questions.RowNumber >= ISNULL(@LowerBoundary, 0)
 	ORDER BY Questions.RowNumber ASC
 END
 
@@ -2335,7 +2335,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	SELECT TOP(COALESCE(@Count, 1000000))
+	SELECT TOP(ISNULL(@Count, 1000000))
 		Questions.*,
 		(Questions.RowNumber + Questions.RevRowNumber - 1) AS TotalCount,
 		UN.UserName AS SenderUserName,
@@ -2382,7 +2382,7 @@ BEGIN
 		) AS Questions
 		INNER JOIN [dbo].[Users_Normal] AS UN
 		ON UN.ApplicationID = @ApplicationID AND UN.UserID = Questions.SenderUserID
-	WHERE Questions.RowNumber >= COALESCE(@LowerBoundary, 0)
+	WHERE Questions.RowNumber >= ISNULL(@LowerBoundary, 0)
 	ORDER BY Questions.RowNumber ASC
 END
 
@@ -2404,7 +2404,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	SELECT TOP(COALESCE(@Count, 1000000))
+	SELECT TOP(ISNULL(@Count, 1000000))
 		Questions.*,
 		(Questions.RowNumber + Questions.RevRowNumber - 1) AS TotalCount,
 		UN.UserName AS SenderUserName,
@@ -2451,7 +2451,7 @@ BEGIN
 		) AS Questions
 		INNER JOIN [dbo].[Users_Normal] AS UN
 		ON UN.ApplicationID = @ApplicationID AND UN.UserID = Questions.SenderUserID
-	WHERE Questions.RowNumber >= COALESCE(@LowerBoundary, 0)
+	WHERE Questions.RowNumber >= ISNULL(@LowerBoundary, 0)
 	ORDER BY Questions.RowNumber ASC
 END
 
@@ -2478,7 +2478,7 @@ BEGIN
 	IF @SearchText IS NULL OR @SearchText = N'' SET @SearchText = NULL
 	
 	IF @SearchText IS NULL BEGIN
-		SELECT TOP(COALESCE(@Count, 1000000))
+		SELECT TOP(ISNULL(@Count, 1000000))
 			Questions.*,
 			(Questions.RowNumber + Questions.RevRowNumber - 1) AS TotalCount,
 			UN.UserName AS SenderUserName,
@@ -2525,11 +2525,11 @@ BEGIN
 			) AS Questions
 			INNER JOIN [dbo].[Users_Normal] AS UN
 			ON UN.ApplicationID = @ApplicationID AND UN.UserID = Questions.SenderUserID
-		WHERE Questions.RowNumber >= COALESCE(@LowerBoundary, 0)
+		WHERE Questions.RowNumber >= ISNULL(@LowerBoundary, 0)
 		ORDER BY Questions.RowNumber ASC
 	END
 	ELSE BEGIN
-		SELECT TOP(COALESCE(@Count, 1000000))
+		SELECT TOP(ISNULL(@Count, 1000000))
 			Questions.*,
 			(Questions.RowNumber + Questions.RevRowNumber - 1) AS TotalCount,
 			UN.UserName AS SenderUserName,
@@ -2577,7 +2577,7 @@ BEGIN
 			) AS Questions
 			INNER JOIN [dbo].[Users_Normal] AS UN
 			ON UN.ApplicationID = @ApplicationID AND UN.UserID = Questions.SenderUserID
-		WHERE Questions.RowNumber >= COALESCE(@LowerBoundary, 0)
+		WHERE Questions.RowNumber >= ISNULL(@LowerBoundary, 0)
 		ORDER BY Questions.RowNumber ASC
 	END
 END
@@ -2600,7 +2600,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	SELECT TOP(COALESCE(@Count, 1000000))
+	SELECT TOP(ISNULL(@Count, 1000000))
 		Questions.*,
 		(Questions.RowNumber + Questions.RevRowNumber - 1) AS TotalCount,
 		UN.UserName AS SenderUserName,
@@ -2655,7 +2655,7 @@ BEGIN
 		) AS Questions
 		INNER JOIN [dbo].[Users_Normal] AS UN
 		ON UN.ApplicationID = @ApplicationID AND UN.UserID = Questions.SenderUserID
-	WHERE Questions.RowNumber >= COALESCE(@LowerBoundary, 0)
+	WHERE Questions.RowNumber >= ISNULL(@LowerBoundary, 0)
 	ORDER BY Questions.RowNumber ASC
 END
 
@@ -2683,7 +2683,7 @@ BEGIN
 	IF @SearchText IS NULL OR @SearchText = N'' SET @SearchText = NULL
 	
 	IF @SearchText IS NULL BEGIN
-		SELECT TOP(COALESCE(@Count, 1000000))
+		SELECT TOP(ISNULL(@Count, 1000000))
 			Questions.*,
 			(Questions.RowNumber + Questions.RevRowNumber - 1) AS TotalCount,
 			UN.UserName AS SenderUserName,
@@ -2733,11 +2733,11 @@ BEGIN
 			) AS Questions
 			INNER JOIN [dbo].[Users_Normal] AS UN
 			ON UN.ApplicationID = @ApplicationID AND UN.UserID = Questions.SenderUserID
-		WHERE Questions.RowNumber >= COALESCE(@LowerBoundary, 0)
+		WHERE Questions.RowNumber >= ISNULL(@LowerBoundary, 0)
 		ORDER BY Questions.RowNumber ASC
 	END
 	ELSE BEGIN
-		SELECT TOP(COALESCE(@Count, 1000000))
+		SELECT TOP(ISNULL(@Count, 1000000))
 			Questions.*,
 			(Questions.RowNumber + Questions.RevRowNumber - 1) AS TotalCount,
 			UN.UserName AS SenderUserName,
@@ -2789,7 +2789,7 @@ BEGIN
 			) AS Questions
 			INNER JOIN [dbo].[Users_Normal] AS UN
 			ON UN.ApplicationID = @ApplicationID AND UN.UserID = Questions.SenderUserID
-		WHERE Questions.RowNumber >= COALESCE(@LowerBoundary, 0)
+		WHERE Questions.RowNumber >= ISNULL(@LowerBoundary, 0)
 		ORDER BY Questions.RowNumber ASC
 	END
 END
@@ -2861,7 +2861,7 @@ BEGIN
 	IF @SearchText IS NULL OR @SearchText = N'' SET @SearchText = NULL
 	
 	IF @SearchText IS NULL BEGIN
-		SELECT TOP(COALESCE(@Count, 1000000))
+		SELECT TOP(ISNULL(@Count, 1000000))
 			X.*,
 			(X.RowNumber + x.RevRowNumber - 1) AS TotalCount,
 			ND.NodeName,
@@ -2876,11 +2876,11 @@ BEGIN
 			) AS X
 			INNER JOIN [dbo].[CN_View_Nodes_Normal] AS ND
 			ON ND.ApplicationID = @ApplicationID AND ND.NodeID = X.NodeID
-		WHERE X.RowNumber >= COALESCE(@LowerBoundary, 0)
+		WHERE X.RowNumber >= ISNULL(@LowerBoundary, 0)
 		ORDER BY X.RowNumber ASC
 	END
 	ELSE BEGIN
-		SELECT TOP(COALESCE(@Count, 1000000))
+		SELECT TOP(ISNULL(@Count, 1000000))
 			X.*,
 			(X.RowNumber + x.RevRowNumber - 1) AS TotalCount,
 			ND.NodeName,
@@ -2897,7 +2897,7 @@ BEGIN
 			) AS X
 			INNER JOIN [dbo].[CN_View_Nodes_Normal] AS ND
 			ON ND.ApplicationID = @ApplicationID AND ND.NodeID = X.NodeID
-		WHERE X.RowNumber >= COALESCE(@LowerBoundary, 0)
+		WHERE X.RowNumber >= ISNULL(@LowerBoundary, 0)
 		ORDER BY X.RowNumber ASC
 	END
 END
@@ -2920,7 +2920,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	SELECT TOP(COALESCE(@Count, 1000000))
+	SELECT TOP(ISNULL(@Count, 1000000))
 		X.NodeID,
 		X.QuestionsCount AS [Count],
 		(X.RowNumber + x.RevRowNumber - 1) AS TotalCount,
@@ -2956,7 +2956,7 @@ BEGIN
 		) AS X
 		INNER JOIN [dbo].[CN_View_Nodes_Normal] AS ND
 		ON ND.ApplicationID = @ApplicationID AND ND.NodeID = X.NodeID
-	WHERE X.RowNumber >= COALESCE(@LowerBoundary, 0)
+	WHERE X.RowNumber >= ISNULL(@LowerBoundary, 0)
 	ORDER BY X.RowNumber ASC
 END
 
@@ -3026,10 +3026,10 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	IF COALESCE(@SearchText, N'') = N'' RETURN
+	IF ISNULL(@SearchText, N'') = N'' RETURN
 	
 	IF @ExactSearch = 1 BEGIN
-		SELECT TOP(COALESCE(@Count, 1000000))
+		SELECT TOP(ISNULL(@Count, 1000000))
 				X.NodeID,
 				X.QuestionsCount AS [Count],
 				(X.RowNumber + x.RevRowNumber - 1) AS TotalCount,
@@ -3057,11 +3057,11 @@ BEGIN
 						GROUP BY ND.NodeID
 					) AS IDs
 			) AS X
-		WHERE X.RowNumber >= COALESCE(@LowerBoundary, 0)
+		WHERE X.RowNumber >= ISNULL(@LowerBoundary, 0)
 		ORDER BY X.RowNumber ASC
 	END
 	ELSE BEGIN
-		SELECT TOP(COALESCE(@Count, 1000000))
+		SELECT TOP(ISNULL(@Count, 1000000))
 				X.NodeID,
 				X.QuestionsCount AS [Count],
 				(X.RowNumber + x.RevRowNumber - 1) AS TotalCount,
@@ -3090,7 +3090,7 @@ BEGIN
 			) AS X
 			INNER JOIN [dbo].[CN_View_Nodes_Normal] AS ND
 			ON ND.ApplicationID = @ApplicationID AND ND.NodeID = X.NodeID
-		WHERE X.RowNumber >= COALESCE(@LowerBoundary, 0)
+		WHERE X.RowNumber >= ISNULL(@LowerBoundary, 0)
 		ORDER BY X.RowNumber ASC
 	END
 END
@@ -3256,7 +3256,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	SELECT TOP(1) @QuestionIDOrAnswerID = COALESCE(QuestionID, @QuestionIDOrAnswerID)
+	SELECT TOP(1) @QuestionIDOrAnswerID = ISNULL(QuestionID, @QuestionIDOrAnswerID)
 	FROM [dbo].[QA_Answers]
 	WHERE ApplicationID = @ApplicationID AND AnswerID = @QuestionIDOrAnswerID
 	
@@ -3379,9 +3379,9 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	SET @Experts = COALESCE(@Experts, 0)
-	SET @Members = COALESCE(@Members, 0)
-	SET @CheckCandidates = COALESCE(@CheckCandidates, 0)
+	SET @Experts = ISNULL(@Experts, 0)
+	SET @Members = ISNULL(@Members, 0)
+	SET @CheckCandidates = ISNULL(@CheckCandidates, 0)
 
 	DECLARE @Exists bit = 0
 
@@ -4099,11 +4099,11 @@ BEGIN
 					(
 						(2 * (CAST(Found.CommonTagsCount AS float) / CAST(MaxTags.[Count] AS float))) + 
 						(1.5 * CAST(Found.IsBestAnswerSender AS float)) +
-						(CAST(Found.LikesCount AS float) / CAST((CASE WHEN COALESCE(MaxLikes.[Count], 0) = 0 THEN 1 ELSE MaxLikes.[COUNT] END) AS float))
+						(CAST(Found.LikesCount AS float) / CAST((CASE WHEN ISNULL(MaxLikes.[Count], 0) = 0 THEN 1 ELSE MaxLikes.[COUNT] END) AS float))
 					) AS Score,
 					(CAST(Found.CommonTagsCount AS float) / CAST(MaxTags.[Count] AS float)) AS TagScore,
 					CAST(Found.IsBestAnswerSender AS float) AS BestAnswerScore,
-					(CAST(Found.LikesCount AS float) / CAST((CASE WHEN COALESCE(MaxLikes.[Count], 0) = 0 THEN 1 ELSE MaxLikes.[COUNT] END) AS float)) AS LikesScore
+					(CAST(Found.LikesCount AS float) / CAST((CASE WHEN ISNULL(MaxLikes.[Count], 0) = 0 THEN 1 ELSE MaxLikes.[COUNT] END) AS float)) AS LikesScore
 			FROM (
 					SELECT	QU.QuestionID,
 							QU.UserID,
@@ -4185,7 +4185,7 @@ BEGIN
 		) AS Scores
 	GROUP BY Scores.UserID
 	
-	SELECT TOP(COALESCE(@Count, 1000000))
+	SELECT TOP(ISNULL(@Count, 1000000))
 		(X.RowNumber + X.RevRowNumber - 1) AS TotalCount,
 		X.UserID AS ID
 	FROM (
@@ -4198,7 +4198,7 @@ BEGIN
 					UN.UserID = U.UserID AND UN.IsApproved = 1
 			WHERE U.UserID <> @SenderUserID
 		) AS X
-	WHERE X.RowNumber >= COALESCE(@LowerBoundary, 0)
+	WHERE X.RowNumber >= ISNULL(@LowerBoundary, 0)
 	ORDER BY X.RowNumber ASC
 END
 

@@ -22,8 +22,8 @@ RETURNS bit
 WITH ENCRYPTION
 AS
 BEGIN
-	IF COALESCE(@Value, N'') = N'Public' RETURN 1
-	ELSE IF COALESCE(@Value, N'') <> N'' RETURN 0
+	IF ISNULL(@Value, N'') = N'Public' RETURN 1
+	ELSE IF ISNULL(@Value, N'') <> N'' RETURN 0
 	
 	RETURN NULL
 END
@@ -49,10 +49,10 @@ AS
 BEGIN
 	RETURN CASE
 		WHEN @Node IS NOT NULL THEN @Node
-		WHEN @NodeType IS NULL THEN COALESCE(@DocumentTreeNode, @DocumentTree)
+		WHEN @NodeType IS NULL THEN ISNULL(@DocumentTreeNode, @DocumentTree)
 		WHEN @DocumentTreeNode IS NULL AND @DocumentTree IS NULL THEN @NodeType
-		WHEN @NodeType < COALESCE(@DocumentTreeNode, @DocumentTree) THEN @NodeType
-		ELSE COALESCE(@DocumentTreeNode, @DocumentTree)
+		WHEN @NodeType < ISNULL(@DocumentTreeNode, @DocumentTree) THEN @NodeType
+		ELSE ISNULL(@DocumentTreeNode, @DocumentTree)
 	END
 	
 	RETURN NULL
@@ -90,18 +90,17 @@ BEGIN
 	DECLARE @UserConf int
 
 	IF @UserID IS NULL SET @UserConf = 0
-	ELSE SET @UserConf = COALESCE(
+	ELSE SET @UserConf = ISNULL(
 		(
 			SELECT TOP(1) C.LevelID 
 			FROM [dbo].[PRVC_View_Confidentialities] AS C
 			WHERE C.ApplicationID = @ApplicationID  AND C.ObjectID = @UserID
 		),
-		(
+		ISNULL((
 			SELECT MIN(C.LevelID) 
 			FROM [dbo].[PRVC_ConfidentialityLevels] AS C
 			WHERE C.ApplicationID = @ApplicationID AND C.Deleted = 0
-		), 
-		0
+		), 0)
 	)
 	-- end of Find Confidentiality of the User
 
@@ -115,12 +114,12 @@ BEGIN
 	DECLARE @ItemIDs TABLE (ID uniqueidentifier, [Level] int)
 
 	INSERT INTO @ItemIDs(ID, [Level])
-	SELECT X.NodeID, MIN(COALESCE(X.[Level], 0)) + 1
+	SELECT X.NodeID, MIN(ISNULL(X.[Level], 0)) + 1
 	FROM [dbo].[CN_FN_GetNodesHierarchy](@ApplicationID, @GroupIDs) AS X
 	GROUP BY X.NodeID
 
 
-	IF COALESCE(@ObjectType, N'') <> N'Node' BEGIN
+	IF ISNULL(@ObjectType, N'') <> N'Node' BEGIN
 		INSERT INTO @OutputTable (ID, [Type])
 		SELECT O.Value, P.FirstValue
 		FROM (
@@ -134,7 +133,7 @@ BEGIN
 						FROM (
 								SELECT	O.Value AS ObjectID, 
 										A.PermissionType AS [Type], 
-										COALESCE(I.[Level], 0) AS [Level], 
+										ISNULL(I.[Level], 0) AS [Level], 
 										A.Allow
 								FROM @ObjectIDs AS O
 									INNER JOIN [dbo].[PRVC_Audience] AS A
@@ -148,8 +147,8 @@ BEGIN
 									LEFT JOIN @ItemIDs AS I
 									ON I.ID = A.RoleID
 								WHERE (I.ID IS NOT NULL OR A.RoleID = @UserID) AND
-									(S.ObjectID IS NULL OR COALESCE(S.CalculateHierarchy, 0) = 1 OR COALESCE(I.[Level], 0) <= 1) AND
-									@UserConf >= COALESCE(CL.LevelID, 0)
+									(S.ObjectID IS NULL OR ISNULL(S.CalculateHierarchy, 0) = 1 OR ISNULL(I.[Level], 0) <= 1) AND
+									@UserConf >= ISNULL(CL.LevelID, 0)
 							) AS X
 					) AS Ref
 				WHERE Ref.RowNumber = 1
@@ -159,7 +158,7 @@ BEGIN
 			LEFT JOIN [dbo].[PRVC_DefaultPermissions] AS D
 			ON D.ApplicationID = @ApplicationID AND D.ObjectID = O.Value AND D.PermissionType = P.FirstValue
 			ON O.Value = A.ID AND P.FirstValue = A.[Type]
-		WHERE COALESCE(A.Allow, 0) = 1 OR (A.ID IS NULL AND COALESCE(D.DefaultValue, P.SecondValue, N'') = N'Public')
+		WHERE ISNULL(A.Allow, 0) = 1 OR (A.ID IS NULL AND ISNULL(ISNULL(D.DefaultValue, P.SecondValue), N'') = N'Public')
 	END
 	ELSE BEGIN
 		DECLARE @Nodes TABLE (
@@ -227,7 +226,7 @@ BEGIN
 				FROM (
 						SELECT	O.Value AS ObjectID, 
 								A.PermissionType AS [Type], 
-								COALESCE(I.[Level], 0) AS [Level], 
+								ISNULL(I.[Level], 0) AS [Level], 
 								A.Allow
 						FROM (
 								SELECT DISTINCT IDs.ID AS Value
@@ -242,7 +241,7 @@ BEGIN
 							LEFT JOIN @ItemIDs AS I
 							ON I.ID = A.RoleID
 						WHERE (I.ID IS NOT NULL OR A.RoleID = @UserID) AND 
-							(S.ObjectID IS NULL OR COALESCE(S.CalculateHierarchy, 0) = 1 OR COALESCE(I.[Level], 0) <= 1)
+							(S.ObjectID IS NULL OR ISNULL(S.CalculateHierarchy, 0) = 1 OR ISNULL(I.[Level], 0) <= 1)
 					) AS X
 			) AS Ref
 		WHERE Ref.RowNumber = 1
@@ -277,12 +276,11 @@ BEGIN
 		FROM @Nodes AS N
 			LEFT JOIN [dbo].[PRVC_View_Confidentialities] AS S
 			ON S.ApplicationID = @ApplicationID AND S.ObjectID = N.NodeID
-		WHERE @UserConf >= COALESCE(S.LevelID, 0) AND 
-			COALESCE(
+		WHERE @UserConf >= ISNULL(S.LevelID, 0) AND 
+			ISNULL(ISNULL(
 				[dbo].[PRVC_FN_CheckNodePermission](N.NAllow, N.NTAllow, N.DTNAllow, N.DTAllow),
-				[dbo].[PRVC_FN_CheckNodePermission](N.DefaultN, N.DefaultNT, N.DefaultDTN, N.DefaultDT), 
-				N.DefaultValue
-			) = 1
+				[dbo].[PRVC_FN_CheckNodePermission](N.DefaultN, N.DefaultNT, N.DefaultDTN, N.DefaultDT)
+			), N.DefaultValue) = 1
 	END
 	
 	RETURN

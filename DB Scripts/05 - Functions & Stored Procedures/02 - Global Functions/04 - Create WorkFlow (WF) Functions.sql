@@ -22,8 +22,8 @@ RETURNS nvarchar(max)
 WITH ENCRYPTION
 AS
 BEGIN
-	RETURN '{"WorkFlowName":"' + COALESCE([dbo].[GFN_Base64encode](@WorkFlowName), N'') + 
-		'","WorkFlowState":"' + COALESCE([dbo].[GFN_Base64encode](@StateTitle), N'') +
+	RETURN '{"WorkFlowName":"' + ISNULL([dbo].[GFN_Base64encode](@WorkFlowName), N'') + 
+		'","WorkFlowState":"' + ISNULL([dbo].[GFN_Base64encode](@StateTitle), N'') +
 		(
 			CASE
 				WHEN @DataNeedInstanceID IS NULL THEN N''

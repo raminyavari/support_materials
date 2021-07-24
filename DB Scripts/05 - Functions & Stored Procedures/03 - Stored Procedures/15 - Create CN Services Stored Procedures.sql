@@ -33,7 +33,7 @@ BEGIN
 	END
 	ELSE BEGIN
 		DECLARE @SeqNo int = 
-			COALESCE((
+			ISNULL((
 				SELECT MAX(SequenceNumber) 
 				FROM [dbo].[CN_Services]
 				WHERE ApplicationID = @ApplicationID
@@ -138,7 +138,7 @@ BEGIN
 		   S.EditableForOwners,
 		   S.EditableForExperts,
 		   S.EditableForMembers,
-		   COALESCE(S.EditSuggestion, 1) AS EditSuggestion
+		   ISNULL(S.EditSuggestion, 1) AS EditSuggestion
 	FROM @NodeTypeIDs AS Ref
 		INNER JOIN [dbo].[CN_Services] AS S
 		ON S.ApplicationID = @ApplicationID AND S.NodeTypeID = Ref.Value
@@ -196,7 +196,7 @@ BEGIN
 	SET NOCOUNT ON
 	
 	IF @NodeTypeID IS NOT NULL BEGIN
-		SET @NodeTypeID = COALESCE(
+		SET @NodeTypeID = ISNULL(
 			(
 				SELECT TOP(1) NodeTypeID 
 				FROM [dbo].[CN_Nodes] 
@@ -213,7 +213,7 @@ BEGIN
 	FROM [dbo].[CN_Services] AS S
 		INNER JOIN [dbo].[CN_NodeTypes] AS NT
 		ON NT.ApplicationID = @ApplicationID AND 
-			NT.NodeTypeID = S.NodeTypeID AND COALESCE(NT.Deleted, 0) = 0
+			NT.NodeTypeID = S.NodeTypeID AND ISNULL(NT.Deleted, 0) = 0
 	WHERE S.ApplicationID = @ApplicationID AND
 		(@NodeTypeID IS NULL OR S.NodeTypeID = @NodeTypeID) AND
 		(@IsDocument IS NULL OR S.IsDocument = @IsDocument) AND
@@ -366,7 +366,7 @@ BEGIN TRANSACTION
 	
 	UPDATE [dbo].[CN_Services]
 		SET AdminType = @AdminType,
-			AdminNodeID = COALESCE(@AdminNodeID, AdminNodeID)
+			AdminNodeID = ISNULL(@AdminNodeID, AdminNodeID)
 	WHERE ApplicationID = @ApplicationID AND NodeTypeID = @NodeTypeID
 	
 	IF @@ROWCOUNT <= 0 BEGIN
@@ -649,7 +649,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	SET @NodeTypeIDOrNodeID = COALESCE(
+	SET @NodeTypeIDOrNodeID = ISNULL(
 		(
 			SELECT TOP(1) NodeTypeID 
 			FROM [dbo].[CN_Nodes] 
@@ -688,7 +688,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	SET @NodeTypeIDOrNodeID = COALESCE(
+	SET @NodeTypeIDOrNodeID = ISNULL(
 		(
 			SELECT TOP(1) NodeTypeID 
 			FROM [dbo].[CN_Nodes] 
@@ -727,7 +727,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	SET @NodeTypeIDOrNodeID = COALESCE(
+	SET @NodeTypeIDOrNodeID = ISNULL(
 		(
 			SELECT TOP(1) NodeTypeID 
 			FROM [dbo].[CN_Nodes] 
@@ -766,7 +766,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	SET @NodeTypeIDOrNodeID = COALESCE(
+	SET @NodeTypeIDOrNodeID = ISNULL(
 		(
 			SELECT TOP(1) NodeTypeID 
 			FROM [dbo].[CN_Nodes] 
@@ -810,13 +810,13 @@ BEGIN
 		SecondValue uniqueidentifier)
 	
 	INSERT INTO @NodeTypeIDs (FirstValue, SecondValue)
-	SELECT DISTINCT COALESCE(ND.NodeTypeID, IDs.Value), ND.NodeID
+	SELECT DISTINCT ISNULL(ND.NodeTypeID, IDs.Value), ND.NodeID
 	FROM [dbo].[GFN_StrToGuidTable](@strNodeTypeOrNodeIDs, @delimiter) AS IDs
 		LEFT JOIN [dbo].[CN_Nodes] AS ND
 		ON ND.ApplicationID = @ApplicationID AND ND.NodeID = IDs.Value
 	
 	IF @IsTree IS NULL BEGIN
-		SELECT COALESCE(NT.SecondValue, NT.FirstValue) AS ID
+		SELECT ISNULL(NT.SecondValue, NT.FirstValue) AS ID
 		FROM @NodeTypeIDs AS NT
 			INNER JOIN [dbo].[CN_Services] AS S
 			ON S.NodeTypeID = NT.FirstValue
@@ -856,13 +856,13 @@ BEGIN
 		SecondValue uniqueidentifier)
 	
 	INSERT INTO @NodeTypeIDs (FirstValue, SecondValue)
-	SELECT DISTINCT COALESCE(ND.NodeTypeID, IDs.Value), ND.NodeID
+	SELECT DISTINCT ISNULL(ND.NodeTypeID, IDs.Value), ND.NodeID
 	FROM [dbo].[GFN_StrToGuidTable](@strNodeTypeOrNodeIDs, @delimiter) AS IDs
 		LEFT JOIN [dbo].[CN_Nodes] AS ND
 		ON ND.ApplicationID = @ApplicationID AND ND.NodeID = IDs.Value
 	
 	IF @Value IS NULL BEGIN
-		SELECT COALESCE(NT.SecondValue, NT.FirstValue) AS ID
+		SELECT ISNULL(NT.SecondValue, NT.FirstValue) AS ID
 		FROM @NodeTypeIDs AS NT
 			INNER JOIN [dbo].[CN_Services] AS S
 			ON S.NodeTypeID = NT.FirstValue
@@ -902,13 +902,13 @@ BEGIN
 		SecondValue uniqueidentifier)
 	
 	INSERT INTO @NodeTypeIDs (FirstValue, SecondValue)
-	SELECT DISTINCT COALESCE(ND.NodeTypeID, IDs.Value), ND.NodeID
+	SELECT DISTINCT ISNULL(ND.NodeTypeID, IDs.Value), ND.NodeID
 	FROM [dbo].[GFN_StrToGuidTable](@strNodeTypeOrNodeIDs, @delimiter) AS IDs
 		LEFT JOIN [dbo].[CN_Nodes] AS ND
 		ON ND.ApplicationID = @ApplicationID AND ND.NodeID = IDs.Value
 	
 	IF @Value IS NULL BEGIN
-		SELECT COALESCE(NT.SecondValue, NT.FirstValue) AS ID
+		SELECT ISNULL(NT.SecondValue, NT.FirstValue) AS ID
 		FROM @NodeTypeIDs AS NT
 			INNER JOIN [dbo].[CN_Services] AS S
 			ON S.NodeTypeID = NT.FirstValue
@@ -948,13 +948,13 @@ BEGIN
 		SecondValue uniqueidentifier)
 	
 	INSERT INTO @NodeTypeIDs (FirstValue, SecondValue)
-	SELECT DISTINCT COALESCE(ND.NodeTypeID, IDs.Value), ND.NodeID
+	SELECT DISTINCT ISNULL(ND.NodeTypeID, IDs.Value), ND.NodeID
 	FROM [dbo].[GFN_StrToGuidTable](@strNodeTypeOrNodeIDs, @delimiter) AS IDs
 		LEFT JOIN [dbo].[CN_Nodes] AS ND
 		ON ND.ApplicationID = @ApplicationID AND ND.NodeID = IDs.Value
 	
 	IF @Value IS NULL BEGIN
-		SELECT COALESCE(NT.SecondValue, NT.FirstValue) AS ID
+		SELECT ISNULL(NT.SecondValue, NT.FirstValue) AS ID
 		FROM @NodeTypeIDs AS NT
 			INNER JOIN [dbo].[CN_Services] AS S
 			ON S.NodeTypeID = NT.FirstValue
@@ -994,13 +994,13 @@ BEGIN
 		SecondValue uniqueidentifier)
 	
 	INSERT INTO @NodeTypeIDs (FirstValue, SecondValue)
-	SELECT DISTINCT COALESCE(ND.NodeTypeID, IDs.Value), ND.NodeID
+	SELECT DISTINCT ISNULL(ND.NodeTypeID, IDs.Value), ND.NodeID
 	FROM [dbo].[GFN_StrToGuidTable](@strNodeTypeOrNodeIDs, @delimiter) AS IDs
 		LEFT JOIN [dbo].[CN_Nodes] AS ND
 		ON ND.ApplicationID = @ApplicationID AND ND.NodeID = IDs.Value
 	
 	IF @Value IS NULL BEGIN
-		SELECT COALESCE(NT.SecondValue, NT.FirstValue) AS ID
+		SELECT ISNULL(NT.SecondValue, NT.FirstValue) AS ID
 		FROM @NodeTypeIDs AS NT
 			INNER JOIN [dbo].[CN_Services] AS S
 			ON S.NodeTypeID = NT.FirstValue
@@ -1040,13 +1040,13 @@ BEGIN
 		SecondValue uniqueidentifier)
 	
 	INSERT INTO @NodeTypeIDs (FirstValue, SecondValue)
-	SELECT DISTINCT COALESCE(ND.NodeTypeID, IDs.Value), ND.NodeID
+	SELECT DISTINCT ISNULL(ND.NodeTypeID, IDs.Value), ND.NodeID
 	FROM [dbo].[GFN_StrToGuidTable](@strNodeTypeOrNodeIDs, @delimiter) AS IDs
 		LEFT JOIN [dbo].[CN_Nodes] AS ND
 		ON ND.ApplicationID = @ApplicationID AND ND.NodeID = IDs.Value
 	
 	IF @Value IS NULL BEGIN
-		SELECT COALESCE(NT.SecondValue, NT.FirstValue) AS ID
+		SELECT ISNULL(NT.SecondValue, NT.FirstValue) AS ID
 		FROM @NodeTypeIDs AS NT
 			INNER JOIN [dbo].[CN_Services] AS S
 			ON S.NodeTypeID = NT.FirstValue
@@ -1485,7 +1485,7 @@ BEGIN
 		ON ND.ApplicationID = @ApplicationID AND ND.NodeID = I.Value
 		INNER JOIN [dbo].[CN_ServiceAdmins] AS SA
 		ON SA.ApplicationID = @ApplicationID AND 
-			SA.NodeTypeID = COALESCE(ND.NodeTypeID, I.Value) AND 
+			SA.NodeTypeID = ISNULL(ND.NodeTypeID, I.Value) AND 
 			SA.UserID = @UserID AND SA.Deleted = 0
 END
 
@@ -1531,7 +1531,7 @@ BEGIN TRANSACTION
 	-- Set searchability 
 	SELECT TOP(1) @Searchable = (
 		CASE
-			WHEN COALESCE(S.IsKnowledge, 0) = 0 OR 
+			WHEN ISNULL(S.IsKnowledge, 0) = 0 OR 
 				KT.SearchableAfter = N'Registration' THEN CAST(1 AS bit)
 			ELSE CAST(0 AS bit)
 		END
@@ -1551,7 +1551,7 @@ BEGIN TRANSACTION
 		@_Result output, @_Message output
 	
 	IF @_Result <= 0 BEGIN
-		SELECT @_Result, COALESCE(@_Message, N'NodeCreationFailed')
+		SELECT @_Result, ISNULL(@_Message, N'NodeCreationFailed')
 		ROLLBACK TRANSACTION
 		RETURN
 	END
@@ -1656,7 +1656,7 @@ BEGIN TRANSACTION
 			@WFDirectorUserID, @CreatorUserID, @CreationDate, @_Result output, @_Message output
 		
 		IF @_Result <= 0 BEGIN
-			SELECT -1, COALESCE(@_Message, N'WorkFlowInitializationFailed')
+			SELECT -1, ISNULL(@_Message, N'WorkFlowInitializationFailed')
 			ROLLBACK TRANSACTION
 			RETURN
 		END

@@ -28,7 +28,7 @@ BEGIN
 	SELECT WFS.StateID AS StateID_Hide, ST.Title AS StateTitle, 
 		WFS.WorkFlowID AS WorkFlowID_Hide, WF.Name AS WorkFlowTitle, 
 		NT.NodeTypeID AS NodeTypeID_Hide, NT.Name AS NodeType,
-		COALESCE(Ref.[Count], 0) AS [Count], CAST(ST.Deleted AS int) AS RemovedState
+		ISNULL(Ref.[Count], 0) AS [Count], CAST(ST.Deleted AS int) AS RemovedState
 	FROM (
 			SELECT A.StateID, 
 				CAST(MAX(CAST(ND.NodeTypeID AS varchar(36))) AS uniqueidentifier) AS NodeTypeID,

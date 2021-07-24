@@ -168,7 +168,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	IF COALESCE(@Name, N'') <> N'' AND EXISTS(
+	IF ISNULL(@Name, N'') <> N'' AND EXISTS(
 		SELECT TOP(1) *
 		FROM [dbo].[FG_ExtendedForms] AS F
 		WHERE F.ApplicationID = @ApplicationID AND F.Deleted = 0 AND 
@@ -342,27 +342,27 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	SET @Archive = COALESCE(@Archive, 0)
+	SET @Archive = ISNULL(@Archive, 0)
 	
 	DECLARE @FormIDs GuidTableType
 	
-	IF COALESCE(@SearchText, N'') = N'' BEGIN
+	IF ISNULL(@SearchText, N'') = N'' BEGIN
 		INSERT INTO @FormIDs (Value)
-		SELECT TOP(COALESCE(@Count, 1000000)) X.FormID
+		SELECT TOP(ISNULL(@Count, 1000000)) X.FormID
 		FROM (
 				SELECT	ROW_NUMBER() OVER (ORDER BY F.FormID ASC) AS RowNumber,
 						F.FormID 
 				FROM [dbo].[FG_ExtendedForms] AS F
 				WHERE F.ApplicationID = @ApplicationID AND F.Deleted = @Archive AND
-					(@HasName IS NULL OR (@HasName = 0 AND COALESCE(F.Name, N'') = N'') OR 
-						(@HasName = 1 AND COALESCE(F.Name, N'') <> N''))
+					(@HasName IS NULL OR (@HasName = 0 AND ISNULL(F.Name, N'') = N'') OR 
+						(@HasName = 1 AND ISNULL(F.Name, N'') <> N''))
 			) AS X
-		WHERE X.RowNumber >= COALESCE(@LowerBoundary, 0)
+		WHERE X.RowNumber >= ISNULL(@LowerBoundary, 0)
 		ORDER BY X.RowNumber ASC
 	END
 	ELSE BEGIN
 		INSERT INTO @FormIDs (Value)
-		SELECT TOP(COALESCE(@Count, 1000000)) X.FormID
+		SELECT TOP(ISNULL(@Count, 1000000)) X.FormID
 		FROM (
 				SELECT	ROW_NUMBER() OVER (ORDER BY SRCH.[Rank] DESC, F.FormID ASC) AS RowNumber,
 						F.FormID 
@@ -370,10 +370,10 @@ BEGIN
 					INNER JOIN [dbo].[FG_ExtendedForms] AS F
 					ON F.ApplicationID = @ApplicationID AND F.FormID = SRCH.[Key] AND
 						F.Deleted = @Archive AND
-						(@HasName IS NULL OR (@HasName = 0 AND COALESCE(F.Name, N'') = N'') OR 
-							(@HasName = 1 AND COALESCE(F.Name, N'') <> N''))
+						(@HasName IS NULL OR (@HasName = 0 AND ISNULL(F.Name, N'') = N'') OR 
+							(@HasName = 1 AND ISNULL(F.Name, N'') <> N''))
 			) AS X
-		WHERE X.RowNumber >= COALESCE(@LowerBoundary, 0)
+		WHERE X.RowNumber >= ISNULL(@LowerBoundary, 0)
 		ORDER BY X.RowNumber ASC
 	END
 	
@@ -406,7 +406,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	IF COALESCE(@Name, N'') <> N'' AND EXISTS(
+	IF ISNULL(@Name, N'') <> N'' AND EXISTS(
 		SELECT TOP(1) *
 		FROM [dbo].[FG_ExtendedFormElements] AS F
 		WHERE F.ApplicationID = @ApplicationID AND F.FormID = @FormID AND 
@@ -479,7 +479,7 @@ BEGIN
 		WHERE E.ApplicationID = @ApplicationID AND E.ElementID = @ElementID
 	)
 	
-	IF COALESCE(@Name, N'') <> N'' AND EXISTS(
+	IF ISNULL(@Name, N'') <> N'' AND EXISTS(
 		SELECT TOP(1) *
 		FROM [dbo].[FG_ExtendedFormElements] AS F
 		WHERE F.ApplicationID = @ApplicationID AND F.FormID = @FormID AND F.Deleted = 0 AND 
@@ -656,9 +656,9 @@ BEGIN
 	INSERT INTO @Elements SELECT * FROM @ElementsTemp
 	
 	-- Update Form
-	SET @Title = [dbo].[GFN_VerifyString](LTRIM(RTRIM(COALESCE(@Title, N''))))
-	SET @Name = LTRIM(RTRIM(COALESCE(@Name, '')))
-	SET @Description = [dbo].[GFN_VerifyString](LTRIM(RTRIM(COALESCE(@Description, N''))))
+	SET @Title = [dbo].[GFN_VerifyString](LTRIM(RTRIM(ISNULL(@Title, N''))))
+	SET @Name = LTRIM(RTRIM(ISNULL(@Name, '')))
+	SET @Description = [dbo].[GFN_VerifyString](LTRIM(RTRIM(ISNULL(@Description, N''))))
 	
 	UPDATE [dbo].[FG_ExtendedForms]
 		SET Title = CASE WHEN @Title = N'' THEN Title ELSE @Title END,
@@ -755,8 +755,8 @@ BEGIN
 		   FE.Title,
 		   FE.Name,
 		   FE.Help,
-		   COALESCE(FE.Necessary, CAST(0 AS bit)) AS Necessary,
-		   COALESCE(FE.UniqueValue, CAST(0 AS bit)) AS UniqueValue,
+		   ISNULL(FE.Necessary, CAST(0 AS bit)) AS Necessary,
+		   ISNULL(FE.UniqueValue, CAST(0 AS bit)) AS UniqueValue,
 		   FE.SequenceNumber,
 		   FE.[Type],
 		   FE.Info,
@@ -852,13 +852,13 @@ BEGIN
 	INSERT INTO @Names (Value)
 	SELECT DISTINCT LOWER(Ref.Value)
 	FROM [dbo].[GFN_StrToStringTable](@strElementNames, @delimiter) AS Ref
-	WHERE COALESCE(Ref.Value, N'') <> N''
+	WHERE ISNULL(Ref.Value, N'') <> N''
 	
 	SELECT E.Name, E.ElementID
 	FROM @Names AS N
 		INNER JOIN [dbo].[FG_ExtendedFormElements] AS E
 		ON E.ApplicationID = @ApplicationID AND E.FormID = @FormID AND 
-			LOWER(COALESCE(E.Name, N'')) = N.Value
+			LOWER(ISNULL(E.Name, N'')) = N.Value
 END
 
 GO
@@ -931,7 +931,7 @@ BEGIN
 			I.FormID, 
 			I.OwnerID, 
 			I.DirectorID, 
-			COALESCE(I.[Admin], 0), 
+			ISNULL(I.[Admin], 0), 
 			0,
 			I.IsTemporary,
 			@CreatorUserID, 
@@ -1009,7 +1009,7 @@ BEGIN
 		)
 		SELECT	@ApplicationID,
 				NEWID(),
-				COALESCE(@NewFormID, FormID),
+				ISNULL(@NewFormID, FormID),
 				@NewOwnerID,
 				DirectorID,
 				0,
@@ -1351,7 +1351,7 @@ BEGIN
 	SELECT @ElementID, @InstanceID, @RefElementID, @TextValue, @FloatValue, 0, N''
 	
 	SELECT TOP(1) 1
-	WHERE @InstanceID IS NOT NULL AND ((COALESCE(@TextValue, N'') = N'' AND @FloatValue IS NULL) OR NOT EXISTS (
+	WHERE @InstanceID IS NOT NULL AND ((ISNULL(@TextValue, N'') = N'' AND @FloatValue IS NULL) OR NOT EXISTS (
 			SELECT TOP(1) X.ElementID
 			FROM [dbo].[FG_FN_CheckUniqueConstraint](@ApplicationID, @Elements) AS X
 		))
@@ -1431,7 +1431,7 @@ BEGIN
 	-- Save Changes
 	INSERT INTO [dbo].[FG_Changes] (ApplicationID, ElementID, TextValue, 
 		FloatValue, BitValue, DateValue, CreatorUserID, CreationDate, Deleted)
-	SELECT @ApplicationID, COALESCE(E.ElementID, X.ElementID), [dbo].[GFN_VerifyString](X.TextValue), 
+	SELECT @ApplicationID, ISNULL(E.ElementID, X.ElementID), [dbo].[GFN_VerifyString](X.TextValue), 
 		X.FloatValue, X.BitValue, X.DateValue, @CreatorUserID, @CreationDate, 0
 	FROM (
 			SELECT	C.Value AS ElementID, 
@@ -1460,27 +1460,27 @@ BEGIN
 		ON E1.ApplicationID = @ApplicationID AND
 			X.RefElementID IS NOT NULL AND X.InstanceID IS NOT NULL AND 
 			E1.RefElementID = X.RefElementID AND E1.InstanceID = X.InstanceID
-	WHERE (COALESCE(E.ElementID, E1.ElementID) IS NULL AND 
+	WHERE (ISNULL(E.ElementID, E1.ElementID) IS NULL AND 
 			NOT (X.TextValue IS NULL AND X.FloatValue IS NULL AND
 				X.BitValue IS NULL AND X.DateValue IS NULL
 			)
 		) OR 
-		(X.TextValue IS NULL AND COALESCE(E.TextValue, E1.TextValue) IS NOT NULL) OR
-		(X.TextValue IS NOT NULL AND COALESCE(E.TextValue, E1.TextValue) IS NULL) OR
-		(X.TextValue IS NOT NULL AND COALESCE(E.TextValue, E1.TextValue) IS NOT NULL AND 
-			X.TextValue <> COALESCE(E.TextValue, E1.TextValue)) OR
-		(X.FloatValue IS NULL AND COALESCE(E.FloatValue, E1.FloatValue) IS NOT NULL) OR
-		(X.FloatValue IS NOT NULL AND COALESCE(E.FloatValue, E1.FloatValue) IS NULL) OR
-		(X.FloatValue IS NOT NULL AND COALESCE(E.FloatValue, E1.FloatValue) IS NOT NULL AND 
-			X.FloatValue <> COALESCE(E.FloatValue, E1.FloatValue)) OR
-		(X.BitValue IS NULL AND COALESCE(E.BitValue, E1.BitValue) IS NOT NULL) OR
-		(X.BitValue IS NOT NULL AND COALESCE(E.BitValue, E1.BitValue) IS NULL) OR
-		(X.BitValue IS NOT NULL AND COALESCE(E.BitValue, E1.BitValue) IS NOT NULL AND 
-			X.BitValue <> COALESCE(E.BitValue, E1.BitValue)) OR
-		(X.DateValue IS NULL AND COALESCE(E.DateValue, E1.DateValue) IS NOT NULL) OR
-		(X.DateValue IS NOT NULL AND COALESCE(E.DateValue, E1.DateValue) IS NULL) OR
-		(X.DateValue IS NOT NULL AND COALESCE(E.DateValue, E1.DateValue) IS NOT NULL AND 
-			X.DateValue <> COALESCE(E.DateValue, E1.DateValue))
+		(X.TextValue IS NULL AND ISNULL(E.TextValue, E1.TextValue) IS NOT NULL) OR
+		(X.TextValue IS NOT NULL AND ISNULL(E.TextValue, E1.TextValue) IS NULL) OR
+		(X.TextValue IS NOT NULL AND ISNULL(E.TextValue, E1.TextValue) IS NOT NULL AND 
+			X.TextValue <> ISNULL(E.TextValue, E1.TextValue)) OR
+		(X.FloatValue IS NULL AND ISNULL(E.FloatValue, E1.FloatValue) IS NOT NULL) OR
+		(X.FloatValue IS NOT NULL AND ISNULL(E.FloatValue, E1.FloatValue) IS NULL) OR
+		(X.FloatValue IS NOT NULL AND ISNULL(E.FloatValue, E1.FloatValue) IS NOT NULL AND 
+			X.FloatValue <> ISNULL(E.FloatValue, E1.FloatValue)) OR
+		(X.BitValue IS NULL AND ISNULL(E.BitValue, E1.BitValue) IS NOT NULL) OR
+		(X.BitValue IS NOT NULL AND ISNULL(E.BitValue, E1.BitValue) IS NULL) OR
+		(X.BitValue IS NOT NULL AND ISNULL(E.BitValue, E1.BitValue) IS NOT NULL AND 
+			X.BitValue <> ISNULL(E.BitValue, E1.BitValue)) OR
+		(X.DateValue IS NULL AND ISNULL(E.DateValue, E1.DateValue) IS NOT NULL) OR
+		(X.DateValue IS NOT NULL AND ISNULL(E.DateValue, E1.DateValue) IS NULL) OR
+		(X.DateValue IS NOT NULL AND ISNULL(E.DateValue, E1.DateValue) IS NOT NULL AND 
+			X.DateValue <> ISNULL(E.DateValue, E1.DateValue))
 	-- end of Save Changes
 	
 	-- Update Existing Data
@@ -1569,7 +1569,7 @@ BEGIN
 		   Ref.InstanceID,
 		   Ref.RefElementID,
 		   EFE.Title,
-		   COALESCE(EFE.SequenceNumber, Ref.SequenceNubmer),
+		   ISNULL(EFE.SequenceNumber, Ref.SequenceNubmer),
 		   EFE.[Type],
 		   EFE.Info,
 		   [dbo].[GFN_VerifyString](Ref.TextValue),
@@ -1587,7 +1587,7 @@ BEGIN
 		LEFT JOIN [dbo].[FG_InstanceElements] AS IE1
 		ON IE1.ApplicationID = @ApplicationID AND
 			IE1.RefElementID = Ref.RefElementID AND IE1.InstanceID = Ref.InstanceID
-	WHERE COALESCE(IE.ElementID, IE1.ElementID) IS NULL
+	WHERE ISNULL(IE.ElementID, IE1.ElementID) IS NULL
 	
 	SET @Count = @@ROWCOUNT + @Count + 1
 	
@@ -1692,19 +1692,19 @@ BEGIN
 	SELECT	IE.ElementID,
 			IE.InstanceID,
 			IE.RefElementID,
-			COALESCE(EFE.Title, IE.Title) AS Title,
+			ISNULL(EFE.Title, IE.Title) AS Title,
 			EFE.Name,
 			EFE.Help,
 			EFE.SequenceNumber,
 			EFE.[Type],
-			COALESCE(EFE.Info, IE.Info) AS Info,
+			ISNULL(EFE.Info, IE.Info) AS Info,
 			EFE.[Weight],
 			IE.TextValue,
 			IE.FloatValue,
 			IE.BitValue,
 			IE.DateValue,
 			CAST(1 AS bit) AS Filled,
-			COALESCE(EFE.Necessary, 0) AS Necessary,
+			ISNULL(EFE.Necessary, 0) AS Necessary,
 			EFE.UniqueValue,
 			CAST((
 				SELECT COUNT(C.ID)
@@ -1742,7 +1742,7 @@ BEGIN
 			NULL AS BitValue,
 			NULL AS DateValue,
 			CAST(0 AS bit) AS Filled,
-			COALESCE(EFE.Necessary, 0) AS Necessary,
+			ISNULL(EFE.Necessary, 0) AS Necessary,
 			EFE.UniqueValue,
 			CAST(0 AS int) AS EditionsCount,
 			NULL AS CreatorUserID,
@@ -1786,7 +1786,7 @@ BEGIN
 			S.SelectedID AS ID,
 			CASE
 				WHEN ND.NodeID IS NOT NULL THEN ND.Name
-				ELSE LTRIM(RTRIM(COALESCE(UN.FirstName, N'') + N' ' + COALESCE(UN.LastName, N'')))
+				ELSE LTRIM(RTRIM(ISNULL(UN.FirstName, N'') + N' ' + ISNULL(UN.LastName, N'')))
 			END AS Name
 	FROM @ElementIDs AS IDs
 		INNER JOIN [dbo].[FG_SelectedItems] AS S
@@ -1816,7 +1816,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	SELECT TOP(COALESCE(@Count, 10000)) *
+	SELECT TOP(ISNULL(@Count, 10000)) *
 	FROM (
 			SELECT	ROW_NUMBER() OVER (ORDER BY C.ID DESC) AS RowNumber,
 					C.ID,
@@ -1840,7 +1840,7 @@ BEGIN
 				ON EFE.ApplicationID = @ApplicationID AND EFE.ElementID = E.RefElementID
 			WHERE C.ApplicationID = @ApplicationID AND C.ElementID = @ElementID AND C.Deleted = 0
 		) AS X
-	WHERE X.RowNumber >= COALESCE(@LowerBoundary, 0)
+	WHERE X.RowNumber >= ISNULL(@LowerBoundary, 0)
 	ORDER BY X.RowNumber ASC
 END
 
@@ -2276,7 +2276,7 @@ BEGIN TRANSACTION
 			Deleted
 		)
 		SELECT @ApplicationID, @OwnerID, NE.Value, 
-			COALESCE(EFE.Necessary, 0), @CreatorUserID, @CreationDate, 0
+			ISNULL(EFE.Necessary, 0), @CreatorUserID, @CreationDate, 0
 		FROM @NotExistingIDs AS NE
 			INNER JOIN [dbo].[FG_ExtendedFormElements] AS EFE
 			ON EFE.ApplicationID = @ApplicationID AND EFE.ElementID = NE.Value
@@ -2357,7 +2357,7 @@ BEGIN
 	SET NOCOUNT ON
 	
 	UPDATE [dbo].[FG_ElementLimits]
-		SET Necessary = COALESCE(@Necessary, CAST(0 AS bit)),
+		SET Necessary = ISNULL(@Necessary, CAST(0 AS bit)),
 			LastModifierUserID = @LastModifierUserID,
 			LastModificationDate = @LastModificationDate
 	WHERE ApplicationID = @ApplicationID AND OwnerID = @OwnerID AND ElementID = @ElementID
@@ -2499,7 +2499,7 @@ BEGIN
 	IF @SortByElementID IS NULL SET @SortByElementID = (SELECT TOP(1) Value FROM @_ElemIDs)
 	
 	IF @Count IS NULL SET @Count = 10000
-	IF COALESCE(@LowerBoundary, 0) < 1 SET @LowerBoundary = 1
+	IF ISNULL(@LowerBoundary, 0) < 1 SET @LowerBoundary = 1
 	DECLARE @UpperBoundary int = @LowerBoundary + @Count - 1
 	
 	CREATE TABLE #InstanceIDs (InstanceID uniqueidentifier primary key clustered,
@@ -2626,7 +2626,7 @@ BEGIN
 		
 
 	DECLARE @lst varchar(max)
-	SELECT @lst = COALESCE(@lst + ', ', '') + '[' + CAST(q.Value AS varchar(max)) + ']'
+	SELECT @lst = ISNULL(@lst + ', ', '') + '[' + CAST(q.Value AS varchar(max)) + ']'
 	FROM (SELECT Ref.Value FROM @_ElemIDs AS Ref) AS q
 	
 	SET @_Proc = 'SELECT * FROM ('
@@ -2728,13 +2728,13 @@ BEGIN
 			STDEV(X.[AVG]) AS [StDev]
 	FROM (
 			SELECT	EFE.ElementID,
-					COALESCE(MAX(EFE.[Weight]), 0) AS [Weight],
+					ISNULL(MAX(EFE.[Weight]), 0) AS [Weight],
 					MIN(IE.FloatValue) AS [Min],
 					MAX(IE.FloatValue) AS [Max],
 					AVG(IE.FloatValue) AS [Avg],
-					(AVG(IE.FloatValue) * COALESCE(MAX(EFE.[Weight]), 0)) AS [WeightedAvg],
-					COALESCE(VAR(IE.FloatValue), 0) AS [Var],
-					COALESCE(STDEV(IE.FloatValue), 0) AS [StDev]
+					(AVG(IE.FloatValue) * ISNULL(MAX(EFE.[Weight]), 0)) AS [WeightedAvg],
+					ISNULL(VAR(IE.FloatValue), 0) AS [Var],
+					ISNULL(STDEV(IE.FloatValue), 0) AS [StDev]
 			FROM [dbo].[FG_FormInstances] AS FI
 				INNER JOIN [dbo].[FG_InstanceElements] AS IE
 				ON IE.ApplicationID = @ApplicationID AND IE.InstanceID = FI.InstanceID AND 
@@ -2772,9 +2772,9 @@ BEGIN
 	SELECT TOP(1) @TableName = 'FG_FRM_' + F.Name
 	FROM [dbo].[FG_ExtendedForms] AS F
 	WHERE F.ApplicationID = @ApplicationID AND F.FormID = @FormID AND 
-		COALESCE(F.Name, N'') <> N'' AND F.Deleted = 0
+		ISNULL(F.Name, N'') <> N'' AND F.Deleted = 0
 	
-	IF COALESCE(@TableName, N'') = N'' BEGIN
+	IF ISNULL(@TableName, N'') = N'' BEGIN
 		SELECT -1
 		RETURN
 	END
@@ -2783,7 +2783,7 @@ BEGIN
 	SELECT EFE.ElementID, N'Col_' + EFE.Name
 	FROM [dbo].[FG_ExtendedFormElements] AS EFE
 	WHERE EFE.ApplicationID = @ApplicationID AND EFE.FormID = @FormID AND 
-		COALESCE(EFE.Name, N'') <> N'' AND EFE.Deleted = 0
+		ISNULL(EFE.Name, N'') <> N'' AND EFE.Deleted = 0
 	ORDER BY EFE.SequenceNumber
 	
 	IF (SELECT COUNT(*) FROM @ElementIDs) = 0 BEGIN
@@ -2813,7 +2813,7 @@ BEGIN
 		LEFT JOIN [dbo].[CN_Nodes] AS ND
 		ON ND.ApplicationID = @ApplicationID AND ND.NodeID = FI.OwnerID
 	WHERE FI.ApplicationID = @ApplicationID AND FI.FormID = @FormID AND FI.Deleted = 0 AND 
-		(ND.NodeID IS NULL OR COALESCE(ND.Deleted, 0) = 0)
+		(ND.NodeID IS NULL OR ISNULL(ND.Deleted, 0) = 0)
 
 	UPDATE I
 		SET RowNum = CASE WHEN X.InstanceID IS NULL THEN 0 ELSE X.RowNum END
@@ -2920,11 +2920,11 @@ BEGIN
 
 	DECLARE @lst varchar(max), @selectLst varchar(max)
 
-	SELECT @lst = COALESCE(@lst + ', ', '') + '[' + q.Name + ']' + ',[' + q.Name + '_id]' + + ',[' + q.Name + '_text]' +
+	SELECT @lst = ISNULL(@lst + ', ', '') + '[' + q.Name + ']' + ',[' + q.Name + '_id]' + + ',[' + q.Name + '_text]' +
 		',[' + q.Name + '_float]' + ',[' + q.Name + '_bit]' + ',[' + q.Name + '_date]'
 	FROM (SELECT Ref.Name FROM @ElementIDs AS Ref) AS q
 
-	SELECT @selectLst = COALESCE(@selectLst + ', ', '') + 
+	SELECT @selectLst = ISNULL(@selectLst + ', ', '') + 
 		'pvt.[' + q.Name + ']' + 
 		',cast(pvt.[' + q.Name + '_id] as uniqueidentifier) as [' + q.Name + '_id]' + 
 		',pvt.[' + q.Name + '_text]' +
@@ -3044,11 +3044,11 @@ BEGIN
 			SELECT	RE.ApplicationID AS RefAppID, 
 					RE.FormID AS RefFormID,
 					RE.ElementID AS RefElementID,
-					COALESCE(RE.Deleted, 0) AS RefDeleted,
+					ISNULL(RE.Deleted, 0) AS RefDeleted,
 					E.ApplicationID AS AppID,
 					E.FormID AS FormID,
 					E.ElementID AS ElementID,
-					COALESCE(E.Deleted, 0) AS Deleted
+					ISNULL(E.Deleted, 0) AS Deleted
 			FROM [dbo].[FG_ExtendedFormElements] AS RE
 				FULL OUTER JOIN [dbo].[FG_ExtendedFormElements] AS E
 				ON E.TemplateElementID = RE.ElementID
@@ -3092,11 +3092,11 @@ BEGIN
 			P.FinishDate,
 			CASE
 				WHEN P.OwnerID IS NULL THEN P.ShowSummary
-				ELSE COALESCE(P2.ShowSummary, P.ShowSummary)
+				ELSE ISNULL(P2.ShowSummary, P.ShowSummary)
 			END AS ShowSummary,
 			CASE
 				WHEN P.OwnerID IS NULL THEN P.HideContributors
-				ELSE COALESCE(P2.HideContributors, P.HideContributors)
+				ELSE ISNULL(P2.HideContributors, P.HideContributors)
 			END AS HideContributors
 	FROM @PollIDs AS IDs
 		INNER JOIN [dbo].[FG_Polls] AS P
@@ -3155,10 +3155,10 @@ BEGIN
 	
 	DECLARE @TempIDs KeyLessGuidTableType
 	
-	SET @Archive = COALESCE(@Archive, 0)
-	SET @Count = COALESCE(@Count, 20)
+	SET @Archive = ISNULL(@Archive, 0)
+	SET @Count = ISNULL(@Count, 20)
 	
-	IF COALESCE(@SearchText, N'') = N'' BEGIN
+	IF ISNULL(@SearchText, N'') = N'' BEGIN
 		INSERT INTO @TempIDs (Value)
 		SELECT N.PollID
 		FROM (
@@ -3198,7 +3198,7 @@ BEGIN
 	INSERT INTO @PollIDs (Value)
 	SELECT TOP(@Count) IDs.Value
 	FROM @TempIDs AS IDs
-	WHERE IDs.SequenceNumber >= COALESCE(@LowerBoundary, 0)
+	WHERE IDs.SequenceNumber >= ISNULL(@LowerBoundary, 0)
 	ORDER BY IDs.SequenceNumber ASC
 	
 	EXEC [dbo].[FG_P_GetPollsByIDs] @ApplicationID, @PollIDs
@@ -3253,8 +3253,8 @@ BEGIN
 			@CopyFromPollID, 
 			@OwnerID,
 			@Name, 
-			COALESCE(P.ShowSummary, 1),
-			COALESCE(P.HideContributors, 0),
+			ISNULL(P.ShowSummary, 1),
+			ISNULL(P.HideContributors, 0),
 			@CurrentUserID, 
 			@Now,
 			0
@@ -3536,7 +3536,7 @@ BEGIN
 	SET NOCOUNT ON
 	
 	UPDATE [dbo].[FG_Polls]
-		SET ShowSummary = COALESCE(@ShowSummary, 0),
+		SET ShowSummary = ISNULL(@ShowSummary, 0),
 			LastModifierUserID = @CurrentUserID,
 			LastModificationDate = @Now
 	WHERE ApplicationID = @ApplicationID AND PollID = @PollID
@@ -3564,7 +3564,7 @@ BEGIN
 	SET NOCOUNT ON
 	
 	UPDATE [dbo].[FG_Polls]
-		SET HideContributors = COALESCE(@HideContributors, 0),
+		SET HideContributors = ISNULL(@HideContributors, 0),
 			LastModifierUserID = @CurrentUserID,
 			LastModificationDate = @Now
 	WHERE ApplicationID = @ApplicationID AND PollID = @PollID
@@ -3660,7 +3660,7 @@ BEGIN
 	END
 	ELSE BEGIN
 		SELECT TOP(1) 
-			@Description = COALESCE(P.[Description], Ref.[Description]), 
+			@Description = ISNULL(P.[Description], Ref.[Description]), 
 			@BeginDate = P.BeginDate,
 			@FinishDate = P.FinishDate,
 			@InstanceID = FI.InstanceID
@@ -3692,7 +3692,7 @@ BEGIN
 		LEFT JOIN [dbo].[FG_InstanceElements] AS IE
 		ON IE.ApplicationID = @ApplicationID AND IE.InstanceID = @InstanceID AND 
 			IE.RefElementID = L.Value AND IE.Deleted = 0 AND
-			COALESCE([dbo].[FG_FN_ToString](@ApplicationID, IE.ElementID, 
+			ISNULL([dbo].[FG_FN_ToString](@ApplicationID, IE.ElementID, 
 				IE.[Type], IE.TextValue, IE.FloatValue, IE.BitValue, IE.DateValue), N'') <> N''
 
 	SELECT @AllFilledFormsCount = COUNT(DISTINCT FI.DirectorID)
@@ -3700,7 +3700,7 @@ BEGIN
 		INNER JOIN [dbo].[FG_InstanceElements] AS IE
 		ON IE.ApplicationID = @ApplicationID AND 
 			IE.InstanceID = FI.InstanceID AND IE.Deleted = 0 AND
-			COALESCE([dbo].[FG_FN_ToString](@ApplicationID, IE.ElementID, IE.[Type], 
+			ISNULL([dbo].[FG_FN_ToString](@ApplicationID, IE.ElementID, IE.[Type], 
 				IE.TextValue, IE.FloatValue, IE.BitValue, IE.DateValue), N'') <> N''
 		INNER JOIN @LimitedElements AS L
 		ON L.Value = IE.RefElementID
@@ -3744,7 +3744,7 @@ BEGIN
 		INNER JOIN [dbo].[FG_InstanceElements] AS IE
 		ON IE.ApplicationID = @ApplicationID AND 
 			IE.InstanceID = FI.InstanceID AND IE.Deleted = 0 AND
-			COALESCE([dbo].[FG_FN_ToString](@ApplicationID, IE.ElementID, IE.[Type], 
+			ISNULL([dbo].[FG_FN_ToString](@ApplicationID, IE.ElementID, IE.[Type], 
 				IE.TextValue, IE.FloatValue, IE.BitValue, IE.DateValue), N'') <> N''
 		INNER JOIN (
 			SELECT Ref.ElementID
@@ -3792,7 +3792,7 @@ BEGIN
 		INNER JOIN [dbo].[FG_InstanceElements] AS IE
 		ON IE.ApplicationID = @ApplicationID AND 
 			IE.InstanceID = FI.InstanceID AND IE.Deleted = 0 AND
-			LTRIM(RTRIM(COALESCE(IE.TextValue, N''))) <> N''
+			LTRIM(RTRIM(ISNULL(IE.TextValue, N''))) <> N''
 		INNER JOIN @ElementIDs AS IDs
 		ON IDs.Value = IE.RefElementID
 	WHERE FI.ApplicationID = @ApplicationID AND FI.OwnerID = @PollID AND FI.Deleted = 0
@@ -3815,7 +3815,7 @@ BEGIN
 		SET @Cur = @Cur - 1
 	END
 
-	SELECT TOP(COALESCE(@Count, 5))
+	SELECT TOP(ISNULL(@Count, 5))
 		CAST((V.RowNumber + V.RevRowNumber - 1) AS int) AS TotalValuesCount,
 		V.ElementID,
 		V.Value,
@@ -3830,15 +3830,15 @@ BEGIN
 					GROUP BY T.ElementID, T.Value
 				) AS X
 		) AS V
-	WHERE V.RowNumber >= COALESCE(@LowerBoundary, 0)
+	WHERE V.RowNumber >= ISNULL(@LowerBoundary, 0)
 	ORDER BY V.RowNumber ASC
 	
 	SELECT	T.ElementID, 
 			MIN(T.Number) AS [Min], 
 			MAX(T.Number) AS [Max], 
 			AVG(T.Number) AS [Avg], 
-			COALESCE(VAR(T.Number), 0) AS [Var], 
-			COALESCE(STDEV(T.Number), 0) AS [StDev]
+			ISNULL(VAR(T.Number), 0) AS [Var], 
+			ISNULL(STDEV(T.Number), 0) AS [StDev]
 	FROM @TBL AS T
 	WHERE T.Number IS NOT NULL
 	GROUP BY T.ElementID
@@ -3884,7 +3884,7 @@ BEGIN
 		ON S.ApplicationID = @ApplicationID AND S.ElementID = IE.ElementID AND S.Deleted = 0
 	WHERE FI.ApplicationID = @ApplicationID AND FI.OwnerID = @PollID AND FI.Deleted = 0
 
-	SELECT TOP(COALESCE(@Count, 5))
+	SELECT TOP(ISNULL(@Count, 5))
 		CAST((V.RowNumber + V.RevRowNumber - 1) AS int) AS TotalValuesCount,
 		V.ElementID,
 		V.Value,
@@ -3899,7 +3899,7 @@ BEGIN
 					GROUP BY T.ElementID, T.Value
 				) AS X
 		) AS V
-	WHERE V.RowNumber >= COALESCE(@LowerBoundary, 0)
+	WHERE V.RowNumber >= ISNULL(@LowerBoundary, 0)
 	ORDER BY V.RowNumber ASC
 END
 
@@ -3982,7 +3982,7 @@ BEGIN
 		ON IDs.Value = IE.RefElementID
 	WHERE FI.ApplicationID = @ApplicationID AND FI.OwnerID = @PollID AND FI.Deleted = 0
 
-	SELECT TOP(COALESCE(@Count, 5))
+	SELECT TOP(ISNULL(@Count, 5))
 		CAST((V.RowNumber + V.RevRowNumber - 1) AS int) AS TotalValuesCount,
 		V.ElementID,
 		CAST(V.Value AS float) AS Value,
@@ -3997,15 +3997,15 @@ BEGIN
 					GROUP BY T.ElementID, T.Value
 				) AS X
 		) AS V
-	WHERE V.RowNumber >= COALESCE(@LowerBoundary, 0)
+	WHERE V.RowNumber >= ISNULL(@LowerBoundary, 0)
 	ORDER BY V.RowNumber ASC
 	
 	SELECT	T.ElementID, 
 			MIN(T.Value) AS [Min], 
 			MAX(T.Value) AS [Max], 
 			AVG(T.Value) AS [Avg], 
-			COALESCE(VAR(T.Value), 0) AS [Var], 
-			COALESCE(STDEV(T.Value), 0) AS [StDev]
+			ISNULL(VAR(T.Value), 0) AS [Var], 
+			ISNULL(STDEV(T.Value), 0) AS [StDev]
 	FROM @TBL AS T
 	GROUP BY T.ElementID
 END
@@ -4029,9 +4029,9 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	SELECT TOP(COALESCE(@Count, 20)) *
+	SELECT TOP(ISNULL(@Count, 20)) *
 	FROM (
-			SELECT	ROW_NUMBER() OVER(ORDER BY COALESCE(IE.LastModificationDate, IE.CreationDate) DESC, 
+			SELECT	ROW_NUMBER() OVER(ORDER BY ISNULL(IE.LastModificationDate, IE.CreationDate) DESC, 
 						IE.ElementID DESC) AS RowNumber,
 					UN.UserID,
 					UN.UserName,
@@ -4040,7 +4040,7 @@ BEGIN
 					IE.ElementID,
 					IE.RefElementID,
 					IE.[Type],
-					COALESCE(IE.TextValue, N'') AS TextValue,
+					ISNULL(IE.TextValue, N'') AS TextValue,
 					IE.FloatValue,
 					IE.BitValue,
 					IE.DateValue,
@@ -4050,14 +4050,14 @@ BEGIN
 				INNER JOIN [dbo].[FG_InstanceElements] AS IE
 				ON IE.ApplicationID = @ApplicationID AND IE.InstanceID = FI.InstanceID AND
 					IE.RefElementID = @ElementID AND IE.Deleted = 0 AND
-					COALESCE([dbo].[FG_FN_ToString](@ApplicationID, IE.ElementID, IE.[Type], 
+					ISNULL([dbo].[FG_FN_ToString](@ApplicationID, IE.ElementID, IE.[Type], 
 						IE.TextValue, IE.FloatValue, IE.BitValue, IE.DateValue), N'') <> N''
 				INNER JOIN [dbo].[Users_Normal] AS UN
 				ON UN.ApplicationID = @ApplicationID AND UN.UserID = FI.DirectorID
 			WHERE FI.ApplicationID = @ApplicationID AND FI.OwnerID = @PollID AND 
 				FI.DirectorID IS NOT NULL AND FI.Deleted = 0
 		) AS X
-	WHERE X.RowNumber >= COALESCE(@LowerBoundary, 0)
+	WHERE X.RowNumber >= ISNULL(@LowerBoundary, 0)
 	ORDER BY X.RowNumber ASC
 END
 
@@ -4147,7 +4147,7 @@ BEGIN
 	INSERT INTO @PermissionTypes (FirstValue, SecondValue)
 	VALUES (N'View', @DefaultPrivacy)
 
-	SELECT TOP(COALESCE(@Count, 20)) X.ID, X.Done AS Value, X.RowNumber + X.RevRowNumber - 1 AS TotalCount
+	SELECT TOP(ISNULL(@Count, 20)) X.ID, X.Done AS Value, X.RowNumber + X.RevRowNumber - 1 AS TotalCount
 	FROM (
 			SELECT	ROW_NUMBER() OVER(ORDER BY MAX(P.BeginDate) DESC, MAX(P.FinishDate) ASC) AS RowNumber,
 					ROW_NUMBER() OVER(ORDER BY MAX(P.BeginDate) ASC, MAX(P.FinishDate) DESC) AS RevRowNumber,
@@ -4162,7 +4162,7 @@ BEGIN
 					FI.DirectorID = @CurrentUserID AND FI.Deleted = 0
 			GROUP BY IDs.ID
 		) AS X
-	WHERE X.RowNumber >= COALESCE(@LowerBoundary, 0)
+	WHERE X.RowNumber >= ISNULL(@LowerBoundary, 0)
 	ORDER BY X.RowNumber ASC
 END
 
