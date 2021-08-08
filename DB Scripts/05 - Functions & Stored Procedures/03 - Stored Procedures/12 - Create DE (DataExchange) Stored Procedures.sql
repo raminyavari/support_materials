@@ -364,8 +364,8 @@ BEGIN
 	UPDATE P
 		SET EmploymentType = Ref.EmploymentType
 	FROM @TempUsers AS Ref
-		INNER JOIN [dbo].[USR_Profile] AS P
-		ON P.[UserID] = Ref.UserID
+		INNER JOIN [dbo].[USR_UserApplications] AS P
+		ON P.ApplicationID = @ApplicationID AND P.[UserID] = Ref.UserID
 	WHERE ISNULL(Ref.EmploymentType, N'') <> N''
 	
 	UPDATE USR
