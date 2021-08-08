@@ -10,6 +10,14 @@ GO
 
 
 ALTER TABLE [dbo].[USR_UserApplications]
+ADD [Organization] [nvarchar](255) NULL
+GO
+
+ALTER TABLE [dbo].[USR_UserApplications]
+ADD [Department] [nvarchar](255) NULL
+GO
+
+ALTER TABLE [dbo].[USR_UserApplications]
 ADD [JobTitle] [nvarchar](255) NULL
 GO
 
