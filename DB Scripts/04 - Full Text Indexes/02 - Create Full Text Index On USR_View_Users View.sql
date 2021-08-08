@@ -7,8 +7,7 @@ IF NOT EXISTS(SELECT * FROM sys.fulltext_indexes
 	( 
 		UserName Language Neutral,
 		FirstName Language Neutral,
-		Lastname Language Neutral,
-		JobTitle Language Neutral
+		Lastname Language Neutral
 	)
 	KEY INDEX PK_USR_View_Users_UserID
 	ON [Default_Catalog]
