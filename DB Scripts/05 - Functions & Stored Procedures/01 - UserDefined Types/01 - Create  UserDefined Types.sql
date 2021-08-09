@@ -307,7 +307,7 @@ CREATE TYPE [dbo].[FormElementTableType] AS TABLE(
 	UniqueValue bit NULL,
 	[Type] varchar(20) NOT NULL,
 	Help nvarchar(2000) NULL,
-	Info nvarchar(4000) NULL,
+	Info nvarchar(max) NULL,
 	[Weight] float NULL,
 	TextValue nvarchar(max) NULL,
 	FloatValue float NULL,

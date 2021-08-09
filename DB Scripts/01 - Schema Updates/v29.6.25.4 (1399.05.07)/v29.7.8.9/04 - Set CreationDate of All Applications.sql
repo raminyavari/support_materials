@@ -19,3 +19,5 @@ FROM [dbo].[aspnet_Applications] AS A
 	) AS X
 	ON A.ApplicationID = A.ApplicationID
 WHERE A.CreationDate IS NULL
+
+GO

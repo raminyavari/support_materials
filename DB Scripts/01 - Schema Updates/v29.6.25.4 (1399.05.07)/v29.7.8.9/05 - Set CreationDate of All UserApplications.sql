@@ -19,3 +19,5 @@ FROM [dbo].[USR_UserApplications] AS A
 	) AS X
 	ON A.ApplicationID = A.ApplicationID AND X.UserID = A.UserID
 WHERE A.CreationDate IS NULL
+
+GO

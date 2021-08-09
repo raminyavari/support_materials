@@ -8,6 +8,7 @@ GO
 SET QUOTED_IDENTIFIER ON
 GO
 
+
 CREATE TABLE [dbo].[LG_RawLogs](
 	[LogID] [bigint] IDENTITY(1,1) NOT NULL,
 	[UserID] [uniqueidentifier] NULL,

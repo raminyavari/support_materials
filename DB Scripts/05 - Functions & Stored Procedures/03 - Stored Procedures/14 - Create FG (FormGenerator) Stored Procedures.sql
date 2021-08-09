@@ -398,7 +398,7 @@ CREATE PROCEDURE [dbo].[FG_AddFormElement]
 	@Help				nvarchar(2000),
 	@SequenceNumber		int,
 	@Type				varchar(20),
-	@Info				nvarchar(4000),
+	@Info				nvarchar(max),
 	@CreatorUserID		uniqueidentifier,
 	@CreationDate		datetime
 WITH ENCRYPTION
@@ -464,7 +464,7 @@ CREATE PROCEDURE [dbo].[FG_ModifyFormElement]
 	@Title					nvarchar(2000),
 	@Name					varchar(100),
 	@Help					nvarchar(2000),
-	@Info					nvarchar(4000),
+	@Info					nvarchar(max),
 	@Weight					float,
 	@LastModifierUserID		uniqueidentifier,
 	@LastModificationDate	datetime
