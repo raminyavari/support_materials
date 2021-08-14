@@ -2956,7 +2956,7 @@ BEGIN
 			PIVOT (MAX(Value) FOR Name IN('+ @lst + ' )) AS pvt ' +
 			'INNER JOIN #InstanceIDs AS I ' +
 			'ON I.InstanceID = pvt.InstanceID ' +
-			'LEFT JOIN [dbo].[Users_Normal] AS UN ' +
+			'LEFT JOIN [dbo].[USR_View_Users] AS UN ' +
 			'ON UN.UserID = I.CreatorID'
 			
 		SET @InstancesCount = @InstancesCount - @BatchSize

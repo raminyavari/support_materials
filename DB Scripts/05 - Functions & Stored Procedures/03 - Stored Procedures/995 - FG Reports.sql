@@ -51,7 +51,7 @@ BEGIN
 			UN.UserName
 	FROM [dbo].[FG_FormInstances] AS FI
 		LEFT JOIN [dbo].[Users_Normal] AS UN
-		ON UN.UserID = FI.CreatorUserID
+		ON UN.ApplicationID = @ApplicationID AND UN.UserID = FI.CreatorUserID
 	WHERE FI.ApplicationID = @ApplicationID AND FI.FormID = @FormID AND
 		(@LowerCreationDateLimit IS NULL OR FI.CreationDate >= @LowerCreationDateLimit) AND
 		(@UpperCreationDateLimit IS NULL OR FI.CreationDate <= @UpperCreationDateLimit) AND
