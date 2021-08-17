@@ -21,6 +21,7 @@ SELECT  U.UserId AS UserID,
 		P.BirthDay,
 		P.MainPhoneID,
 		P.MainEmailID,
+		P.TwoStepAuthentication,
 		M.IsApproved,
 		M.IsLockedOut,
 		M.CreateDate AS CreationDate
