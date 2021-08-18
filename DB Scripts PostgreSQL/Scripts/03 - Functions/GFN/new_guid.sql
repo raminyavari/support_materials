@@ -1,0 +1,14 @@
+DROP FUNCTION IF EXISTS gfn_new_guid;
+
+CREATE OR REPLACE FUNCTION gfn_new_guid()
+RETURNS UUID
+AS
+$$
+BEGIN
+	RETURN (
+		SELECT x.id
+		FROM rv_view_new_guid AS x
+		LIMIT 1
+	);
+END;
+$$ LANGUAGE PLPGSQL;

@@ -47,7 +47,7 @@ BEGIN
 		/* end of Public Posts */
 		
 		vr_min_posts_date := (SELECT MIN("ref".date) FROM vr_temp_ids AS "ref");
-		vr_cur_count := (SELECT DISTINCT COUNT(*) FROM vr_temp_ids);
+		vr_cur_count := (SELECT COUNT(*) FROM vr_temp_ids);
 		
 		/* User's Posts */
 		IF vr_count <= vr_cur_count THEN
@@ -78,7 +78,7 @@ BEGIN
 		/* end of User's Posts */
 		
 		vr_min_posts_date = (SELECT MIN("ref".date) FROM vr_temp_ids AS "ref");
-		vr_cur_count = (SELECT DISTINCT COUNT(*) FROM vr_temp_ids);
+		vr_cur_count = (SELECT COUNT(*) FROM vr_temp_ids);
 		
 		/* User's Friend's Posts */
 		CREATE TEMP TABLE vr_friend_ids ("value" UUID primary key);
