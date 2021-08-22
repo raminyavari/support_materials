@@ -1,0 +1,13 @@
+DROP FUNCTION IF EXISTS gfn_base64_decode;
+
+CREATE OR REPLACE FUNCTION gfn_base64_decode
+(
+	vr_input VARCHAR
+)
+RETURNS VARCHAR
+AS
+$$
+BEGIN
+	RETURN CONVERT_FROM(decode(vr_input, 'BASE64'), 'UTF-8');
+END;
+$$ LANGUAGE PLPGSQL;

@@ -1,6 +1,6 @@
 DROP FUNCTION IF EXISTS gfn_is_system_admin;
 
-CREATE OR REPLACE FUNCTION is_system_admin
+CREATE OR REPLACE FUNCTION gfn_is_system_admin
 (
 	vr_application_id	UUID,
 	vr_user_id			UUID

@@ -14,28 +14,23 @@ RETURNS TABLE (
 AS
 $$
 BEGIN
-	CREATE TEMP TABLE tbl (
-		"id" 		UUID,
-		parent_id 	UUID,
-		"level" 	INTEGER,
-		"name" 		VARCHAR(2000)
-	);
-
-	INSERT INTO tbl("id", parent_id, "level", "name")
-	SELECT nd.node_id AS "id", nd.parent_node_id AS parent_id, 0 AS "level", nd.name
-	FROM UNNEST(vr_node_ids) AS n
-		INNER JOIN cn_nodes AS nd
-		ON nd.application_id = vr_application_id AND nd.node_id = n;
+	RETURN QUERY
+	WITH tbl AS 
+	(
+		SELECT nd.node_id AS "id", nd.parent_node_id AS parent_id, 0::INTEGER AS "level", nd.name
+		FROM UNNEST(vr_node_ids) AS n
+			INNER JOIN cn_nodes AS nd
+			ON nd.application_id = vr_application_id AND nd.node_id = n
+	)
+	SELECT *
+	FROM tbl
 	
-	INSERT INTO tbl("id", parent_id, "level", "name")
-	SELECT nd.node_id AS "id", nd.parent_node_id AS parent_id, "level" + 1, nd.name
+	UNION ALL
+	
+	SELECT nd.node_id AS "id", nd.parent_node_id AS parent_id, tbl.level + 1, nd.name
 	FROM tbl
 		INNER JOIN cn_nodes AS nd
 		ON nd.application_id = vr_application_id AND nd.parent_node_id = tbl.id
 	WHERE nd.node_id <> tbl.id AND nd.deleted = FALSE;
-	
-	RETURN QUERY
-	SELECT *
-	FROM tbl;
 END;
 $$ LANGUAGE PLPGSQL;

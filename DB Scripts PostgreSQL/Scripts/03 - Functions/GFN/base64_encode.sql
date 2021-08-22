@@ -1,0 +1,13 @@
+DROP FUNCTION IF EXISTS gfn_base64_encode;
+
+CREATE OR REPLACE FUNCTION gfn_base64_encode
+(
+	vr_input VARCHAR
+)
+RETURNS VARCHAR
+AS
+$$
+BEGIN
+	RETURN encode(vr_input::BYTEA, 'BASE64');
+END;
+$$ LANGUAGE PLPGSQL;

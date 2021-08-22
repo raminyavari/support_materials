@@ -1,0 +1,17 @@
+DROP FUNCTION IF EXISTS fg_fn_is_fillable;
+
+CREATE OR REPLACE FUNCTION fg_fn_is_fillable
+(
+	vr_type	VARCHAR(50)
+)
+RETURNS BOOLEAN
+AS
+$$
+BEGIN
+	IF vr_type = 'Separator' THEN
+		RETURN FALSE;
+	ELSE 
+		RETURN TRUE;
+	END IF;
+END;
+$$ LANGUAGE PLPGSQL;
