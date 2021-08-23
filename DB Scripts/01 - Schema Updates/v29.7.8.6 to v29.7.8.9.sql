@@ -133,6 +133,12 @@ END
 GO
 
 IF (SELECT TOP(1) X.[Version] FROM [dbo].[AppSetting] AS X) = N'v29.7.8.6' BEGIN
+	ALTER TABLE [dbo].[USR_Profile]
+	ADD [Settings] [nvarchar](max) NULL
+END
+GO
+
+IF (SELECT TOP(1) X.[Version] FROM [dbo].[AppSetting] AS X) = N'v29.7.8.6' BEGIN
 	EXEC ('UPDATE A ' +
 		'SET CreationDate = X.MinDate ' +
 	'FROM [dbo].[aspnet_Applications] AS A ' +

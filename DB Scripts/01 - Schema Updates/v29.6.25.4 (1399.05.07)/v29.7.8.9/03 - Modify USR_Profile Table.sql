@@ -24,3 +24,7 @@ GO
 ALTER TABLE [dbo].[USR_Profile]
 ADD [City] [nvarchar](255) NULL
 GO
+
+ALTER TABLE [dbo].[USR_Profile]
+ADD [Settings] [nvarchar](max) NULL
+GO
