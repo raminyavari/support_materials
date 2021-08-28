@@ -16,7 +16,7 @@ DECLARE
 	vr_str 			VARCHAR(10);
 	vr_match_count	INTEGER;
 BEGIN
-	vr_count := COALESCE(ARRAY_LENGTH(vr_string_items), 0);
+	vr_count := COALESCE(ARRAY_LENGTH(vr_string_items, 1), 0);
 	vr_str := CASE WHEN vr_exact = TRUE THEN N'' ELSE N'%' END;
 	
 	vr_match_count := COALESCE((

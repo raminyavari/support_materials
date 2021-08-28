@@ -109,8 +109,8 @@ BEGIN
 			SELECT x::UUID
 			FROM UNNEST(gfn_split_string(vr_str_guid_items, vr_delimiter)) AS x
 		);
-		vr_no_text_item := CASE WHEN COALESCE(ARRAY_LENGTH(vr_text_items), 0) = 0 THEN TRUE ELSE FALSE END;
-		vr_no_guid_item := CASE WHEN COALESCE(ARRAY_LENGTH(vr_guid_items), 0) = 0 THEN TRUE ELSE FALSE END;
+		vr_no_text_item := CASE WHEN COALESCE(ARRAY_LENGTH(vr_text_items, 1), 0) = 0 THEN TRUE ELSE FALSE END;
+		vr_no_guid_item := CASE WHEN COALESCE(ARRAY_LENGTH(vr_guid_items, 1), 0) = 0 THEN TRUE ELSE FALSE END;
 		
 		
 		IF vr_type = N'Form' THEN

@@ -25,9 +25,9 @@ DECLARE
 	vr_node_type_ids_count	INTEGER;
 	vr_related_types_count 	INTEGER;
 BEGIN
-	vr_node_ids_count := COALESCE(ARRAY_LENGTH(vr_node_ids), 0);
-	vr_node_type_ids_count := COALESCE(ARRAY_LENGTH(vr_node_type_ids), 0);
-	vr_related_types_count := COALESCE(ARRAY_LENGTH(vr_related_node_type_ids), 0);
+	vr_node_ids_count := COALESCE(ARRAY_LENGTH(vr_node_ids, 1), 0);
+	vr_node_type_ids_count := COALESCE(ARRAY_LENGTH(vr_node_type_ids, 1), 0);
+	vr_related_types_count := COALESCE(ARRAY_LENGTH(vr_related_node_type_ids, 1), 0);
 	
 	--Source must not be null
 	IF vr_node_ids_count = 0 AND vr_node_type_ids_count = 0 THEN 

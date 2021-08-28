@@ -16,7 +16,7 @@ $$
 DECLARE
 	vr_related_types_count	INTEGER;
 BEGIN
-	vr_related_types_count := COALESCE(ARRAY_LENGTH(vr_related_node_type_ids), 0);
+	vr_related_types_count := COALESCE(ARRAY_LENGTH(vr_related_node_type_ids, 1), 0);
 
 	RETURN QUERY
 	SELECT DISTINCT "t".tagged_id, "t".context_id

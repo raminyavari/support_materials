@@ -36,14 +36,14 @@ BEGIN
 	-- Base === Context --> Folder
 	-- Tagged === Related --> Content
 
-	vr_base_ids_count := COALESCE(ARRAY_LENGTH(vr_base_ids), 0);
+	vr_base_ids_count := COALESCE(ARRAY_LENGTH(vr_base_ids, 1), 0);
 	
 	IF vr_baseIDsCount = 0 THEN 
-		vr_base_type_ids_count := COALESCE(ARRAY_LENGTH(vr_base_type_ids), 0);
+		vr_base_type_ids_count := COALESCE(ARRAY_LENGTH(vr_base_type_ids, 1), 0);
 	END IF;
 	
 	IF vr_related_id IS NULL THEN 
-		vr_related_type_ids_count := COALESCE(ARRAY_LENGTH(vr_related_type_ids), 0);
+		vr_related_type_ids_count := COALESCE(ARRAY_LENGTH(vr_related_type_ids, 1), 0);
 	END IF;
 	
 	RETURN QUERY

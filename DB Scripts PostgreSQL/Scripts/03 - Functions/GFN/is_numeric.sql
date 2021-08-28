@@ -1,0 +1,15 @@
+DROP FUNCTION IF EXISTS gfn_is_numeric;
+
+CREATE OR REPLACE FUNCTION gfn_is_numeric
+(
+	vr_input	VARCHAR
+)
+RETURNS BOOLEAN
+AS
+$$
+BEGIN
+	RETURN COALESCE((
+		SELECT vr_input ~ '^\d+(\.\d+)?$'
+	), FALSE)::BOOLEAN;
+END;
+$$ LANGUAGE PLPGSQL;

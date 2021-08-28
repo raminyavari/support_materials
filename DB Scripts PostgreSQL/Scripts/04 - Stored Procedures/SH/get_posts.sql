@@ -117,12 +117,13 @@ BEGIN
 		END IF;
 		/* end of User's Friend's Posts */
 		
-		INSERT INTO vr_shareIDs
-		SELECT "ref".value 
-		FROM vr_temp_ids AS "ref"
-		GROUP BY "ref".value
-		ORDER BY min("ref".date) DESC
-		LIMIT vr_count;
+		vr_share_ids := ARRAY(
+			SELECT "ref".value 
+			FROM vr_temp_ids AS "ref"
+			GROUP BY "ref".value
+			ORDER BY min("ref".date) DESC
+			LIMIT vr_count	
+		);
 	END IF;
 
 	RETURN QUERY
