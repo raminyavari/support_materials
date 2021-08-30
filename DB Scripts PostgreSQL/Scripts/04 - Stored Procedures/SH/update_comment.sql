@@ -1,4 +1,3 @@
-
 DROP FUNCTION IF EXISTS sh_update_comment;
 
 CREATE OR REPLACE FUNCTION sh_update_comment

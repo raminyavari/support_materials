@@ -1,4 +1,3 @@
-
 DROP FUNCTION IF EXISTS sh_get_posts_by_ids;
 
 CREATE OR REPLACE FUNCTION sh_get_posts_by_ids 

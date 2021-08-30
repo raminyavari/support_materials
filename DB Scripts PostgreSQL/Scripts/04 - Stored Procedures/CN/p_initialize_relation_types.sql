@@ -1,14 +1,14 @@
+DROP FUNCTION IF EXISTS cn_p_initialize_relation_types;
 
-
-DROP PROCEDURE IF EXISTS _cn_p_initialize_relation_types;
-
-CREATE OR REPLACE PROCEDURE _cn_p_initialize_relation_types
+CREATE OR REPLACE FUNCTION cn_p_initialize_relation_types
 (
-	vr_application_id	UUID,
-	INOUT vr_result	 	INTEGER
+	vr_application_id	UUID
 )
+RETURNS INTEGER
 AS
 $$
+DECLARE
+	vr_result	INTEGER;
 BEGIN
 	vr_result := 0;
 	
@@ -26,27 +26,6 @@ BEGIN
 	
 	vr_result := 1;
 	
-	COMMIT;
-END;
-$$ LANGUAGE plpgsql;
-
-
-
-DROP FUNCTION IF EXISTS cn_p_initialize_relation_types;
-
-CREATE OR REPLACE FUNCTION cn_p_initialize_relation_types
-(
-	vr_application_id	UUID
-)
-RETURNS INTEGER
-AS
-$$
-DECLARE
-	vr_result INTEGER = 0;
-BEGIN
-	CALL _cn_p_initialize_relation_types(vr_application_id, vr_result);	
-	
 	RETURN vr_result;
 END;
 $$ LANGUAGE plpgsql;
-

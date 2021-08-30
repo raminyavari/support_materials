@@ -1,4 +1,3 @@
-
 DROP FUNCTION IF EXISTS sh_get_post_fan_ids;
 
 CREATE OR REPLACE FUNCTION sh_get_post_fan_ids

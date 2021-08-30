@@ -1,4 +1,3 @@
-
 DROP PROCEDURE IF EXISTS _cn_arithmetic_delete_node_types;
 
 CREATE OR REPLACE PROCEDURE _cn_arithmetic_delete_node_types

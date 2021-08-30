@@ -1,4 +1,3 @@
-
 DROP FUNCTION IF EXISTS cn_get_node_types;
 
 CREATE OR REPLACE FUNCTION cn_get_node_types

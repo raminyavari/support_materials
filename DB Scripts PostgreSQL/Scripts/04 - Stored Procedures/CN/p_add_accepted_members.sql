@@ -1,21 +1,22 @@
-DROP PROCEDURE IF EXISTS _cn_p_add_accepted_members;
+DROP FUNCTION IF EXISTS cn_p_add_accepted_members;
 
-CREATE OR REPLACE PROCEDURE _cn_p_add_accepted_members
+CREATE OR REPLACE FUNCTION cn_p_add_accepted_members
 (
 	vr_application_id	UUID,
 	vr_members			guid_pair_table_type[],
-    vr_now		 		TIMESTAMP,
-	INOUT vr_result		INTEGER
+    vr_now		 		TIMESTAMP
 )
+RETURNS INTEGER
 AS
 $$
 DECLARE
 	vr_status		VARCHAR(20) = 'Accepted';
 	vr_temp_result	INTEGER = 0;
+	vr_result		INTEGER = 0;
 BEGIN
 	IF COALESCE(ARRAY_LENGTH(vr_members, 1), 0) = 0 THEN
 		vr_result := -1;
-		RETURN;
+		RETURN vr_result;
 	END IF;
 	
 	DROP TABLE IF EXISTS vr_tbl_63464;
@@ -90,28 +91,6 @@ BEGIN
 	
     vr_result := vr_result + vr_temp_result;
 	
-	COMMIT;
-END;
-$$ LANGUAGE plpgsql;
-
-
-DROP FUNCTION IF EXISTS cn_p_add_accepted_members;
-
-CREATE OR REPLACE FUNCTION cn_p_add_accepted_members
-(
-	vr_application_id	UUID,
-	vr_members			guid_pair_table_type[],
-    vr_now		 		TIMESTAMP
-)
-RETURNS INTEGER
-AS
-$$
-DECLARE
-	vr_result	INTEGER = 0;
-BEGIN
-	CALL _cn_p_add_accepted_members(vr_application_id, vr_members, vr_now, vr_result);
-	
 	RETURN vr_result;
 END;
 $$ LANGUAGE plpgsql;
-

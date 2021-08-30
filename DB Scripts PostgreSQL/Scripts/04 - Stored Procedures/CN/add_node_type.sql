@@ -1,5 +1,3 @@
-
-
 DROP PROCEDURE IF EXISTS _cn_add_node_type;
 
 CREATE OR REPLACE PROCEDURE _cn_add_node_type

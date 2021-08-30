@@ -1,6 +1,6 @@
-DROP PROCEDURE IF EXISTS _cn_p_update_members;
+DROP FUNCTION IF EXISTS cn_p_update_members;
 
-CREATE OR REPLACE PROCEDURE _cn_p_update_members
+CREATE OR REPLACE FUNCTION cn_p_update_members
 (
 	vr_application_id	UUID,
 	vr_members			guid_pair_table_type[],
@@ -9,18 +9,19 @@ CREATE OR REPLACE PROCEDURE _cn_p_update_members
     vr_is_pending		BOOLEAN,
     vr_acception_date	TIMESTAMP,
     vr_position		 	VARCHAR(255),
-    vr_deleted		 	BOOLEAN,
-	INOUT vr_result		INTEGER
+    vr_deleted		 	BOOLEAN
 )
+RETURNS INTEGER
 AS
 $$
 DECLARE
 	vr_status		VARCHAR(20);
 	vr_temp_result	INTEGER = 0;
+	vr_result		INTEGER;
 BEGIN
 	IF COALESCE(ARRAY_LENGTH(vr_members, 1), 0) = 0 THEN
 		vr_result := -1;
-		RETURN;
+		RETURN vr_result;
 	END IF;
 	
 	IF vr_isPending IS NOT NULL THEN
@@ -116,33 +117,6 @@ BEGIN
 	GET DIAGNOSTICS vr_temp_result := ROW_COUNT;
 	
     vr_result := vr_result + vr_temp_result;
-	
-	COMMIT;
-END;
-$$ LANGUAGE plpgsql;
-
-
-DROP FUNCTION IF EXISTS cn_p_update_members;
-
-CREATE OR REPLACE FUNCTION cn_p_update_members
-(
-	vr_application_id	UUID,
-	vr_members			guid_pair_table_type[],
-    vr_membership_date	TIMESTAMP,
-    vr_is_admin		 	BOOLEAN,
-    vr_is_pending		BOOLEAN,
-    vr_acception_date	TIMESTAMP,
-    vr_position		 	VARCHAR(255),
-    vr_deleted		 	BOOLEAN
-)
-RETURNS INTEGER
-AS
-$$
-DECLARE
-	vr_result	INTEGER = 0;
-BEGIN
-	CALL _cn_p_update_members(vr_application_id, vr_members, vr_membership_date, vr_is_admin,
-							  vr_is_pending, vr_acception_date, vr_position, vr_deleted, vr_result);
 	
 	RETURN vr_result;
 END;

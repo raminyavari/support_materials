@@ -1,4 +1,3 @@
-
 DROP FUNCTION IF EXISTS cn_have_child_node_types;
 
 CREATE OR REPLACE FUNCTION cn_have_child_node_types

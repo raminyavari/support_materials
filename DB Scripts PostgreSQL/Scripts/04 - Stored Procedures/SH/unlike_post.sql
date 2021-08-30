@@ -1,4 +1,3 @@
-
 DROP FUNCTION IF EXISTS sh_unlike_post;
 
 CREATE OR REPLACE FUNCTION sh_unlike_post

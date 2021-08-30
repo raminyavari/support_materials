@@ -1,4 +1,3 @@
-
 DROP FUNCTION IF EXISTS sh_arithmetic_delete_comment;
 
 CREATE OR REPLACE FUNCTION sh_arithmetic_delete_comment

@@ -1,4 +1,3 @@
-
 DROP FUNCTION IF EXISTS sh_get_post_likes_dislikes_count;
 
 CREATE OR REPLACE FUNCTION sh_get_post_likes_dislikes_count

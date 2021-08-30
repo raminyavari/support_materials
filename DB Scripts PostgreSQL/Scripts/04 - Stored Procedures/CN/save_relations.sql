@@ -28,7 +28,11 @@ BEGIN
 	
 	vr_result := cn_p_add_relation(vr_application_id, vr_relations, vr_creator_user_id, vr_creation_date, TRUE);
 	
-	COMMIT;
+	IF vr_result <= 0 THEN
+		ROLLBACK;
+	ELSE
+		COMMIT;
+	END IF;
 END;
 $$ LANGUAGE plpgsql;
 

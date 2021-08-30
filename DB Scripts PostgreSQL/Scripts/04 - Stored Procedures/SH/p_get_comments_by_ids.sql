@@ -1,4 +1,3 @@
-
 DROP FUNCTION IF EXISTS sh_p_get_comments_by_ids;
 
 CREATE OR REPLACE FUNCTION sh_p_get_comments_by_ids

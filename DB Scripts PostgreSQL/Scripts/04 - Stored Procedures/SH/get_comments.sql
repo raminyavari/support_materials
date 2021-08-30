@@ -1,4 +1,3 @@
-
 DROP FUNCTION IF EXISTS sh_get_comments;
 
 CREATE OR REPLACE FUNCTION sh_get_comments

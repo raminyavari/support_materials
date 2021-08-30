@@ -1,22 +1,21 @@
+DROP FUNCTION IF EXISTS cn_p_add_relation;
 
-
-DROP PROCEDURE IF EXISTS _cn_p_add_relation;
-
-CREATE OR REPLACE PROCEDURE _cn_p_add_relation
+CREATE OR REPLACE FUNCTION cn_p_add_relation
 (
 	vr_application_id		UUID,
 	vr_relations			guid_triple_table_type[],
     vr_creator_user_id		UUID,
     vr_creation_date	 	TIMESTAMP,
-    vr_set_nulls_to_default	BOOLEAN,
-	INOUT vr_result	 		INTEGER
+    vr_set_nulls_to_default	BOOLEAN
 )
+RETURNS INTEGER
 AS
 $$
 DECLARE
 	vr_verified_relations 		guid_triple_table_type[];
 	vr_related_relation_type_id UUID;
 	vr_temp_result				INTEGER;
+	vr_result	 				INTEGER;
 BEGIN
 	vr_result := -1;
 	
@@ -70,32 +69,6 @@ BEGIN
 	
 	vr_result := vr_result + vr_temp_result;
 	
-	COMMIT;
-END;
-$$ LANGUAGE plpgsql;
-
-
-
-DROP FUNCTION IF EXISTS cn_p_add_relation;
-
-CREATE OR REPLACE FUNCTION cn_p_add_relation
-(
-	vr_application_id		UUID,
-	vr_relations			guid_triple_table_type[],
-    vr_creator_user_id		UUID,
-    vr_creation_date	 	TIMESTAMP,
-    vr_set_nulls_to_default	BOOLEAN
-)
-RETURNS INTEGER
-AS
-$$
-DECLARE
-	vr_result INTEGER = 0;
-BEGIN
-	CALL _cn_p_add_relation(vr_application_id, vr_relations, vr_creator_user_id,
-						   vr_creation_date, vr_set_nulls_to_default, vr_result);
-	
 	RETURN vr_result;
 END;
 $$ LANGUAGE plpgsql;
-

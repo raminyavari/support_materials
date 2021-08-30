@@ -1,5 +1,3 @@
-
-
 DROP PROCEDURE IF EXISTS _sh_add_post;
 
 CREATE OR REPLACE PROCEDURE _sh_add_post 

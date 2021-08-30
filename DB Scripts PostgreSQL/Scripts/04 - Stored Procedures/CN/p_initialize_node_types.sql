@@ -1,19 +1,18 @@
+DROP FUNCTION IF EXISTS cn_p_initialize_node_types;
 
-
-DROP PROCEDURE IF EXISTS _cn_p_initialize_node_types;
-
-CREATE OR REPLACE PROCEDURE _cn_p_initialize_node_types
+CREATE OR REPLACE FUNCTION cn_p_initialize_node_types
 (
 	vr_application_id	UUID,
-	vr_now				TIMESTAMP,
-	INOUT vr_result	 	INTEGER
+	vr_now				TIMESTAMP
 )
+RETURNS INTEGER
 AS
 $$
 DECLARE 
 	vr_cur_node_types_count	INTEGER;
 	vr_user_id 				UUID;
 	vr_knowledge_type_id 	UUID;
+	vr_result	 			INTEGER;
 BEGIN
 	vr_result := 0;
 	
@@ -29,7 +28,7 @@ BEGIN
 	
 	IF vr_cur_node_types_count > 2 THEN
 		vr_result = 1;
-		RETURN;
+		RETURN vr_result;
 	END IF;
 
 	vr_user_id := (
@@ -105,28 +104,6 @@ BEGIN
 
 	vr_result := 1;
 	
-	COMMIT;
-END;
-$$ LANGUAGE plpgsql;
-
-
-
-DROP FUNCTION IF EXISTS cn_p_initialize_node_types;
-
-CREATE OR REPLACE FUNCTION cn_p_initialize_node_types
-(
-	vr_application_id	UUID,
-	vr_now				TIMESTAMP
-)
-RETURNS INTEGER
-AS
-$$
-DECLARE
-	vr_result INTEGER = 0;
-BEGIN
-	CALL _cn_p_initialize_node_types(vr_application_id, vr_now, vr_result);	
-	
 	RETURN vr_result;
 END;
 $$ LANGUAGE plpgsql;
-

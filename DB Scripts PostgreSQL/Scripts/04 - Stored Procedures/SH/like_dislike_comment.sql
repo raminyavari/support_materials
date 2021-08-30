@@ -1,4 +1,3 @@
-
 DROP FUNCTION IF EXISTS sh_like_dislike_comment;
 
 CREATE OR REPLACE FUNCTION sh_like_dislike_comment
