@@ -54,7 +54,7 @@ BEGIN
 		Info,
 		ModuleIdentifier
 	)
-	SELECT @ApplicationID, @UserID, @HostAddress, @HostName, @Action, @Level, @NotAuthorized, Ref.Value, 
+	SELECT @ApplicationID, ISNULL(@UserID, [dbo].[GFN_GuidEmpty]()), @HostAddress, @HostName, @Action, @Level, @NotAuthorized, Ref.Value, 
 		@SecondSubjectID, @ThirdSubjectID, @FourthSubjectID, @Date, @Info, @ModuleIdentifier
 	FROM @SubjectIDs AS Ref
 	

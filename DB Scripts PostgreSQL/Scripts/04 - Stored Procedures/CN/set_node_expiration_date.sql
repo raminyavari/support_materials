@@ -21,15 +21,13 @@ BEGIN
 			
 		IF vr_result <= 0 THEN
 			vr_result := -1;
-			ROLLBACK;
+			CALL gfn_raise_exception(vr_result, NULL);
 			RETURN;
 		END IF;
 	END IF;
 	-- end of remove dashboards
 	
 	vr_result := 1;
-	
-	COMMIT;
 END;
 $$ LANGUAGE plpgsql;
 

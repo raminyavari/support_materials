@@ -39,8 +39,6 @@ BEGIN
 		SET parent_id = NULL
 		WHERE application_id = vr_application_id AND node_type_id = vr_node_type_id;
 	END IF;
-	
-	COMMIT;
 END;
 $$ LANGUAGE plpgsql;
 

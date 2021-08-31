@@ -40,8 +40,6 @@ BEGIN
 			
 		GET DIAGNOSTICS vr_result := ROW_COUNT;
 	END IF;
-	
-	COMMIT;
 END;
 $$ LANGUAGE plpgsql;
 

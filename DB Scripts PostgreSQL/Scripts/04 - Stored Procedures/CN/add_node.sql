@@ -41,9 +41,7 @@ BEGIN
 	WHERE application_id = vr_application_id AND node_id = vr_node_id;
 	
 	IF vr_result <= 0 THEN
-		ROLLBACK;
-	ELSE
-		COMMIT;
+		CALL gfn_raise_exception(vr_result, NULL);
 	END IF;
 END;
 $$ LANGUAGE plpgsql;

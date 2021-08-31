@@ -754,6 +754,7 @@ CREATE PROCEDURE [dbo].[WF_SetStateDirector]
 	@RefStateID				uniqueidentifier,
 	@NodeID					uniqueidentifier,
 	@Admin					bit,
+	@UserID					uniqueidentifier,
 	@LastModifierUserID		uniqueidentifier,
 	@LastModificationDate	datetime
 WITH ENCRYPTION
@@ -766,6 +767,7 @@ BEGIN
 			RefStateID = @RefStateID,
 			NodeID = @NodeID,
 			[Admin] = @Admin,
+			UserID = @UserID,
 			LastModifierUserID = @LastModifierUserID,
 			LastModificationDate = @LastModificationDate
 	WHERE ApplicationID = @ApplicationID AND WorkFlowID = @WorkFlowID AND StateID = @StateID
@@ -1926,31 +1928,35 @@ BEGIN
 	DECLARE @StateIDs GuidTableType
 	INSERT INTO @StateIDs SELECT * FROM @StateIDsTemp
 	
-	SELECT WFS.ID AS ID,
-		   WFS.StateID AS StateID,
-		   WFS.WorkFlowID AS WorkFlowID,
-		   WFS.[Description] AS [Description],
-		   TG.Tag AS Tag,
-		   WFS.DataNeedsType AS DataNeedsType,
-		   WFS.RefDataNeedsStateID AS RefDataNeedsStateID,
-		   WFS.DataNeedsDescription AS DataNeedsDescription,
-		   WFS.DescriptionNeeded AS DescriptionNeeded,
-		   WFS.HideOwnerName AS HideOwnerName,
-		   WFS.EditPermission AS EditPermission,
-		   WFS.ResponseType AS ResponseType,
-		   WFS.RefStateID AS RefStateID,
-		   WFS.NodeID AS NodeID,
-		   ND.NodeName AS NodeName,
-		   ND.NodeTypeID AS NodeTypeID,
+	SELECT WFS.ID,
+		   WFS.StateID,
+		   WFS.WorkFlowID,
+		   WFS.[Description],
+		   TG.Tag,
+		   WFS.DataNeedsType,
+		   WFS.RefDataNeedsStateID,
+		   WFS.DataNeedsDescription,
+		   WFS.DescriptionNeeded,
+		   WFS.HideOwnerName,
+		   WFS.EditPermission,
+		   WFS.ResponseType,
+		   WFS.RefStateID,
+		   WFS.NodeID,
+		   ND.NodeName,
+		   ND.NodeTypeID,
 		   ND.TypeName AS NodeType,
-		   WFS.[Admin] AS [Admin],
-		   WFS.FreeDataNeedRequests AS FreeDataNeedRequests,
-		   WFS.MaxAllowedRejections AS MaxAllowedRejections,
-		   WFS.RejectionTitle AS RejectionTitle,
-		   WFS.RejectionRefStateID AS RejectionRefStateID,
+		   WFS.[Admin],
+		   WFS.UserID,
+		   UN.UserName,
+		   UN.FirstName,
+		   UN.LastName,
+		   WFS.FreeDataNeedRequests,
+		   WFS.MaxAllowedRejections,
+		   WFS.RejectionTitle,
+		   WFS.RejectionRefStateID,
 		   RS.Title AS RejectionRefStateTitle,
 		   PL.PollID,
-		   PL.Name AS PollName
+		   PL.[Name] AS PollName
 	FROM @StateIDs AS ExternalIDs
 		INNER JOIN [dbo].[WF_WorkFlowStates] AS WFS
 		ON WFS.StateID = ExternalIDs.Value
@@ -1962,6 +1968,8 @@ BEGIN
 		ON RS.ApplicationID = @ApplicationID AND RS.StateID = WFS.RejectionRefStateID
 		LEFT JOIN [dbo].[FG_Polls] AS PL
 		ON PL.ApplicationID = @ApplicationID AND PL.PollID = WFS.PollID
+		LEFT JOIN [dbo].[Users_Normal] AS UN
+		ON UN.ApplicationID = @ApplicationID AND UN.UserID = WFS.UserID
 	WHERE WFS.ApplicationID = @ApplicationID AND WFS.WorkFlowID = @WorkFlowID
 END
 

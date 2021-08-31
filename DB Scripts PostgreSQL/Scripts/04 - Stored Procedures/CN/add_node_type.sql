@@ -80,8 +80,6 @@ BEGIN
 	ELSE
 		vr_result := 0;
 	END IF;
-
-	COMMIT;
 END;
 $$ LANGUAGE plpgsql;
 

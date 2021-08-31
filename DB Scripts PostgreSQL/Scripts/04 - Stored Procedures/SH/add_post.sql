@@ -72,8 +72,6 @@ BEGIN
     );
 	
 	GET DIAGNOSTICS vr_result := ROW_COUNT;
-	
-	COMMIT;
 END;
 $$ LANGUAGE plpgsql;
 

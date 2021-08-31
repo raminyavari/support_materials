@@ -38,10 +38,9 @@ BEGIN
 							
 	IF vr_first_result <= 0 OR vr_second_result <= 0 THEN
 		vr_result := -1;
-		ROLLBACK;
+		CALL gfn_raise_exception(vr_result, NULL);
 	ELSE
 		vr_result := vr_first_result + vr_second_result;
-		COMMIT;
 	END IF;
 END;
 $$ LANGUAGE plpgsql;

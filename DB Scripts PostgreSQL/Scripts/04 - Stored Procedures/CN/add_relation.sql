@@ -14,9 +14,7 @@ BEGIN
 	vr_result := cn_p_add_relation(vr_application_id, vr_relations, vr_creator_user_id, vr_creation_date, TRUE);
 	
 	IF vr_result <= 0 THEN
-		ROLLBACK;
-	ELSE
-		COMMIT;
+		CALL gfn_raise_exception(vr_result, NULL);
 	END IF;
 END;
 $$ LANGUAGE plpgsql;

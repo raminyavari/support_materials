@@ -17,9 +17,7 @@ BEGIN
 										   vr_current_user_id, vr_now, vr_reverse_also);
 										   
 	IF vr_result <= 0 THEN
-		ROLLBACK;
-	ELSE
-		COMMIT;
+		CALL gfn_raise_exception(vr_result, NULL);
 	END IF;
 END;
 $$ LANGUAGE plpgsql;

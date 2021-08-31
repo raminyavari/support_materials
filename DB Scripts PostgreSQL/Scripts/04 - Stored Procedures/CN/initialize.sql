@@ -13,8 +13,6 @@ BEGIN
 	vr_result := cn_p_initialize_relation_types(vr_application_id);
 	
 	vr_result := 1::INTEGER;
-	
-	COMMIT;
 END;
 $$ LANGUAGE plpgsql;
 

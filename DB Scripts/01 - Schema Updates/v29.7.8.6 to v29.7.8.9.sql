@@ -329,6 +329,12 @@ END
 GO
 
 IF (SELECT TOP(1) X.[Version] FROM [dbo].[AppSetting] AS X) = N'v29.7.8.6' BEGIN
+	ALTER TABLE [dbo].[WF_WorkFlowStates]
+	ADD [UserID] uniqueidentifier NULL
+END
+GO
+
+IF (SELECT TOP(1) X.[Version] FROM [dbo].[AppSetting] AS X) = N'v29.7.8.6' BEGIN
 	UPDATE [dbo].[AppSetting]
 		SET [Version] = 'v29.7.8.9' -- 14000517
 END

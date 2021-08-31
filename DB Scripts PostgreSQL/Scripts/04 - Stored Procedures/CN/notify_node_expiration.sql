@@ -6,12 +6,11 @@ CREATE OR REPLACE PROCEDURE _cn_notify_node_expiration
     vr_node_id			UUID,
     vr_user_id			UUID,
     vr_now		 		TIMESTAMP,
-	INOUT vr_ret_dash	REFCURSOR
+	INOUT vr_dashboards	dashboard_table_type[]
 )
 AS
 $$
 DECLARE
-	vr_dashboards	dashboard_table_type[];
 	vr_result		INTEGER = 0;
 BEGIN
 	-- Send new dashboards
@@ -31,19 +30,10 @@ BEGIN
 		vr_result := ntfn_p_send_dashboards(vr_application_id, vr_dashboards);
 		
 		IF vr_result <= 0 THEN
-			ROLLBACK;
-			
-			OPEN vr_ret_dash FOR
-			SELECT -1::INTEGER;
-		ELSE
-			OPEN vr_ret_dash FOR
-			SELECT x.*
-			FROM UNNEST(vr_dashboards) AS x;
+			CALL gfn_raise_exception(-1, NULL);
 		END IF;
 	END IF;
 	-- end of send new dashboards
-	
-	COMMIT;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -58,15 +48,17 @@ CREATE OR REPLACE FUNCTION cn_notify_node_expiration
     vr_user_id			UUID,
     vr_now		 		TIMESTAMP
 )
-RETURNS REFCURSOR
+RETURNS SETOF dashboard_table_type
 AS
 $$
 DECLARE
-	vr_ret	REFCURSOR;
+	vr_dashboards	dashboard_table_type[];
 BEGIN
-	CALL _cn_notify_node_expiration(vr_application_id, vr_node_id, vr_user_id, vr_now, vr_ret);
+	CALL _cn_notify_node_expiration(vr_application_id, vr_node_id, vr_user_id, vr_now, vr_dashboards);
 	
-	RETURN vr_ret;
+	RETURN QUERY
+	SELECT x.*
+	FROM UNNEST(vr_dashboards) AS x;
 END;
 $$ LANGUAGE plpgsql;
 
