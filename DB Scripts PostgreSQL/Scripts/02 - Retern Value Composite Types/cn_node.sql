@@ -2,7 +2,7 @@ DROP TYPE IF EXISTS cn_node_ret_composite;
 
 CREATE TYPE cn_node_ret_composite AS (
 	node_id						UUID, 
-	name 						VARCHAR,
+	"name" 						VARCHAR,
 	additional_id_main			VARCHAR,
 	additional_id				VARCHAR,
 	document_tree_node_id		UUID,
@@ -44,5 +44,6 @@ CREATE TYPE cn_node_ret_composite AS (
 	visits_count				INTEGER,
 	is_free_user				BOOLEAN,
 	has_wiki_content			BOOLEAN,
-	has_form_content			BOOLEAN
+	has_form_content			BOOLEAN,
+	total_count					BIGINT
 );

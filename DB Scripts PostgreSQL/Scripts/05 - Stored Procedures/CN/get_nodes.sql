@@ -26,13 +26,23 @@ CREATE OR REPLACE FUNCTION cn_get_nodes
     vr_default_privacy				VARCHAR(20),
     vr_group_by_form_element_id		UUID
 )
-RETURNS SETOF cn_node_ret_composite
+RETURNS SETOF REFCURSOR
 AS
 $$
 DECLARE
-	vr_nt_ids		UUID[];
-	vr_related_ids	UUID[];
-	vr_cnt			INTEGER;
+	vr_nt_ids			UUID[];
+	vr_related_ids		UUID[];
+	vr_cnt				INTEGER;
+	vr_temp_ids			UUID[];
+	vr_permission_types string_pair_table_type[];
+	vr_element_type 	VARCHAR(50);
+	vr_node_type_id 	UUID;
+	vr_node_ids			UUID[];
+	vr_total_count		BIGINT;
+	vr_group_ref		REFCURSOR;
+	vr_nodes_ref		REFCURSOR;
+	vr_total_count_ref	REFCURSOR;
+	vr_node_counts_ref	REFCURSOR;
 BEGIN
 	vr_search_text := gfn_verify_string(vr_search_text);
 
@@ -101,7 +111,6 @@ BEGIN
 		INSERT INTO vr_n_ids_23043 (node_id, score, creation_date)
 		SELECT nd.node_id, pgroonga_score(nd.tableoid, nd.ctid)::FLOAT, nd.creation_date
 		FROM cn_view_nodes_normal AS nd
-			ON srch.key = nd.node_id
 			LEFT JOIN cn_services AS s
 			ON s.application_id = vr_application_id AND s.node_type_id = nd.node_type_id AND s.deleted = FALSE
 		WHERE nd.application_id = vr_application_id AND (
@@ -126,145 +135,175 @@ BEGIN
 		vr_related_ids := ARRAY(
 			SELECT vr_related_to_node_id
 		);
-	
-		DELETE FROM i
-		FROM vr_n_ids_23043 AS i
-			LEFT JOIN (
-				SELECT r.node_id, r.related_node_id
-				FROM cn_fn_get_related_node_ids(vr_application_id, 
-					vr_related_ids, NULL, NULL, TRUE, TRUE, TRUE, TRUE) AS r
-			) AS x
-			ON x.related_node_id = i.node_id
-		WHERE x.related_node_id IS NULL;
+		
+		WITH rf AS
+		(
+			SELECT i.node_id
+			FROM vr_n_ids_23043 AS i
+				LEFT JOIN (
+					SELECT r.node_id, r.related_node_id
+					FROM cn_fn_get_related_node_ids(vr_application_id, 
+						vr_related_ids, NULL, NULL, TRUE, TRUE, TRUE, TRUE) AS r
+				) AS x
+				ON x.related_node_id = i.node_id
+			WHERE x.related_node_id IS NULL
+		)
+		DELETE FROM vr_n_ids_23043 AS i
+		USING rf
+		WHERE i.node_id = rf.node_id;
 	END IF;
 	
 	IF vr_creator_user_id IS NOT NULL THEN
-		DELETE FROM i
-		FROM vr_n_ids_23043 AS i
-			LEFT JOIN cn_node_creators AS nc
-			ON nc.application_id = vr_application_id AND nc.node_id = i.node_id AND 
-				nc.user_id = vr_creator_user_id AND nc.deleted = FALSE
-			INNER JOIN cn_nodes AS nd
-			ON nd.application_id = vr_application_id AND nd.node_id = i.node_id
-		WHERE nc.node_id IS NULL AND nd.creator_user_id <> vr_creator_user_id;
+		WITH rf AS
+		(
+			SELECT i.node_id
+			FROM vr_n_ids_23043 AS i
+				LEFT JOIN cn_node_creators AS nc
+				ON nc.application_id = vr_application_id AND nc.node_id = i.node_id AND 
+					nc.user_id = vr_creator_user_id AND nc.deleted = FALSE
+				INNER JOIN cn_nodes AS nd
+				ON nd.application_id = vr_application_id AND nd.node_id = i.node_id
+			WHERE nc.node_id IS NULL AND nd.creator_user_id <> vr_creator_user_id
+		)
+		DELETE FROM vr_n_ids_23043 AS i
+		USING rf
+		WHERE i.node_id = rf.node_id;
 	END IF;
 	
 	IF COALESCE(vr_check_access, FALSE) = TRUE THEN
-		DECLARE vr__t_ids KeyLessGuidTableType
+		vr_temp_ids := ARRAY(
+			SELECT x.node_id
+			FROM vr_n_ids_23043 AS x
+		);
 		
-		INSERT INTO vr__t_ids (Value)
-		SELECT NodeID
-		FROM vr__n_ids AS i_ds
+		vr_permission_types := ARRAY(
+			SELECT ROW('View', vr_default_privacy)
+			UNION ALL
+			SELECT ROW('ViewAbstract', vr_default_privacy)
+		);
 		
-		DECLARE	vr_permission_types StringPairTableType
-		
-		INSERT INTO vr_permission_types (FirstValue, SecondValue)
-		VALUES (N'View', vr_default_privacy), (N'ViewAbstract', vr_default_privacy)
-	
-		DELETE I
-		FROM vr__n_ids AS i
-			LEFT JOIN (
-				SELECT a.id
-				FROM prvc_fn_check_access(vr_application_id, vr_current_user_id, 
-					vr__t_ids, 'Node', NOW(), vr_permission_types) AS a
-				GROUP BY a.id
-			) AS x
-			ON x.id = i.node_id
-		WHERE x.id IS NULL;
+		WITH rf AS
+		(
+			SELECT i.node_id
+			FROM vr_n_ids_23043 AS i
+				LEFT JOIN (
+					SELECT "a".id
+					FROM prvc_fn_check_access(vr_application_id, vr_current_user_id, 
+						vr_temp_ids, 'Node', NOW(), vr_permission_types) AS "a"
+					GROUP BY "a".id
+				) AS x
+				ON x.id = i.node_id
+			WHERE x.id IS NULL
+		)
+		DELETE FROM vr_n_ids_23043 AS i
+		USING rf
+		WHERE i.node_id = rf.node_id;
 	END IF;
 	
-	DECLARE vr_node_ids KeyLessGuidTableType
-	DECLARE vr_total_count bigint = NULL
+	IF COALESCE(ARRAY_LENGTH(vr_form_filters, 1), 0) > 0 THEN
+		vr_temp_ids := ARRAY(
+			SELECT x.node_id
+			FROM vr_n_ids_23043 AS x
+		);
+		
+		vr_node_ids := ARRAY(
+			SELECT rf.owner_id
+			FROM vr_n_ids_23043 AS ids
+				INNER JOIN fg_fn_filter_instance_owners(vr_application_id, 
+														NULL, vr_temp_ids, vr_form_filters, vr_match_all_filters) AS rf
+				ON rf.owner_id = ids.node_id
+			ORDER BY rf.rank ASC, ids.creation_date DESC, rf.owner_id DESC
+		);
+	ELSE
+		vr_node_ids := ARRAY(
+			SELECT ids.node_id
+			FROM vr_n_ids_23043 AS ids
+			ORDER BY ids.score DESC, ids.creation_date DESC, ids.node_id DESC
+		);
+	END IF;
 	
-	IF (SELECT COUNT(*) FROM vr_form_filters) > 0 BEGIN
-		DECLARE vr_iDs GuidTableType
-		
-		INSERT INTO vr_iDs (Value)
-		SELECT NodeID
-		FROM vr__n_ids
-		
-		INSERT INTO vr_node_ids (Value)
-		SELECT ref.owner_id
-		FROM vr__n_ids AS i_ds
-			INNER JOIN fg_fn_filter_instance_owners(vr_application_id, NULL, vr_iDs, vr_form_filters, vr_match_allFilters) AS ref
-			ON ref.owner_id = i_ds.node_id
-		ORDER BY ref.rank ASC, i_ds.creation_date DESC, ref.owner_id DESC
-		
-		SET vr_total_count = (SELECT COUNT(*) FROM vr_node_ids)
-	END
-	ELSE BEGIN
-		INSERT INTO vr_node_ids (Value)
-		SELECT i_ds.node_id
-		FROM vr__n_ids AS i_ds
-		ORDER BY i_ds.score DESC, i_ds.creation_date DESC, i_ds.node_id DESC
-		
-		SET vr_total_count = (SELECT COUNT(*) FROM vr__n_ids)
-	END
+	vr_total_count := COALESCE(ARRAY_LENGTH(vr_node_ids, 1), 0)::BIGINT;
 	
-	DECLARE vr_element_type varchar(50) = NULL
-	DECLARE vr_nodeTypeID UUID = NULL
-	
-	IF vr_group_by_form_element_id IS NOT NULL AND vr_cnt = 1 BEGIN
-		SET vr_element_type = (
-			SELECT TOP(1) e.type
-			FROM fg_extended_form_elements AS e
-			WHERE e.application_id = vr_application_id AND e.element_id = vr_group_by_form_element_id
-		)
+	IF vr_group_by_form_element_id IS NOT NULL AND vr_cnt = 1 THEN
+		SELECT vr_element_type = e.type
+		FROM fg_extended_form_elements AS e
+		WHERE e.application_id = vr_application_id AND e.element_id = vr_group_by_form_element_id
+		LIMIT 1;
 		
-		IF vr_element_type = N'Select' BEGIN 
+		IF vr_element_type = 'Select' THEN
+			OPEN vr_group_ref FOR
 			SELECT	e.text_value, 
-					CAST(NULL AS boolean) AS bit_value, 
-					vr_element_type AS type, 
-					COUNT(DISTINCT nd.value) AS count
-			FROM vr_node_ids AS nd
+					NULL::BOOLEAN AS bit_value, 
+					vr_element_type AS "type", 
+					COUNT(DISTINCT nd) AS "count"
+			FROM UNNEST(vr_node_ids) AS nd
 				LEFT JOIN fg_form_instances AS i
-				ON i.application_id = vr_application_id AND i.owner_id = nd.value
+				ON i.application_id = vr_application_id AND i.owner_id = nd
 				LEFT JOIN fg_instance_elements AS e
-				ON e.application_id = vr_application_id AND e.instance_id = i.instance_id AND e.ref_element_id = vr_group_by_form_element_id
+				ON e.application_id = vr_application_id AND e.instance_id = i.instance_id AND 
+					e.ref_element_id = vr_group_by_form_element_id
 			GROUP BY e.text_value
-			ORDER BY count DESC
-		END 
-		ELSE IF vr_element_type = N'Binary' BEGIN
-			SELECT	CAST(NULL AS varchar(max)) AS text_value, 
+			ORDER BY "count" DESC;
+			
+			RETURN NEXT vr_group_ref;
+		ELSEIF vr_element_type = 'Binary' THEN
+			OPEN vr_group_ref FOR
+			SELECT	NULL::VARCHAR AS text_value, 
 					e.bit_value, 
-					vr_element_type AS type, 
-					COUNT(DISTINCT nd.value) AS count
-			FROM vr_node_ids AS nd
+					vr_element_type AS "type", 
+					COUNT(DISTINCT nd) AS "count"
+			FROM UNNEST(vr_node_ids) AS nd
 				LEFT JOIN fg_form_instances AS i
-				ON i.application_id = vr_application_id AND i.owner_id = nd.value
+				ON i.application_id = vr_application_id AND i.owner_id = nd
 				LEFT JOIN fg_instance_elements AS e
-				ON e.application_id = vr_application_id AND e.instance_id = i.instance_id AND e.ref_element_id = vr_group_by_form_element_id
+				ON e.application_id = vr_application_id AND e.instance_id = i.instance_id AND 
+					e.ref_element_id = vr_group_by_form_element_id
 			GROUP BY e.bit_value
-			ORDER BY count DESC
-		END
-	END
-	ELSE BEGIN
-		DECLARE vr_retIDs KeyLessGuidTableType
-
+			ORDER BY "count" DESC;
+			
+			RETURN NEXT vr_group_ref;
+		END IF;
+	ELSE
 		-- Pick Items
-		IF COALESCE(vr_count, 0) < 1 SET vr_count = 1000000000
-		IF COALESCE(vr_lower_boundary, 0) < 1 SET vr_lower_boundary = 1
+		IF COALESCE(vr_count, 0) < 1 THEN 
+			vr_count := 1000000000;
+		END IF;
 		
-		INSERT INTO vr_retIDs (value)
-		SELECT i_ds.value
-		FROM vr_node_ids AS i_ds
-		WHERE i_ds.sequence_number BETWEEN vr_lower_boundary AND (vr_lower_boundary + vr_count - 1)
+		IF COALESCE(vr_lower_boundary, 0) < 1 THEN
+			vr_lower_boundary := 1;
+		END IF;
+		
+		vr_temp_ids := ARRAY(
+			SELECT x.id
+			FROM UNNEST(vr_node_ids) WITH ORDINALITY AS x("id", seq)
+			WHERE x.seq BETWEEN vr_lower_boundary AND (vr_lower_boundary + vr_count - 1)
+		);
 		-- end of Pick Items
 		
-		EXEC cn_p_get_nodes_by_ids vr_application_id, vr_retIDs, 0, NULL
+		OPEN vr_nodes_ref FOR
+		SELECT *
+		FROM cn_p_get_nodes_by_ids(vr_application_id, vr_temp_ids, FALSE, NULL);
 		
-		SELECT vr_total_count
+		RETURN NEXT vr_nodes_ref;
+		
+		OPEN vr_total_count_ref FOR
+		SELECT vr_total_count;
+		
+		RETURN NEXT vr_total_count_ref;
 
-		IF vr_fetch_counts = 1 BEGIN
+		IF vr_fetch_counts = TRUE THEN
+			OPEN vr_node_counts_ref FOR
 			SELECT	nd.node_type_id,
 					MAX(nd.type_additional_id) AS node_type_additional_id,
 					MAX(nd.type_name) AS type_name,
 					COUNT(DISTINCT nd.node_id) AS nodes_count
-			FROM vr_node_ids AS i_ds
+			FROM UNNEST(vr_node_ids) AS x
 				INNER JOIN cn_view_nodes_normal AS nd
-				ON nd.application_id = vr_application_id AND nd.node_id = i_ds.value
-			GROUP BY nd.node_type_id
-		END
-	END
+				ON nd.application_id = vr_application_id AND nd.node_id = x
+			GROUP BY nd.node_type_id;
+			
+			RETURN NEXT vr_node_counts_ref;
+		END IF;
+	END IF;
 END;
 $$ LANGUAGE plpgsql;

@@ -5,7 +5,8 @@ CREATE OR REPLACE FUNCTION cn_p_get_nodes_by_ids
 	vr_application_id	UUID,
     vr_node_ids			UUID[],
     vr_full		 		BOOLEAN,
-    vr_viewer_user_id	UUID
+    vr_viewer_user_id	UUID,
+	vr_total_count		BIGINT DEFAULT 0
 )
 RETURNS SETOF cn_node_ret_composite
 AS
@@ -56,7 +57,8 @@ BEGIN
 				NULL::INTEGER AS visits_count,
 				NULL::BOOLEAN AS is_free_user,
 				NULL::BOOLEAN AS has_wiki_content,
-				NULL::BOOLEAN AS has_form_content
+				NULL::BOOLEAN AS has_form_content,
+				vr_total_count
 		FROM	UNNEST(vr_node_ids) WITH ORDINALITY AS rf("id", seq)
 				INNER JOIN cn_view_nodes_normal AS nd 
 				ON nd.application_id = vr_application_id AND nd.node_id = rf.id
@@ -134,7 +136,8 @@ BEGIN
 					LIMIT 1
 				) AS is_free_user,
 				wk_fn_has_wiki_content(vr_application_id, node.node_id) AS has_wiki_content,
-				fg_fn_has_form_content(vr_application_id, node.node_id) AS has_form_content
+				fg_fn_has_form_content(vr_application_id, node.node_id) AS has_form_content,
+				vr_total_count
 		FROM	UNNEST(vr_node_ids) WITH ORDINALITY AS external_ids("value", seq)
 				INNER JOIN cn_nodes AS node
 				ON node.application_id = vr_application_id AND node.node_id = external_ids.value
