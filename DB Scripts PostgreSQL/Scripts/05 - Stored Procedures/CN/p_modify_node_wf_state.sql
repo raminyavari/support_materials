@@ -15,12 +15,12 @@ $$
 DECLARE
 	vr_result	INTEGER = 0;
 BEGIN
-	UPDATE cn_nodes
+	UPDATE cn_nodes AS x
 	SET wf_state = gfn_verify_string(vr_wf_state),
 		hide_creators = COALESCE(vr_hide_creators, FALSE)::BOOLEAN,
 		last_modifier_user_id = vr_current_user_id,
 		last_modification_date = vr_now
-	WHERE application_id = vr_application_id AND node_id = vr_node_id;
+	WHERE x.application_id = vr_application_id AND x.node_id = vr_node_id;
 
 	GET DIAGNOSTICS vr_result := ROW_COUNT;
 

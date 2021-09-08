@@ -11,10 +11,10 @@ $$
 DECLARE
 	vr_parent_id	UUID = NULL;
 BEGIN
-	SELECT vr_parent_id = parent_id
-	FROM cn_node_types
-	WHERE application_id = vr_application_id AND 
-		node_type_id = (SELECT rf FROM UNNEST(vr_ids) AS rf LIMIT 1)
+	SELECT vr_parent_id = x.parent_id
+	FROM cn_node_types AS x
+	WHERE x.application_id = vr_application_id AND 
+		x.node_type_id = (SELECT rf FROM UNNEST(vr_ids) AS rf LIMIT 1)
 	LIMIT 1;
 	
 	vr_ids := ARRAY(

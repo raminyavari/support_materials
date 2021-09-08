@@ -10,14 +10,14 @@ RETURNS VARCHAR
 AS
 $$
 BEGIN
-	RETURN '{"WorkFlowName":"' + COALESCE(gfn_base64_encode(vr_workflow_name), N'') + 
-		'","WorkFlowState":"' + COALESCE(gfn_base64_encode(vr_stateTitle), N'') +
+	RETURN '{"WorkFlowName":"' || COALESCE(gfn_base64_encode(vr_workflow_name), '') ||
+		'","WorkFlowState":"' || COALESCE(gfn_base64_encode(vr_stateTitle), '') ||
 		(
 			CASE
-				WHEN vr_data_need_instance_id IS NULL THEN N''
-				ELSE '","DataNeedInstanceID":"' + vr_data_need_instance_id::VARCHAR(50)
+				WHEN vr_data_need_instance_id IS NULL THEN ''
+				ELSE '","DataNeedInstanceID":"' || vr_data_need_instance_id::VARCHAR(50)
 			END
-		) +
+		) ||
 		'"}';
 END;
 $$ LANGUAGE PLPGSQL;

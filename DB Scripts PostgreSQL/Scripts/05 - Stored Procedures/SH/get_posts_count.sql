@@ -12,9 +12,9 @@ $$
 BEGIN
 	RETURN (
 		SELECT COUNT(*)
-		FROM sh_post_shares
-		WHERE application_id = vr_application_id AND (vr_owner_id IS NULL OR owner_id = vr_owner_id) AND 
-			(vr_sender_user_id IS NULL OR sender_user_id = vr_sender_user_id) AND deleted = FALSE
+		FROM sh_post_shares AS x
+		WHERE x.application_id = vr_application_id AND (vr_owner_id IS NULL OR x.owner_id = vr_owner_id) AND 
+			(vr_sender_user_id IS NULL OR x.sender_user_id = vr_sender_user_id) AND x.deleted = FALSE
 	);	
 END;
 $$ LANGUAGE plpgsql;

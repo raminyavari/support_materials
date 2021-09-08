@@ -12,8 +12,8 @@ $$
 BEGIN
 	RETURN (
 		SELECT COUNT(*)
-		FROM sh_share_likes
-		WHERE application_id = vr_application_id AND share_id = vr_share_id AND "like" = vr_like
+		FROM sh_share_likes AS x
+		WHERE x.application_id = vr_application_id AND x.share_id = vr_share_id AND x.like = vr_like
 	);	
 END;
 $$ LANGUAGE plpgsql;

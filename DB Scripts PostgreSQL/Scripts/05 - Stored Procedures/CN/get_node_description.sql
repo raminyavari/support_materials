@@ -9,9 +9,9 @@ RETURNS VARCHAR
 AS
 $$
 BEGIN
-	SELECT description
-	FROM cn_nodes
-	WHERE application_id = vr_application_id AND node_id = vr_node_id
+	SELECT x.description
+	FROM cn_nodes AS x
+	WHERE x.application_id = vr_application_id AND x.node_id = vr_node_id
 	LIMIT 1;
 END;
 $$ LANGUAGE plpgsql;

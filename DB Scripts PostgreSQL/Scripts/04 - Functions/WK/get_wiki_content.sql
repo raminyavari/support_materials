@@ -14,8 +14,8 @@ BEGIN
 	WITH RECURSIVE partitioned AS 
 	(
 		SELECT	tt.owner_id,
-				N' <h1>' + COALESCE(tt.title, N'') + N'</h1> ' + 
-				N' <h2>' + COALESCE("p".title, N'') + N'</h2> ' + 
+				N' <h1>' || COALESCE(tt.title, N'') || N'</h1> ' || 
+				N' <h2>' || COALESCE("p".title, N'') || N'</h2> ' || 
 				SUBSTRING(COALESCE("p".body_text, N''), 1, 4000)::VARCHAR(4000) AS "content",
 				ROW_NUMBER() OVER (PARTITION BY tt.owner_id ORDER BY "p".paragraph_id) AS "number",
 				COUNT(*) OVER (PARTITION BY tt.owner_id) AS "count"
@@ -34,7 +34,7 @@ BEGIN
 
 		UNION ALL
 
-		SELECT	"p".owner_id, "c".full_content + ' ' + "p".content, "p".content, "p".number, "p".count
+		SELECT	"p".owner_id, "c".full_content || ' ' || "p".content, "p".content, "p".number, "p".count
 		FROM partitioned AS "p"
 			INNER JOIN fetched AS "c" 
 			ON "p".owner_id = "c".owner_id AND "p".number = "c".number + 1

@@ -14,7 +14,7 @@ $$
 DECLARE
 	vr_result	INTEGER = 0;
 BEGIN
-    UPDATE nd
+    UPDATE cn_nodes
 	SET searchable = vr_searchable,
 		last_modifier_user_id = vr_current_user_id,
 		Last_modification_date = vr_now

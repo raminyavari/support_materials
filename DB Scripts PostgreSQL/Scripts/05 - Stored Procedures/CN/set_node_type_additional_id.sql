@@ -19,9 +19,9 @@ DECLARE
 	vr_result					INTEGER = 0;
 BEGIN
 	vr_current_additional_id := (
-		SELECT additional_id
-		FROM cn_node_types
-		WHERE application_id = vr_application_id AND node_type_id = vr_node_type_id
+		SELECT x.additional_id
+		FROM cn_node_types AS x
+		WHERE x.application_id = vr_application_id AND x.node_type_id = vr_node_type_id
 		LIMIT 1
 	);
 	
@@ -32,9 +32,9 @@ BEGIN
 		RETURN;
 	ELSEIF Exists(
 		SELECT *
-		FROM cn_node_types
-		WHERE application_id = vr_application_id AND node_type_id <> vr_node_type_id AND 
-			LOWER(additional_id) = LOWER(vr_additional_id)
+		FROM cn_node_types AS x
+		WHERE x.application_id = vr_application_id AND x.node_type_id <> vr_node_type_id AND 
+			LOWER(x.additional_id) = LOWER(vr_additional_id)
 		LIMIT 1
 	) THEN
 		RETURN QUERY
@@ -42,11 +42,11 @@ BEGIN
 		
 		RETURN;
 	ELSE
-		UPDATE cn_node_types
+		UPDATE cn_node_types AS x
 		SET additional_id = vr_additional_id,
 			last_modifier_user_id = vr_current_user_id,
 			last_modification_date = vr_now
-		WHERE application_id = vr_application_id AND node_type_id = vr_node_type_id;
+		WHERE x.application_id = vr_application_id AND x.node_type_id = vr_node_type_id;
 
 		GET DIAGNOSTICS vr_result := ROW_COUNT;
 

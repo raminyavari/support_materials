@@ -12,8 +12,8 @@ $$
 BEGIN
 	RETURN (
 		SELECT COUNT(*)
-		FROM sh_comment_likes
-		WHERE application_id = vr_application_id AND comment_id = vr_comment_id AND "like" = vr_like
+		FROM sh_comment_likes AS x
+		WHERE x.application_id = vr_application_id AND x.comment_id = vr_comment_id AND x.like = vr_like
 	);	
 END;
 $$ LANGUAGE plpgsql;

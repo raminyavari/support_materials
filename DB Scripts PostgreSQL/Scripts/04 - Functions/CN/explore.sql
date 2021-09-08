@@ -36,14 +36,14 @@ BEGIN
 	-- Base === Context --> Folder
 	-- Tagged === Related --> Content
 
-	vr_base_ids_count := COALESCE(ARRAY_LENGTH(vr_base_ids, 1), 0);
+	vr_base_ids_count := COALESCE(ARRAY_LENGTH(vr_base_ids, 1), 0)::INTEGER;
 	
 	IF vr_baseIDsCount = 0 THEN 
-		vr_base_type_ids_count := COALESCE(ARRAY_LENGTH(vr_base_type_ids, 1), 0);
+		vr_base_type_ids_count := COALESCE(ARRAY_LENGTH(vr_base_type_ids, 1), 0)::INTEGER;
 	END IF;
 	
 	IF vr_related_id IS NULL THEN 
-		vr_related_type_ids_count := COALESCE(ARRAY_LENGTH(vr_related_type_ids, 1), 0);
+		vr_related_type_ids_count := COALESCE(ARRAY_LENGTH(vr_related_type_ids, 1), 0)::INTEGER;
 	END IF;
 	
 	RETURN QUERY
@@ -73,6 +73,6 @@ BEGIN
 		ON base.application_id = vr_application_id AND base.node_id = dt.node_id
 		INNER JOIN cn_view_nodes_normal AS related
 		ON related.application_id = vr_application_id AND related.node_id = dt.related_node_id
-	WHERE COALESCE(related.status, N'Accepted') = N'Accepted' AND COALESCE(related.searchable, TRUE) = TRUE;
+	WHERE COALESCE(related.status, 'Accepted') = 'Accepted' AND COALESCE(related.searchable, TRUE) = TRUE;
 END;
 $$ LANGUAGE PLPGSQL;

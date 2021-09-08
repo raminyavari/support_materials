@@ -16,7 +16,7 @@ $$
 DECLARE
 	vr_related_types_count	INTEGER;
 BEGIN
-	vr_related_types_count := COALESCE(ARRAY_LENGTH(vr_related_node_type_ids, 1), 0);
+	vr_related_types_count := COALESCE(ARRAY_LENGTH(vr_related_node_type_ids, 1), 0)::INTEGER;
 
 	RETURN QUERY
 	SELECT DISTINCT "t".tagged_id, "t".context_id
@@ -28,6 +28,6 @@ BEGIN
 			vr_related_types_count = 0 OR 
 			nd.node_type_id IN (SELECT UNNEST(vr_related_node_type_ids))
 		)
-	WHERE t.context_id <> t.tagged_id;
+	WHERE "t".context_id <> "t".tagged_id;
 END;
 $$ LANGUAGE PLPGSQL;

@@ -16,11 +16,11 @@ DECLARE
 BEGIN
 	vr_description := gfn_verify_string(vr_description);
 	
-	UPDATE sh_comments
-		SET description = vr_description,
-			last_modifier_user_id = vr_current_user_id,
-			last_modification_date = vr_now
-	WHERE application_id = vr_application_id AND comment_id = vr_comment_id;
+	UPDATE sh_comments AS x
+	SET description = vr_description,
+		last_modifier_user_id = vr_current_user_id,
+		last_modification_date = vr_now
+	WHERE x.application_id = vr_application_id AND x.comment_id = vr_comment_id;
 	
 	GET DIAGNOSTICS vr_result := ROW_COUNT;
 	

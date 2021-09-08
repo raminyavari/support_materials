@@ -15,7 +15,7 @@ BEGIN
 	vr_result := 0;
 
 	IF COALESCE(vr_remove_hierarchy, FALSE) = FALSE THEN
-		UPDATE nt
+		UPDATE cn_node_types
 		SET deleted = TRUE,
 			last_modifier_user_id = vr_current_user_id,
 			last_modification_date = vr_now
@@ -26,17 +26,17 @@ BEGIN
 		
 		GET DIAGNOSTICS vr_result := ROW_COUNT;
 			
-		UPDATE cn_node_types
-			SET parent_id = NULL
-		WHERE application_id = vr_application_id AND parent_id IN (SELECT UNNEST(vr_node_type_ids));
+		UPDATE cn_node_types AS x
+		SET parent_id = NULL
+		WHERE x.application_id = vr_application_id AND x.parent_id IN (SELECT UNNEST(vr_node_type_ids));
 	ELSE
-		UPDATE NT
+		UPDATE cn_node_types
 		SET deleted = TRUE,
 			last_modifier_user_id = vr_current_user_id,
 			last_modification_date = vr_now
-		FROM cn_fn_get_child_node_types_hierarchy(vr_application_id, vr_node_type_ids) AS rf
-			INNER JOIN cn_node_types AS nt
-			ON nt.application_id = vr_application_id AND nt.node_type_id = rf.node_type_id;
+		FROM cn_node_types AS nt
+			INNER JOIN cn_fn_get_child_node_types_hierarchy(vr_application_id, vr_node_type_ids) AS rf
+			ON nt.application_id = vr_application_id AND rf.node_type_id = nt.node_type_id;
 			
 		GET DIAGNOSTICS vr_result := ROW_COUNT;
 	END IF;

@@ -10,21 +10,21 @@ AS
 $$
 BEGIN
 	IF NOT EXISTS(
-		SELECT share_id
-		FROM sh_post_shares
-		WHERE application_id = vr_application_id AND share_id = vr_post_id_or_comment_id
+		SELECT x.share_id
+		FROM sh_post_shares AS x
+		WHERE x.application_id = vr_application_id AND x.share_id = vr_post_id_or_comment_id
 		LIMIT 1
 	) THEN
-		SELECT vr_post_id_or_comment_id = share_id
-		FROM sh_comments
-		WHERE application_id = vr_application_id AND comment_id = vr_post_id_or_comment_id
+		SELECT vr_post_id_or_comment_id = x.share_id
+		FROM sh_comments AS x
+		WHERE x.application_id = vr_application_id AND x.comment_id = vr_post_id_or_comment_id
 		LIMIT 1;
 	END IF;
 	
 	RETURN (
-		SELECT sender_user_id
-		FROM sh_post_shares
-		WHERE application_id = vr_application_id AND share_id = vr_post_id_or_comment_id
+		SELECT x.sender_user_id
+		FROM sh_post_shares AS x
+		WHERE x.application_id = vr_application_id AND x.share_id = vr_post_id_or_comment_id
 		LIMIT 1
 	);
 END;

@@ -44,10 +44,10 @@ BEGIN
 			SELECT fi.instance_id
 			FROM fg_form_instances AS fi
 				INNER JOIN (
-					SELECT nd.node_id AS id
-					FROM UNNEST(vr_owner_ids) AS "id"
+					SELECT nd.node_id AS "id"
+					FROM UNNEST(vr_owner_ids) AS x
 						INNER JOIN cn_node_types AS nt
-						ON nt.application_id = vr_application_id AND nt.node_type_id = "id"
+						ON nt.application_id = vr_application_id AND nt.node_type_id = x
 						INNER JOIN cn_nodes AS nd
 						ON nd.application_id = vr_application_id AND 
 							nd.node_type_id = nt.node_type_id AND nd.deleted = FALSE
@@ -55,20 +55,20 @@ BEGIN
 					UNION
 
 					SELECT nd.node_id
-					FROM UNNEST(vr_owner_ids) AS "id"
+					FROM UNNEST(vr_owner_ids) AS x
 						INNER JOIN cn_nodes AS nt
-						ON nt.application_id = vr_application_id AND nt.node_id = "id"
+						ON nt.application_id = vr_application_id AND nt.node_id = x
 						INNER JOIN cn_nodes AS nd
 						ON nd.application_id = vr_application_id AND 
 							nd.node_type_id = nt.node_type_id AND nd.deleted = FALSE
 
 					UNION
 
-					SELECT UNNEST(vr_owner_ids)
+					SELECT UNNEST(vr_owner_ids) AS x
 				) AS owners
 				ON fi.owner_id = owners.id
 			WHERE fi.application_id = vr_application_id
-		) AS x
-		ON x.instance_id = ie.instance_id;
+		) AS y
+		ON y.instance_id = ie.instance_id;
 END;
 $$ LANGUAGE PLPGSQL;

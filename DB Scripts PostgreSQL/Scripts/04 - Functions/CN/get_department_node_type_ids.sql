@@ -17,13 +17,13 @@ BEGIN
 	WITH RECURSIVE "hierarchy" ("id", "parent_id", "level", "name")
  	AS 
 	(
-		SELECT nt.node_type_id AS "id", nt.parent_id, 0 AS "level", nt.name
+		SELECT nt.node_type_id AS "id", nt.parent_id, 0::INTEGER AS "level", nt.name
 		FROM cn_node_types AS nt
 		WHERE nt.application_id = vr_application_id AND nt.additional_id = '6'
 		
 		UNION ALL
 		
-		SELECT nt.node_type_id AS "id", nt.parent_id, "level" + 1 AS "level", nt.name
+		SELECT nt.node_type_id AS "id", nt.parent_id, hr."level" + 1 AS "level", nt.name
 		FROM cn_node_types AS nt
 			INNER JOIN "hierarchy" AS hr
 			ON nt.parent_id = hr.id

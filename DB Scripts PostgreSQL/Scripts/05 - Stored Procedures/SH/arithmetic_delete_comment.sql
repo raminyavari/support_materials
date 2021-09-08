@@ -11,9 +11,9 @@ $$
 DECLARE
 	vr_result 			INTEGER = 0;
 BEGIN
-    UPDATE sh_comments
+    UPDATE sh_comments AS x
 	SET deleted = TRUE
-	WHERE application_id = vr_application_id AND comment_id = vr_comment_id;
+	WHERE x.application_id = vr_application_id AND x.comment_id = vr_comment_id;
 	
 	GET DIAGNOSTICS vr_result := ROW_COUNT;
 	

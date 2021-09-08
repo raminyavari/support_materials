@@ -9,10 +9,10 @@ RETURNS INTEGER
 AS
 $$
 BEGIN
-	UPDATE cn_nodes
+	UPDATE cn_nodes AS x
 	SET searchable = FALSE
-	WHERE application_id = vr_application_id AND 
-		expiration_date < vr_now AND deleted = FALSE;
+	WHERE x.application_id = vr_application_id AND 
+		x.expiration_date < vr_now AND x.deleted = FALSE;
 	
 	RETURN 1;
 END;

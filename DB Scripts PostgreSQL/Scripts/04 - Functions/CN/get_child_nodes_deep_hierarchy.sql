@@ -18,14 +18,14 @@ BEGIN
 	WITH RECURSIVE "hierarchy" ("id", parent_id, "level", "name")
  	AS 
 	(
-		SELECT nd.node_id AS "id", nd.parent_node_id AS parent_id, 0 AS "level", nd.name
+		SELECT nd.node_id AS "id", nd.parent_node_id AS parent_id, 0::INTEGER AS "level", nd.name
 		FROM UNNEST(vr_node_ids) AS n
 			INNER JOIN cn_nodes AS nd
 			ON nd.application_id = vr_application_id AND nd.node_id = n
 		
 		UNION ALL
 		
-		SELECT node.node_id, node.parent_node_id, "level" + 1, node.name
+		SELECT node.node_id, node.parent_node_id, hr."level" + 1, node.name
 		FROM cn_nodes AS node
 			INNER JOIN "hierarchy" AS hr
 			ON hr.id = node.parent_node_id

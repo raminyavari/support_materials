@@ -11,9 +11,9 @@ $$
 DECLARE
 	vr_result 			INTEGER = 0;
 BEGIN
-    UPDATE sh_post_shares
+    UPDATE sh_post_shares AS x
 	SET deleted = TRUE
-	WHERE application_id = vr_application_id AND share_id = vr_share_id;
+	WHERE x.application_id = vr_application_id AND x.share_id = vr_share_id;
 	
 	GET DIAGNOSTICS vr_result := ROW_COUNT;
 	

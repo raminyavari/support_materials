@@ -17,15 +17,15 @@ DECLARE
 BEGIN
 	IF EXISTS (
 		SELECT * 
-		FROM sh_comment_likes 
-		WHERE application_id = vr_application_id AND comment_id = vr_comment_id AND user_id = vr_user_id
+		FROM sh_comment_likes AS x
+		WHERE x.application_id = vr_application_id AND x.comment_id = vr_comment_id AND x.user_id = vr_user_id
 		LIMIT 1
 	) THEN
-		UPDATE sh_comment_likes
+		UPDATE sh_comment_likes AS x
 		SET "like" = vr_like,
 			score = vr_score,
 			date = vr_date
-		WHERE application_id = vr_application_id AND comment_id = vr_comment_id AND user_id = vr_user_id;
+		WHERE x.application_id = vr_application_id AND x.comment_id = vr_comment_id AND x.user_id = vr_user_id;
 	ELSE
 		INSERT INTO sh_comment_likes (
 			application_id,

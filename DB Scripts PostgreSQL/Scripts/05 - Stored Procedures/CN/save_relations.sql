@@ -15,9 +15,9 @@ DECLARE
 	vr_related_relation_type_id	UUID;
 	vr_relations				guid_triple_table_type;
 BEGIN
-	UPDATE cn_node_relations
+	UPDATE cn_node_relations AS x
 	SET deleted = TRUE
-	WHERE application_id = vr_application_id AND source_node_id = vr_node_id AND deleted = FALSE;
+	WHERE x.application_id = vr_application_id AND x.source_node_id = vr_node_id AND x.deleted = FALSE;
 	
 	vr_related_relation_type_id := cn_fn_get_related_relation_type_id(vr_application_id);
 	

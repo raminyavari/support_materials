@@ -26,7 +26,7 @@ BEGIN
 		
 		UNION ALL
 		
-		SELECT node.tree_node_id AS "id", node.parent_node_id AS parent_id, "level" + 1, node.name
+		SELECT node.tree_node_id AS "id", node.parent_node_id AS parent_id, hr."level" + 1, node.name
 		FROM dct_tree_nodes AS node
 			INNER JOIN "hierarchy" AS hr
 			ON hr.id = node.parent_node_id

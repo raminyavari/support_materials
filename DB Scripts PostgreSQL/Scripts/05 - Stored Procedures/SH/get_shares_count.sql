@@ -12,16 +12,16 @@ DECLARE
 	vr_post_id	UUID;
 BEGIN
 	vr_post_id := (
-		SELECT post_id
-		FROM sh_post_shares 
-		WHERE application_id = vr_application_id AND share_id = vr_share_id
+		SELECT x.post_id
+		FROM sh_post_shares AS x
+		WHERE x.application_id = vr_application_id AND x.share_id = vr_share_id
 		LIMIT 1
 	);
 
 	RETURN (
 		SELECT COUNT(*)
-		FROM sh_post_shares
-		WHERE application_id = vr_application_id AND post_id = vr_post_id AND deleted = FALSE
+		FROM sh_post_shares AS x
+		WHERE x.application_id = vr_application_id AND x.post_id = vr_post_id AND x.deleted = FALSE
 	);	
 END;
 $$ LANGUAGE plpgsql;

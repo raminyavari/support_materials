@@ -14,11 +14,11 @@ $$
 DECLARE
 	vr_result	INTEGER = 0;
 BEGIN
-	UPDATE cn_node_types
+	UPDATE cn_node_types AS x
 	SET additional_id_pattern = vr_additional_id_pattern,
 		last_modifier_user_id = vr_current_user_id,
 		last_modification_date = vr_now
-	WHERE application_id = vr_application_id AND node_type_id = vr_node_type_id;
+	WHERE x.application_id = vr_application_id AND x.node_type_id = vr_node_type_id;
 
 	GET DIAGNOSTICS vr_result := ROW_COUNT;
 

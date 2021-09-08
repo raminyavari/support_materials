@@ -30,8 +30,8 @@ BEGIN
 	
 	IF vr_additional_id IS NULL OR NOT EXISTS(
 		SELECT * 
-		FROM cn_node_types
-		WHERE application_id = vr_application_id AND additional_id = vr_additional_id
+		FROM cn_node_types AS x
+		WHERE x.application_id = vr_application_id AND x.additional_id = vr_additional_id
 		LIMIT 1
 	) THEN
 		INSERT INTO cn_node_types(
@@ -57,16 +57,16 @@ BEGIN
 			FALSE
 		);
 		
-		IF COALESCE(vr_setup_service, 0) = 1 THEN
+		IF COALESCE(vr_setup_service, FALSE) = TRUE THEN
 			vr_result := cn_p_initialize_service(vr_application_id, vr_node_type_id);
 			
-			UPDATE cn_services
+			UPDATE cn_services AS x
 			SET service_title = gfn_verify_string(vr_name)
-			WHERE application_id = vr_application_id AND node_type_id = vr_node_type_id;
+			WHERE x.application_id = vr_application_id AND x.node_type_id = vr_node_type_id;
 			
 			vr_form_id  := gen_random_uuid();
 			
-			vr_form_title := gfn_verify_string(vr_name) + N' - ' + 
+			vr_form_title := gfn_verify_string(vr_name) || N' - ' || 
 				FLOOR((RAND() * (99998 - 10001)) + 10001)::VARCHAR(100);
 			
 			vr_result := fg_p_create_form(vr_application_id, vr_form_id, vr_template_form_id, 

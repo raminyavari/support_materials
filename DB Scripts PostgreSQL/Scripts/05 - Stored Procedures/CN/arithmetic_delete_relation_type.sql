@@ -13,11 +13,11 @@ $$
 DECLARE
 	vr_result	INTEGER = 0;
 BEGIN
-	UPDATE cn_properties
+	UPDATE cn_properties AS x
 	SET deleted = TRUE,
 		last_modifier_user_id = vr_current_user_id,
 		last_modification_date = vr_now
-	WHERE application_id = vr_application_id AND property_id = vr_relation_type_id;
+	WHERE x.application_id = vr_application_id AND x.property_id = vr_relation_type_id;
 
 	GET DIAGNOSTICS vr_result := ROW_COUNT;
 

@@ -13,12 +13,12 @@ $$
 DECLARE
 	vr_result	INTEGER;
 BEGIN
-	UPDATE cn_node_relations
+	UPDATE cn_node_relations AS x
 	SET deleted = TRUE,
 		last_modifier_user_id = vr_creator_user_id,
 		last_modification_date = vr_creation_date
-	WHERE applicationID = vr_application_id AND 
-		(source_node_id = vr_node_id OR destination_node_id = vr_node_id) AND deleted = FALSE;
+	WHERE x.applicationID = vr_application_id AND 
+		(x.source_node_id = vr_node_id OR x.destination_node_id = vr_node_id) AND x.deleted = FALSE;
 		
 	GET DIAGNOSTICS vr_result := ROW_COUNT;
 	

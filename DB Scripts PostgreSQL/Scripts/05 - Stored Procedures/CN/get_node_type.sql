@@ -14,9 +14,9 @@ DECLARE
 	vr_node_type_ids	UUID[];
 BEGIN
 	vr_node_type_id = COALESCE((
-		SELECT node_type_id
-		FROM cn_nodes
-		WHERE application_id = vr_application_id AND node_id = vr_node_type_id
+		SELECT x.node_type_id
+		FROM cn_nodes AS x
+		WHERE x.application_id = vr_application_id AND x.node_id = vr_node_type_id
 		LIMIT 1
 	), vr_node_type_id);
 	
@@ -31,9 +31,9 @@ BEGIN
 		);
 	ELSE
 		vr_node_type_ids := ARRAY(
-			SELECT node_type_id
-			FROM cn_node_types
-			WHERE application_id = vr_application_id AND additional_id = vr_node_type_additional_id 
+			SELECT x.node_type_id
+			FROM cn_node_types AS x
+			WHERE x.application_id = vr_application_id AND x.additional_id = vr_node_type_additional_id 
 		);
 	END IF;
 	

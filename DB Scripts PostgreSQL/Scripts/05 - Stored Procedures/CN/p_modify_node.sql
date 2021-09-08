@@ -20,13 +20,13 @@ BEGIN
 	vr_description := gfn_verify_string(vr_description);
 	vr_tags := gfn_verify_string(vr_tags);
 	
-	UPDATE cn_nodes
-	SET Name = CASE WHEN COALESCE(vr_name, N'') = N'' THEN Name ELSE vr_name END,
+	UPDATE cn_nodes AS x
+	SET "name" = CASE WHEN COALESCE(vr_name, N'') = N'' THEN x.name ELSE vr_name END,
 		description = vr_description,
 		tags = vr_tags,
 		last_modifier_user_id = vr_current_user_id,
 		last_modification_date = vr_now
-	WHERE application_id = vr_application_id AND node_id = vr_node_id;
+	WHERE x.application_id = vr_application_id AND x.node_id = vr_node_id;
 
 	GET DIAGNOSTICS vr_result := ROW_COUNT;
 

@@ -71,7 +71,7 @@ BEGIN
 			nm.node_id = "m".first_value AND nm.user_id = "m".second_value;
 	
 	-- Update Existing Data
-	UPDATE nm
+	UPDATE cn_node_members
 	SET membership_date = "t".membership_date,
 		is_admin = "t".is_admin,
 		status = "t".status,

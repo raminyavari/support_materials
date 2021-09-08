@@ -10,9 +10,9 @@ CREATE OR REPLACE PROCEDURE _cn_set_node_expiration_date
 AS
 $$
 BEGIN
-	UPDATE cn_nodes
+	UPDATE cn_nodes AS x
 	SET expiration_date = vr_expiration_date
-	WHERE application_id = vr_application_id AND node_id = vr_node_id;
+	WHERE x.application_id = vr_application_id AND x.node_id = vr_node_id;
 	
 	-- remove dashboards
 	IF vr_expiration_date IS NULL THEN

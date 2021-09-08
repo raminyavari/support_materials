@@ -13,7 +13,7 @@ AS
 $$
 BEGIN
 	IF COALESCE(vr_remove_hierarchy, FALSE) = FALSE THEN
-		UPDATE ND
+		UPDATE cn_nodes
 		SET deleted = TRUE,
 			last_modifier_user_id = vr_current_user_id,
 			last_modification_date = vr_now
@@ -23,11 +23,11 @@ BEGIN
 		
 		GET DIAGNOSTICS vr_result := ROW_COUNT;
 			
-		UPDATE cn_nodes
+		UPDATE cn_nodes AS x
 		SET parent_node_id = NULL
-		WHERE application_id = vr_application_id AND parent_node_id IN (SELECT UNNEST(vr_node_ids));
+		WHERE x.application_id = vr_application_id AND x.parent_node_id IN (SELECT UNNEST(vr_node_ids));
 	ELSE
-		UPDATE nd
+		UPDATE cn_nodes
 		SET deleted = TRUE,
 			last_modifier_user_id = vr_current_user_id,
 			last_modification_date = vr_now

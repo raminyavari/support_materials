@@ -18,12 +18,12 @@ BEGIN
 	vr_name := gfn_verify_string(vr_name);
 	vr_description := gfn_verify_string(vr_description);
 	
-	UPDATE cn_properties
+	UPDATE cn_properties AS x
 	SET "name" = vr_name,
 		description = vr_description,
 		last_modifier_user_id = vr_current_user_id,
 		last_modification_date = vr_now
-	WHERE application_id = vr_application_id AND property_id = vr_relation_type_id;
+	WHERE x.application_id = vr_application_id AND x.property_id = vr_relation_type_id;
 
 	GET DIAGNOSTICS vr_result := ROW_COUNT;
 

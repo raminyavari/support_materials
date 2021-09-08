@@ -42,9 +42,9 @@ BEGIN
 		
 	IF vr_node_type_id IS NULL AND vr_parent_node_id IS NOT NULL THEN
 		vr_node_type_id := (
-			SELECT node_type_id 
-			FROM cn_nodes 
-			WHERE application_id = vr_application_id AND node_id = vr_parent_node_id
+			SELECT x.node_type_id 
+			FROM cn_nodes AS x
+			WHERE x.application_id = vr_application_id AND x.node_id = vr_parent_node_id
 			LIMIT 1
 		);
 	END IF;
@@ -52,9 +52,9 @@ BEGIN
 	
 	IF EXISTS(
 		SELECT * 
-		FROM cn_nodes
-		WHERE application_id = vr_application_id AND node_type_id = vr_node_type_id AND 
-			vr_additional_id IS NOT NULL AND vr_additional_id <> '' AND additional_id = vr_additional_id
+		FROM cn_nodes AS x
+		WHERE x.application_id = vr_application_id AND x.node_type_id = vr_node_type_id AND 
+			vr_additional_id IS NOT NULL AND vr_additional_id <> '' AND x.additional_id = vr_additional_id
 		LIMIT 1
 	) THEN
 		vr_result := -50;
@@ -118,7 +118,7 @@ BEGIN
 		vr_result := cn_p_add_member(vr_application_id, vr_node_id, vr_creator_user_id, 
 			vr_creation_date, TRUE, FALSE, vr_creation_date, NULL);
 		
-		IF vr__result <= 0 THEN
+		IF vr_result <= 0 THEN
 			vr_result := -4;
 			
 			RETURN QUERY
@@ -127,9 +127,9 @@ BEGIN
 	END IF;
 	
 	IF vr_searchable = TRUE AND vr_previous_version_id IS NOT NULL THEN
-		UPDATE cn_nodes
+		UPDATE cn_nodes AS x
 		SET searchable = FALSE
-		WHERE application_id = vr_application_id AND node_id = vr_previous_version_id;
+		WHERE x.application_id = vr_application_id AND x.node_id = vr_previous_version_id;
 	END IF;
 
 	vr_result := 1;

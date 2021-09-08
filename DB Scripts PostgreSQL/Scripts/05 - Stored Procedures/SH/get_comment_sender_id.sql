@@ -10,9 +10,9 @@ AS
 $$
 BEGIN
 	RETURN (
-		SELECT sender_user_id
-		FROM sh_comments
-		WHERE application_id = vr_application_id AND comment_id = vr_comment_id
+		SELECT "c".sender_user_id
+		FROM sh_comments AS "c"
+		WHERE "c".application_id = vr_application_id AND "c".comment_id = vr_comment_id
 		LIMIT 1
 	);
 END;

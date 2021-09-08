@@ -29,7 +29,7 @@ BEGIN
 
 		UNION ALL
 
-		SELECT	"p".answer_id, "c".full_content + ' ' + "p".content, "p".content, "p".number, "p".count
+		SELECT	"p".answer_id, "c".full_content || ' ' || "p".content, "p".content, "p".number, "p".count
 		FROM partitioned AS "p"
 			INNER JOIN fetched AS "c" 
 			ON "p".answer_id = "c".answer_id AND "p".number = "c".number + 1

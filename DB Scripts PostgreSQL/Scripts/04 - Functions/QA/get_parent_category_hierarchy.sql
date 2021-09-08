@@ -24,7 +24,7 @@ BEGIN
 		
 		UNION ALL
 		
-		SELECT "c".category_id AS "id", "c".parent_id AS parent_id, "level" + 1, "c".name
+		SELECT "c".category_id AS "id", "c".parent_id AS parent_id, hr."level" + 1, "c".name
 		FROM qa_faq_categories AS "c"
 			INNER JOIN "hierarchy" AS hr
 			ON "c".category_id = hr.parent_id

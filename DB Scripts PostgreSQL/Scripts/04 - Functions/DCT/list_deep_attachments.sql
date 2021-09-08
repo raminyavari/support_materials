@@ -27,8 +27,8 @@ DECLARE
 	vr_apps_count 	INTEGER;
 	vr_nodes_count	INTEGER;
 BEGIN
-	vr_apps_count := COALESCE(ARRAY_LENGTH(vr_application_ids, 1), 0);
-	vr_nodes_count := COALESCE(ARRAY_LENGTH(vr_node_ids, 1), 0);
+	vr_apps_count := COALESCE(ARRAY_LENGTH(vr_application_ids, 1), 0)::INTEGER;
+	vr_nodes_count := COALESCE(ARRAY_LENGTH(vr_node_ids, 1), 0)::INTEGER;
 
 	RETURN QUERY
 	WITH Files

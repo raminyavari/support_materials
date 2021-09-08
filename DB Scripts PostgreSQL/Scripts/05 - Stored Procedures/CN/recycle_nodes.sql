@@ -13,7 +13,7 @@ $$
 DECLARE
 	vr_result	INTEGER = 0;
 BEGIN	
-	UPDATE nd
+	UPDATE cn_nodes
 	SET deleted = FALSE,
 		last_modifier_user_id = vr_current_user_id,
 		last_modification_date = vr_now

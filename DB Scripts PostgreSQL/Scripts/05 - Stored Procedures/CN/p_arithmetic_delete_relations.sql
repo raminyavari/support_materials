@@ -29,7 +29,7 @@ BEGIN
 		WHERE COALESCE(vr_reverse_also, FALSE) = TRUE AND pn.first_value IS NULL
 	);
 	
-	UPDATE nr
+	UPDATE cn_node_relations
 	SET last_modifier_user_id = vr_current_user_id,
 		last_modification_date = vr_now,
 		deleted = TRUE
@@ -37,7 +37,7 @@ BEGIN
 		INNER JOIN cn_node_relations AS nr
 		ON nr.application_id = vr_application_id AND nr.source_node_id = ex.first_value AND
 			nr.destination_node_id = ex.second_value
-	WHERE (vr_relation_type_id IS NULL OR property_id = vr_relation_type_id) AND deleted = FALSE;
+	WHERE (vr_relation_type_id IS NULL OR nr.property_id = vr_relation_type_id) AND nr.deleted = FALSE;
 
 	GET DIAGNOSTICS vr_result := ROW_COUNT;
 

@@ -30,10 +30,12 @@ BEGIN
 			LIMIT vr_count
 		);
 	ELSE
-		CREATE TEMP TABLE vr_temp_ids ("value" UUID, date TIMESTAMP);
+		DROP TABLE IF EXISTS vr_temp_ids_62894;
+	
+		CREATE TEMP TABLE vr_temp_ids_62894 ("value" UUID, date TIMESTAMP);
 		
 		/* Public Posts */
-		INSERT INTO vr_temp_ids
+		INSERT INTO vr_temp_ids_62894
 		SELECT ps.share_id, ps.score_date
 		FROM sh_post_shares AS ps
 		WHERE ps.application_id = vr_application_id AND 
@@ -45,12 +47,12 @@ BEGIN
 		LIMIT vr_count;
 		/* end of Public Posts */
 		
-		vr_min_posts_date := (SELECT MIN("ref".date) FROM vr_temp_ids AS "ref");
-		vr_cur_count := (SELECT COUNT(*) FROM vr_temp_ids);
+		vr_min_posts_date := (SELECT MIN("ref".date) FROM vr_temp_ids_62894 AS "ref");
+		vr_cur_count := (SELECT COUNT(*) FROM vr_temp_ids_62894);
 		
 		/* User's Posts */
 		IF vr_count <= vr_cur_count THEN
-			INSERT INTO vr_temp_ids
+			INSERT INTO vr_temp_ids_62894
 			SELECT ps.share_id, ps.score_date
 			FROM sh_post_shares AS ps
 			WHERE ps.application_id = vr_application_id AND 
@@ -62,7 +64,7 @@ BEGIN
 			ORDER BY ps.score_date DESC
 			LIMIT vr_count;
 		ELSE
-			INSERT INTO vr_temp_ids
+			INSERT INTO vr_temp_ids_62894
 			SELECT ps.share_id, ps.score_date
 			FROM sh_post_shares AS ps
 			WHERE ps.application_id = vr_application_id AND
@@ -76,8 +78,8 @@ BEGIN
 		END IF;
 		/* end of User's Posts */
 		
-		vr_min_posts_date = (SELECT MIN("ref".date) FROM vr_temp_ids AS "ref");
-		vr_cur_count = (SELECT COUNT(*) FROM vr_temp_ids);
+		vr_min_posts_date = (SELECT MIN("ref".date) FROM vr_temp_ids_62894 AS "ref");
+		vr_cur_count = (SELECT COUNT(*) FROM vr_temp_ids_62894);
 		
 		/* User's Friend's Posts */
 		CREATE TEMP TABLE vr_friend_ids ("value" UUID primary key);
@@ -87,7 +89,7 @@ BEGIN
 		FROM usr_fn_get_friend_ids(vr_application_id, vr_user_id, TRUE, TRUE, TRUE) AS "ref";
 		
 		IF vr_count <= vr_cur_count THEN
-			INSERT INTO vr_temp_ids
+			INSERT INTO vr_temp_ids_62894
 			SELECT ps.share_id, ps.score_date
 			FROM vr_friend_ids AS friends
 				INNER JOIN sh_post_shares AS ps
@@ -101,7 +103,7 @@ BEGIN
 			ORDER BY ps.score_date DESC
 			LIMIT vr_count;
 		ELSE
-			INSERT INTO vr_temp_ids
+			INSERT INTO vr_temp_ids_62894
 			SELECT ps.share_id, ps.score_date
 			FROM vr_friend_ids AS friends
 				INNER JOIN sh_post_shares AS ps
@@ -118,7 +120,7 @@ BEGIN
 		
 		vr_share_ids := ARRAY(
 			SELECT "ref".value 
-			FROM vr_temp_ids AS "ref"
+			FROM vr_temp_ids_62894 AS "ref"
 			GROUP BY "ref".value
 			ORDER BY min("ref".date) DESC
 			LIMIT vr_count	

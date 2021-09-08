@@ -14,9 +14,9 @@ DECLARE
 BEGIN
 	SELECT 	vr_type_id = node_type_id,
 			vr_parent_id = parent_node_id
-	FROM cn_nodes
-	WHERE application_id = vr_application_id AND 
-		node_id = (SELECT rf FROM UNNEST(vr_ids) AS rf LIMIT 1)
+	FROM cn_nodes AS x
+	WHERE x.application_id = vr_application_id AND 
+		x.node_id = (SELECT rf FROM UNNEST(vr_ids) AS rf LIMIT 1)
 	LIMIT 1;
 	
 	vr_ids := ARRAY(

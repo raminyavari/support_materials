@@ -41,7 +41,6 @@ DECLARE
 	vr_total_count		BIGINT;
 	vr_group_ref		REFCURSOR;
 	vr_nodes_ref		REFCURSOR;
-	vr_total_count_ref	REFCURSOR;
 	vr_node_counts_ref	REFCURSOR;
 BEGIN
 	vr_search_text := gfn_verify_string(vr_search_text);
@@ -282,15 +281,10 @@ BEGIN
 		
 		OPEN vr_nodes_ref FOR
 		SELECT *
-		FROM cn_p_get_nodes_by_ids(vr_application_id, vr_temp_ids, FALSE, NULL);
+		FROM cn_p_get_nodes_by_ids(vr_application_id, vr_temp_ids, FALSE, NULL, vr_total_count);
 		
 		RETURN NEXT vr_nodes_ref;
 		
-		OPEN vr_total_count_ref FOR
-		SELECT vr_total_count;
-		
-		RETURN NEXT vr_total_count_ref;
-
 		IF vr_fetch_counts = TRUE THEN
 			OPEN vr_node_counts_ref FOR
 			SELECT	nd.node_type_id,

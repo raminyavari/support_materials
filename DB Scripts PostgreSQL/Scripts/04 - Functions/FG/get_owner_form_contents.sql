@@ -37,7 +37,7 @@ BEGIN
 
 		UNION ALL
 
-		SELECT	"p".owner_id, COALESCE("c".full_content, N'') + ' ' + COALESCE("p".content, N''), 
+		SELECT	"p".owner_id, COALESCE("c".full_content, N'') || ' ' || COALESCE("p".content, N''), 
 			"p".content, "p".number, "p".count
 		FROM partitioned AS "p"
 			INNER JOIN fetched AS "c" 

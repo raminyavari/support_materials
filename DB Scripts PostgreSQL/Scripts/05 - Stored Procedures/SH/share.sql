@@ -3,7 +3,7 @@ DROP FUNCTION IF EXISTS sh_share;
 CREATE OR REPLACE FUNCTION sh_share 
 (
 	vr_application_id	UUID,
-	vr_shareID			UUID,
+	vr_share_id			UUID,
 	vr_parent_share_id	UUID,
     vr_owner_id			UUID,
     vr_description 		VARCHAR(4000),
@@ -23,9 +23,9 @@ BEGIN
 	vr_description := gfn_verify_string(vr_description);
 	
 	vr_post_id := (
-		SELECT post_id
-		FROM sh_post_shares
-		WHERE application_id = vr_application_id AND share_id = vr_parent_share_id
+		SELECT x.post_id
+		FROM sh_post_shares AS x
+		WHERE x.application_id = vr_application_id AND x.share_id = vr_parent_share_id
 		LIMIT 1
 	);
 

@@ -12,14 +12,16 @@ DECLARE
 BEGIN
 	vr_result := 0;
 	
-	CREATE TEMP TABLE vr_tbl ("additional_id" INTEGER, "name" VARCHAR(100));
+	DROP TABLE IF EXISTS vr_tbl_89238;
 	
-	INSERT INTO vr_tbl (additional_id, "name")
+	CREATE TEMP TABLE vr_tbl_89238 ("additional_id" INTEGER, "name" VARCHAR(100));
+	
+	INSERT INTO vr_tbl_89238 (additional_id, "name")
 	VALUES	(1,	N'شمول پدری'), (2,	N'شمول فرزندی'), (3,	N'ربط');
 	
 	INSERT INTO cn_properties (application_id, property_id, additional_id, "name", deleted)
 	SELECT vr_application_id, gen_random_uuid(), "t".additional_id, "t".name, FALSE
-	FROM vr_tbl AS "t"
+	FROM vr_tbl_89238 AS "t"
 		LEFT JOIN cn_properties AS "p"
 		ON "p".application_id = vr_application_id AND "p".additional_id = t.additional_id
 	WHERE "p".property_id IS NULL;

@@ -16,11 +16,11 @@ DECLARE
 BEGIN
 	vr_result := 0;
 
-	UPDATE cn_node_types
+	UPDATE cn_node_types AS x
 	SET deleted = FALSE,
 		last_modifier_user_id = vr_current_user_id,
 		last_modification_date = vr_now
-	WHERE application_id = vr_application_id AND node_type_id = vr_node_type_id;
+	WHERE x.application_id = vr_application_id AND x.node_type_id = vr_node_type_id;
 	
 	GET DIAGNOSTICS vr_result := ROW_COUNT;
 	
@@ -35,9 +35,9 @@ BEGIN
 	)::BOOLEAN;
 	
 	IF COALESCE(vr_parent_deleted, FALSE) = TRUE THEN
-		UPDATE cn_node_types
+		UPDATE cn_node_types AS x
 		SET parent_id = NULL
-		WHERE application_id = vr_application_id AND node_type_id = vr_node_type_id;
+		WHERE x.application_id = vr_application_id AND x.node_type_id = vr_node_type_id;
 	END IF;
 END;
 $$ LANGUAGE plpgsql;

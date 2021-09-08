@@ -36,9 +36,9 @@ BEGIN
 		vr_searchable, vr_creator_user_id, vr_creation_date, vr_parent_node_id, null, vr_add_member) AS x
 	LIMIT 1;
 		
-	UPDATE cn_nodes
+	UPDATE cn_nodes AS x
 	SET additional_id_main = vr_additional_id_main
-	WHERE application_id = vr_application_id AND node_id = vr_node_id;
+	WHERE x.application_id = vr_application_id AND x.node_id = vr_node_id;
 	
 	IF vr_result <= 0 THEN
 		CALL gfn_raise_exception(vr_result, NULL);

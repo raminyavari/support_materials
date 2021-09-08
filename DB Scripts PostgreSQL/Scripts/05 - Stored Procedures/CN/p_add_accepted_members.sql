@@ -37,7 +37,7 @@ BEGIN
 		ON s.application_id = vr_application_id AND s.node_type_id = nd.node_type_id;
 	
 	-- Remove existing members with UniqueMembership enabled
-	UPDATE nm
+	UPDATE cn_node_members
 	SET deleted = TRUE
 	FROM (
 			SELECT "t".user_id, "t".node_type_id
@@ -53,7 +53,7 @@ BEGIN
 	-- end of Remove existing members with UniqueMembership enabled
 	
 	-- Update existing items
-	UPDATE NM
+	UPDATE cn_node_members
 	SET deleted = FALSE,
 		status = vr_status,
 		acception_date = COALESCE(acception_date, vr_now)::TIMESTAMP,

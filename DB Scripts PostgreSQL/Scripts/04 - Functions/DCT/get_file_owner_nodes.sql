@@ -20,11 +20,11 @@ BEGIN
 	RETURN QUERY
 	WITH files AS
 	(
-		SELECT "id" AS "id", f.owner_id, f.owner_type, f.file_name, f.extension
-		FROM UNNEST(vr_file_ids) AS "id"
+		SELECT x AS "id", f.owner_id, f.owner_type, f.file_name, f.extension
+		FROM UNNEST(vr_file_ids) AS x
 			INNER JOIN dct_files AS f
 			ON f.application_id = vr_application_id AND 
-				(f.id = "id" OR f.file_name_guid = "id") AND f.deleted = FALSE
+				(f.id = x OR f.file_name_guid = x) AND f.deleted = FALSE
 	)
 	SELECT	f.id AS file_id, 
 			nd.node_id, 

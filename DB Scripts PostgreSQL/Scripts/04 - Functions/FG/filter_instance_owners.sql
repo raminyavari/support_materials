@@ -34,7 +34,7 @@ BEGIN
 	SELECT o.second_value, SUM("ref".rank)
 	FROM UNNEST(vr_form_instance_owners) AS o
 		INNER JOIN fg_fn_filter_instances(
-			vr_application_id, vr_owner_element_id, vr_instance_ids, vr_form_filters, N',', vr_match_all
+			vr_application_id, vr_owner_element_id, vr_instance_ids, vr_form_filters, ',', vr_match_all
 		) AS "ref"
 		ON "ref".instance_id = o.first_value
 	GROUP BY o.second_value;

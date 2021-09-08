@@ -13,11 +13,11 @@ AS
 $$
 BEGIN
 	RETURN QUERY
-	SELECT property_id AS relation_type_id,
-		   "name",
-		   additional_id
-	FROM cn_properties
-	WHERE application_id = vr_application_id AND deleted = FALSE;
+	SELECT x.property_id AS relation_type_id,
+		   x.name,
+		   x.additional_id
+	FROM cn_properties AS x
+	WHERE x.application_id = vr_application_id AND x.deleted = FALSE;
 END;
 $$ LANGUAGE plpgsql;
 

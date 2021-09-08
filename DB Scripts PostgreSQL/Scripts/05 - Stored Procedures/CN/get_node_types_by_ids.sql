@@ -13,7 +13,7 @@ DECLARE
 	vr_ret_ids	UUID[];
 BEGIN
 	vr_ret_ids := ARRAY(
-		SELECT nt.value
+		SELECT DISTINCT nt.value
 		FROM UNNEST(vr_node_type_ids) AS nt
 	);
 

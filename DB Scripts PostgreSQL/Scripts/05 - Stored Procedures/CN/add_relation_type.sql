@@ -20,13 +20,13 @@ BEGIN
 	
 	IF EXISTS(
 		SELECT * 
-		FROM cn_properties
-		WHERE application_id = vr_application_id AND "name" = vr_name AND deleted = TRUE
+		FROM cn_properties AS x
+		WHERE x.application_id = vr_application_id AND x.name = vr_name AND x.deleted = TRUE
 		LIMIT 1
 	) THEN
-		UPDATE cn_properties
-			SET deleted = FALSE
-		WHERE application_id = vr_application_id AND "name" = vr_name AND deleted = TRUE;
+		UPDATE cn_properties AS x
+		SET deleted = FALSE
+		WHERE x.application_id = vr_application_id AND x.name = vr_name AND x.deleted = TRUE;
 	ELSE
 		INSERT INTO cn_properties(
 			application_id,

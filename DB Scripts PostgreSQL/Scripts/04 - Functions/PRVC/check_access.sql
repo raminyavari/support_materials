@@ -20,10 +20,10 @@ DECLARE
 	vr_user_conf	INTEGER;
 	vr_group_ids 	UUID[];
 BEGIN
-	DROP TABLE IF EXISTS vr_item_ids;
-	DROP TABLE IF EXISTS vr_nodes;
-	DROP TABLE IF EXISTS vr_ids;
-	DROP TABLE IF EXISTS vr_values;
+	DROP TABLE IF EXISTS vr_item_ids_20498;
+	DROP TABLE IF EXISTS vr_nodes_29867;
+	DROP TABLE IF EXISTS vr_ids_04983;
+	DROP TABLE IF EXISTS vr_values_20743;
 	
 	IF vr_now IS NOT NULL THEN 
 		vr_yesterday := vr_now - INTERVAL '1 DAYS';
@@ -55,9 +55,9 @@ BEGIN
 		WHERE nm.application_id = vr_application_id AND nm.user_id = vr_user_id AND nm.is_pending = FALSE
 	);
 
-	CREATE TEMP TABLE vr_item_ids ("id" UUID, "level" INTEGER);
+	CREATE TEMP TABLE vr_item_ids_20498 ("id" UUID, "level" INTEGER);
 
-	INSERT INTO vr_item_ids("id", "level")
+	INSERT INTO vr_item_ids_20498("id", "level")
 	SELECT x.node_id, MIN(COALESCE(x.level, 0)) + 1
 	FROM cn_fn_get_nodes_hierarchy(vr_application_id, vr_group_ids) AS x
 	GROUP BY x.node_id;
@@ -94,7 +94,7 @@ BEGIN
 									LEFT JOIN prvc_confidentiality_levels AS cl
 									ON cl.application_id = vr_application_id AND 
 										cl.id = s.confidentiality_id AND cl.deleted = FALSE
-									LEFT JOIN vr_item_ids AS i
+									LEFT JOIN vr_item_ids_20498 AS i
 									ON i.id = a.role_id
 								WHERE (i.id IS NOT NULL OR "a".role_id = vr_user_id) AND
 									(s.object_id IS NULL OR 
@@ -115,7 +115,7 @@ BEGIN
 			"a".id IS NULL AND COALESCE(COALESCE(d.default_value, "p".second_value), '') = 'Public'
 		);
 	ELSE
-		CREATE TEMP TABLE vr_nodes (
+		CREATE TEMP TABLE vr_nodes_29867 (
 			node_id 				UUID, 
 			node_type_id 			UUID, 
 			document_tree_node_id	UUID, 
@@ -132,7 +132,7 @@ BEGIN
 			dt_allow 				BOOLEAN
 		);
 
-		INSERT INTO vr_nodes (node_id, node_type_id, document_tree_node_id, 
+		INSERT INTO vr_nodes_29867 (node_id, node_type_id, document_tree_node_id, 
 							  document_tree_id, permission_type, default_value)
 		SELECT nd.node_id, nd.node_type_id, nd.document_tree_node_id, tn.tree_id, 
 			"p".first_value, prvc_fn_default_value_to_boolean("p".second_value)
@@ -147,43 +147,43 @@ BEGIN
 			ON nd.document_tree_node_id IS NOT NULL AND "t".application_id = vr_application_id AND 
 				"t".tree_id = tn.tree_id AND "t".deleted = FALSE;
 		
-		CREATE TEMP TABLE vr_ids (
+		CREATE TEMP TABLE vr_ids_04983 (
 			"id" 			UUID, 
 			"type" 			VARCHAR(20), 
 			default_value 	BOOLEAN, 
 			PRIMARY KEY ("id", "type")
 		);
 		
-		INSERT INTO vr_ids ("id", "type", default_value)
+		INSERT INTO vr_ids_04983 ("id", "type", default_value)
 		SELECT DISTINCT i.value, pt.first_value, prvc_fn_default_value_to_boolean(dp.default_value)
 		FROM (
 				SELECT x.value FROM vr_object_ids AS x
 				UNION ALL 
-				SELECT DISTINCT n.node_type_id FROM vr_nodes AS n WHERE n.node_type_id IS NOT NULL
+				SELECT DISTINCT n.node_type_id FROM vr_nodes_29867 AS n WHERE n.node_type_id IS NOT NULL
 				UNION ALL
-				SELECT DISTINCT n.document_tree_node_id FROM vr_nodes AS n WHERE n.document_tree_node_id IS NOT NULL
+				SELECT DISTINCT n.document_tree_node_id FROM vr_nodes_29867 AS n WHERE n.document_tree_node_id IS NOT NULL
 				UNION ALL
-				SELECT DISTINCT n.document_tree_id FROM vr_nodes AS n WHERE n.document_tree_id IS NOT NULL
+				SELECT DISTINCT n.document_tree_id FROM vr_nodes_29867 AS n WHERE n.document_tree_id IS NOT NULL
 			) AS i
 			CROSS JOIN UNNEST(vr_permission_types) AS pt
 			LEFT JOIN prvc_default_permissions AS dp
 			ON dp.application_id = vr_application_id AND dp.object_id = i.value AND dp.permission_type = pt.first_value;
 			
-		UPDATE vr_nodes SET default_n = ids.default_value
-		FROM vr_nodes AS n INNER JOIN vr_ids AS ids ON ids.id = n.node_id AND ids.type = n.permission_type;
+		UPDATE vr_nodes_29867 SET default_n = ids.default_value
+		FROM vr_nodes_29867 AS n INNER JOIN vr_ids_04983 AS ids ON ids.id = n.node_id AND ids.type = n.permission_type;
 			
-		UPDATE vr_nodes SET default_nt = ids.default_value
-		FROM vr_nodes AS n INNER JOIN vr_ids AS ids ON ids.id = n.node_type_id AND ids.type = n.permission_type;
+		UPDATE vr_nodes_29867 SET default_nt = ids.default_value
+		FROM vr_nodes_29867 AS n INNER JOIN vr_ids_04983 AS ids ON ids.id = n.node_type_id AND ids.type = n.permission_type;
 		
-		UPDATE vr_nodes SET default_dtn = ids.default_value
-		FROM vr_nodes AS n INNER JOIN vr_ids AS ids ON ids.id = n.document_tree_node_id AND ids.type = n.permission_type;
+		UPDATE vr_nodes_29867 SET default_dtn = ids.default_value
+		FROM vr_nodes_29867 AS n INNER JOIN vr_ids_04983 AS ids ON ids.id = n.document_tree_node_id AND ids.type = n.permission_type;
 		
-		UPDATE vr_nodes SET default_dt = ids.default_value
-		FROM vr_nodes AS n INNER JOIN vr_ids AS ids ON ids.id = n.document_tree_id AND ids.type = n.permission_type;
+		UPDATE vr_nodes_29867 SET default_dt = ids.default_value
+		FROM vr_nodes_29867 AS n INNER JOIN vr_ids_04983 AS ids ON ids.id = n.document_tree_id AND ids.type = n.permission_type;
 		
-		CREATE TEMP TABLE vr_values ("id" UUID, "type" VARCHAR(20), allow BOOLEAN);
+		CREATE TEMP TABLE vr_values_20743 ("id" UUID, "type" VARCHAR(20), allow BOOLEAN);
 
-		INSERT INTO vr_values ("id", "type", allow)
+		INSERT INTO vr_values_20743 ("id", "type", allow)
 		SELECT "ref".object_id, "ref".type, "ref".allow
 		FROM (
 				SELECT	ROW_NUMBER() OVER (PARTITION BY x.object_id, x.type
@@ -198,7 +198,7 @@ BEGIN
 								"a".allow
 						FROM (
 								SELECT DISTINCT ids.id AS "value"
-								FROM vr_ids AS ids
+								FROM vr_ids_04983 AS ids
 							) AS o
 							LEFT JOIN prvc_settings AS s
 							ON s.application_id = vr_application_id AND s.object_id = o.value
@@ -206,7 +206,7 @@ BEGIN
 							ON "a".application_id = vr_application_id AND "a".object_id = o.value AND "a".deleted = FALSE AND
 								"a".permission_type IN (SELECT "p".first_value FROM UNNEST(vr_permission_types) AS "p") AND
 								("a".expiration_date IS NULL OR (vr_yesterday IS NOT NULL AND "a".expiration_date >= vr_yesterday))
-							LEFT JOIN vr_item_ids AS i
+							LEFT JOIN vr_item_ids_20498 AS i
 							ON i.id = "a".role_id
 						WHERE (i.id IS NOT NULL OR "a".role_id = vr_user_id) AND 
 							(s.object_id IS NULL OR COALESCE(s.calculate_hierarchy, FALSE) = TRUE OR COALESCE(i.level, 0) <= 1)
@@ -214,34 +214,34 @@ BEGIN
 			) AS "ref"
 		WHERE "ref".row_number = 1;
 		
-		UPDATE vr_nodes
-			SET n_allow = v.allow
-		FROM vr_nodes AS n
-			INNER JOIN vr_values AS v
+		UPDATE vr_nodes_29867
+		SET n_allow = v.allow
+		FROM vr_nodes_29867 AS n
+			INNER JOIN vr_values_20743 AS v
 			ON v.id = n.node_id AND v.type = n.permission_type;
 			
-		UPDATE vr_nodes
-			SET nt_allow = v.allow
-		FROM vr_nodes AS n
-			INNER JOIN vr_values AS v
+		UPDATE vr_nodes_29867
+		SET nt_allow = v.allow
+		FROM vr_nodes_29867 AS n
+			INNER JOIN vr_values_20743 AS v
 			ON v.id = n.node_type_id AND v.type = n.permission_type;
 			
-		UPDATE vr_nodes
-			SET dtn_allow = v.allow
-		FROM vr_nodes AS n
-			INNER JOIN vr_values AS v
+		UPDATE vr_nodes_29867
+		SET dtn_allow = v.allow
+		FROM vr_nodes_29867 AS n
+			INNER JOIN vr_values_20743 AS v
 			ON v.id = n.document_tree_node_id AND v.type = n.permission_type;
 			
-		UPDATE vr_nodes
-			SET dt_allow = v.allow
-		FROM vr_nodes AS n
-			INNER JOIN vr_values AS v
+		UPDATE vr_nodes_29867
+		SET dt_allow = v.allow
+		FROM vr_nodes_29867 AS n
+			INNER JOIN vr_values_20743 AS v
 			ON v.id = n.document_tree_id AND v.type = n.permission_type;
 		
 		RETURN QUERY
 		SELECT	n.node_id AS "id", 
 				n.permission_type AS "type"
-		FROM vr_nodes AS n
+		FROM vr_nodes_29867 AS n
 			LEFT JOIN prvc_view_confidentialities AS s
 			ON s.application_id = vr_application_id AND s.object_id = n.node_id
 		WHERE vr_user_conf >= COALESCE(s.level_id, 0) AND 
