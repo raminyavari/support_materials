@@ -308,17 +308,18 @@ GO
 
 CREATE PROCEDURE [dbo].[FG_GetFormsByIDs]
 	@ApplicationID	uniqueidentifier,
-    @strFormIDs		varchar(max),
-    @delimiter		char
+    @FormIDsTemp	GuidTableType readonly
 WITH ENCRYPTION
 AS
 BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE @FormIDs GuidTableType
-	INSERT INTO @FormIDs
-	SELECT DISTINCT Ref.Value FROM [dbo].[GFN_StrToGuidTable](@strFormIDs, @delimiter) AS Ref
-	
+
+	INSERT INTO @FormIDs ([Value])
+	SELECT T.[Value]
+	FROM @FormIDsTemp AS T
+
 	EXEC [dbo].[FG_P_GetFormsByIDs] @ApplicationID, @FormIDs
 END
 
@@ -332,6 +333,7 @@ GO
 
 CREATE PROCEDURE [dbo].[FG_GetForms]
 	@ApplicationID	uniqueidentifier,
+	@FormName		varchar(255),
 	@SearchText		nvarchar(1000),
 	@Count			int,
 	@LowerBoundary	int,
@@ -345,6 +347,8 @@ BEGIN
 	SET @Archive = ISNULL(@Archive, 0)
 	
 	DECLARE @FormIDs GuidTableType
+
+	IF @FormName = '' SET @FormName = NULL
 	
 	IF ISNULL(@SearchText, N'') = N'' BEGIN
 		INSERT INTO @FormIDs (Value)
@@ -354,8 +358,9 @@ BEGIN
 						F.FormID 
 				FROM [dbo].[FG_ExtendedForms] AS F
 				WHERE F.ApplicationID = @ApplicationID AND F.Deleted = @Archive AND
-					(@HasName IS NULL OR (@HasName = 0 AND ISNULL(F.Name, N'') = N'') OR 
-						(@HasName = 1 AND ISNULL(F.Name, N'') <> N''))
+					(@FormName IS NULL OR LOWER(ISNULL(F.[Name], '')) = LOWER(@FormName)) AND
+					(@HasName IS NULL OR (@HasName = 0 AND ISNULL(F.[Name], N'') = N'') OR 
+						(@HasName = 1 AND ISNULL(F.[Name], N'') <> N''))
 			) AS X
 		WHERE X.RowNumber >= ISNULL(@LowerBoundary, 0)
 		ORDER BY X.RowNumber ASC
@@ -370,8 +375,9 @@ BEGIN
 					INNER JOIN [dbo].[FG_ExtendedForms] AS F
 					ON F.ApplicationID = @ApplicationID AND F.FormID = SRCH.[Key] AND
 						F.Deleted = @Archive AND
-						(@HasName IS NULL OR (@HasName = 0 AND ISNULL(F.Name, N'') = N'') OR 
-							(@HasName = 1 AND ISNULL(F.Name, N'') <> N''))
+						(@FormName IS NULL OR LOWER(ISNULL(F.[Name], '')) = LOWER(@FormName)) AND
+						(@HasName IS NULL OR (@HasName = 0 AND ISNULL(F.[Name], N'') = N'') OR 
+							(@HasName = 1 AND ISNULL(F.[Name], N'') <> N''))
 			) AS X
 		WHERE X.RowNumber >= ISNULL(@LowerBoundary, 0)
 		ORDER BY X.RowNumber ASC
@@ -3084,8 +3090,8 @@ BEGIN
 	SELECT	P.PollID, 
 			P.IsCopyOfPollID,
 			P.OwnerID,
-			P.Name, 
-			P2.Name AS RefName,
+			P.[Name], 
+			P2.[Name] AS RefName,
 			P.[Description], 
 			P2.[Description] AS RefDescription, 
 			P.BeginDate, 
