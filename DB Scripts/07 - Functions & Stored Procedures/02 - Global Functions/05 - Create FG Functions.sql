@@ -405,7 +405,7 @@ BEGIN
 	ELSE IF @BitValue IS NOT NULL RETURN CAST(@BitValue AS nvarchar(max))
 	ELSE IF @DateValue IS NOT NULL RETURN CAST(@DateValue AS nvarchar(max))
 	
-	RETURN N''
+	RETURN CAST(N'' AS varchar(max))
 END
 
 GO
@@ -547,7 +547,7 @@ AS
 BEGIN
 	SET @MaxLevel = ISNULL(@MaxLevel, 0)
 
-	IF @MaxLevel <= 0 RETURN N''
+	IF @MaxLevel <= 0 RETURN CAST(N'' AS varchar(max))
 
 	DECLARE @Ret nvarchar(max) = NULL
 

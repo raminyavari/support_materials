@@ -2713,8 +2713,8 @@ GO
 
 CREATE PROCEDURE [dbo].[FG_GetFormStatistics]
 	@ApplicationID	uniqueidentifier,
-	@OwnerID uniqueidentifier,
-	@InstanceID uniqueidentifier
+	@OwnerID		uniqueidentifier,
+	@InstanceID		uniqueidentifier
 WITH ENCRYPTION
 AS
 BEGIN
@@ -3103,7 +3103,8 @@ BEGIN
 			CASE
 				WHEN P.OwnerID IS NULL THEN P.HideContributors
 				ELSE ISNULL(P2.HideContributors, P.HideContributors)
-			END AS HideContributors
+			END AS HideContributors,
+			P.Deleted AS Archived
 	FROM @PollIDs AS IDs
 		INNER JOIN [dbo].[FG_Polls] AS P
 		ON P.ApplicationID = @ApplicationID AND P.PollID = IDs.Value
@@ -3211,6 +3212,35 @@ BEGIN
 	
 	SELECT TOP(1) COUNT(T.Value) AS TotalCount 
 	FROM @TempIDs AS T
+END
+
+GO
+
+
+IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'[dbo].[FG_GetPollsByFormID]') AND
+	OBJECTPROPERTY(id, N'IsProcedure') = 1)
+DROP PROCEDURE [dbo].[FG_GetPollsByFormID]
+GO
+
+CREATE PROCEDURE [dbo].[FG_GetPollsByFormID]
+	@ApplicationID	uniqueidentifier,
+	@FormID			uniqueidentifier,
+	@Archive		bit
+WITH ENCRYPTION
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+	DECLARE @PollIDs KeyLessGuidTableType
+	
+	INSERT INTO @PollIDs ([Value])
+	SELECT DISTINCT P.PollID
+	FROM [dbo].[FG_Polls] AS P
+		INNER JOIN [dbo].[FG_FormOwners] AS O
+		ON O.ApplicationID = @ApplicationID AND O.FormID = @FormID AND O.OwnerID = P.PollID
+	WHERE P.ApplicationID = @ApplicationID AND (@Archive IS NULL OR P.Deleted = @Archive)
+	
+	EXEC [dbo].[FG_P_GetPollsByIDs] @ApplicationID, @PollIDs
 END
 
 GO
