@@ -2,8 +2,8 @@ DROP PROCEDURE IF EXISTS gfn_raise_exception;
 
 CREATE OR REPLACE PROCEDURE gfn_raise_exception
 (
-	vr_value 	INTEGER, 
-	vr_message 	VARCHAR
+	vr_value 	INTEGER DEFAULT -1, 
+	vr_message 	VARCHAR DEFAULT NULL
 )
 AS
 $$

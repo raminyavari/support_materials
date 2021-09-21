@@ -3173,7 +3173,8 @@ BEGIN
 						ROW_NUMBER() OVER (ORDER BY P.CreationDate ASC, P.PollID ASC) AS RevRowNumber,
 						P.PollID
 				FROM [dbo].[FG_Polls] AS P
-				WHERE P.ApplicationID = @ApplicationID AND P.Deleted = @Archive AND
+				WHERE P.ApplicationID = @ApplicationID AND 
+					(@Archive IS NULL OR P.Deleted = @Archive) AND
 					((@IsCopyOfPollID IS NULL AND P.IsCopyOfPollID IS NULL) OR 
 					(@IsCopyOfPollID IS NOT NULL AND P.IsCopyOfPollID = @IsCopyOfPollID)) AND
 					((@OwnerID IS NULL AND P.OwnerID IS NULL) OR 
@@ -3191,7 +3192,8 @@ BEGIN
 				FROM CONTAINSTABLE([dbo].[FG_Polls], ([Name]), @SearchText) AS SRCH
 					INNER JOIN [dbo].[FG_Polls] AS P
 					ON SRCH.[Key] = P.PollID
-				WHERE P.ApplicationID = @ApplicationID AND P.Deleted = @Archive AND
+				WHERE P.ApplicationID = @ApplicationID AND 
+					(@Archive IS NULL OR P.Deleted = @Archive) AND
 					((@IsCopyOfPollID IS NULL AND P.IsCopyOfPollID IS NULL) OR 
 					(@IsCopyOfPollID IS NOT NULL AND P.IsCopyOfPollID = @IsCopyOfPollID)) AND
 					((@OwnerID IS NULL AND P.OwnerID IS NULL) OR 

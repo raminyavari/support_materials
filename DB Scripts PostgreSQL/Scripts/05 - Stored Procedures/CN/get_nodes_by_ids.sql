@@ -7,7 +7,7 @@ CREATE OR REPLACE FUNCTION cn_get_nodes_by_ids
     vr_full		 		BOOLEAN,
     vr_viewer_user_id	UUID
 )
-RETURNS SETOF UUID
+RETURNS SETOF cn_node_ret_composite
 AS
 $$
 DECLARE

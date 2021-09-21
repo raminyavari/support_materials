@@ -795,7 +795,7 @@ BEGIN
 	) BEGIN
 		UPDATE [dbo].[SH_ShareLikes]
 		SET [Like] = @Like,
-			[Score] = @Score,
+			[Score] = ISNULL(@Score, 0),
 			[Date] = @Date
 		WHERE ApplicationID = @ApplicationID AND ShareID = @ShareID AND UserID = @UserID
 	END
@@ -813,7 +813,7 @@ BEGIN
 			@ShareID,
 			@UserID,
 			@Like,
-			@Score,
+			ISNULL(@Score, 0),
 			@Date
 		)
 	END
@@ -944,7 +944,7 @@ BEGIN
 	BEGIN
 		UPDATE [dbo].[SH_CommentLikes]
 		SET [Like] = @Like,
-			[Score] = @Score,
+			[Score] = ISNULL(@Score, 0),
 			[Date] = @Date
 		WHERE ApplicationID = @ApplicationID AND CommentID = @CommentID AND UserID = @UserID
 	END
@@ -962,7 +962,7 @@ BEGIN
 			@CommentID,
 			@UserID,
 			@Like,
-			@Score,
+			ISNULL(@Score, 0),
 			@Date
 		)
 	END
