@@ -430,10 +430,10 @@ CREATE FUNCTION [dbo].[CN_FN_GetRelatedNodeIDs](
 	@OutTags			bit
 )	
 RETURNS @OutputTable TABLE (
-	NodeID uniqueidentifier,
-	RelatedNodeID uniqueidentifier,
-	IsRelated bit,
-	IsTagged bit
+	NodeID			uniqueidentifier,
+	RelatedNodeID	uniqueidentifier,
+	IsRelated		bit,
+	IsTagged		bit
 )
 WITH ENCRYPTION
 AS
@@ -693,6 +693,149 @@ BEGIN
 	WHERE F.Number = (CASE WHEN F.[Count] > 90 THEN 90 ELSE F.[Count] END)
 	
 	RETURN @Ret
+END
+
+GO
+
+
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[CN_FN_GetFilteredNodes]') 
+    AND type in (N'FN', N'IF', N'TF', N'FS', N'FT'))
+DROP FUNCTION [dbo].[CN_FN_GetFilteredNodes]
+GO
+
+CREATE FUNCTION [dbo].[CN_FN_GetFilteredNodes](
+	@ApplicationID		uniqueidentifier,
+	@CurrentUserID		uniqueidentifier,
+	@NodeIDs			KeyLessGuidTableType readonly,
+	@RelatedToIDs		GuidTableType readonly,
+	@CreatorUserIDs		GuidTableType readonly,
+	@IsFavorite			bit,
+	@IsGroup			bit,
+	@IsExpertise		bit,
+	@CheckAccess		bit,
+	@DefaultPrivacy		varchar(20),
+	@FormFilters		FormFilterTableType readonly,
+	@MatchAllFilters	bit,
+	@Now				datetime
+)
+RETURNS @outputTable TABLE (
+	NodeID			uniqueidentifier,
+	SequenceNumber	int IDENTITY (1, 1)
+)
+WITH ENCRYPTION
+AS
+BEGIN
+	DECLARE @CreatorLevelIDs KeyLessGuidTableType
+
+	SET @CheckAccess = ISNULL(@CheckAccess, 0)
+
+	DECLARE @RelatedCount int = (SELECT COUNT(*) FROM @RelatedToIDs)
+	DECLARE @CreatorCount int = (SELECT COUNT(*) FROM @CreatorUserIDs)
+
+	-- Useless Variables
+	DECLARE @BTIDs GuidTableType
+	DECLARE @RTIDs GuidTableType
+
+	;WITH Related AS (
+		SELECT I.[Value] AS NodeID, I.SequenceNumber
+		FROM @NodeIDs AS I
+			LEFT JOIN (
+				SELECT R.NodeID, R.RelatedNodeID
+				FROM [dbo].[CN_FN_GetRelatedNodeIDs](@ApplicationID, 
+					@RelatedToIDs, @BTIDs, @RTIDs, 1, 1, 1, 1) AS R
+			) AS X
+			ON @RelatedCount > 0 AND X.RelatedNodeID = I.[Value]
+		WHERE @RelatedCount = 0 OR 
+			(X.RelatedNodeID IS NOT NULL AND I.[Value] NOT IN (SELECT R.[Value] FROM @RelatedToIDs AS R))
+	),
+	Creator AS (
+		SELECT R.NodeID, R.SequenceNumber
+		FROM Related AS R
+			LEFT JOIN (
+				SELECT DISTINCT NC.NodeID
+				FROM @CreatorUserIDs AS C
+					INNER JOIN [dbo].[CN_NodeCreators] AS NC
+					ON NC.ApplicationID = @ApplicationID AND NC.UserID = C.[Value] AND NC.Deleted = 0
+			) AS A
+			ON @RelatedCount > 0 AND A.NodeID = R.NodeID
+			LEFT JOIN [dbo].[CN_Nodes] AS ND
+			ON @CreatorCount > 0 AND ND.ApplicationID = @ApplicationID AND ND.NodeID = R.NodeID
+		WHERE @CreatorCount = 0 OR  
+			(A.NodeID IS NOT NULL OR ND.CreatorUserID IN (SELECT B.[Value] FROM @CreatorUserIDs AS B))
+	),
+	Favorite AS (
+		SELECT C.NodeID, C.SequenceNumber
+		FROM Creator AS C
+			LEFT JOIN [dbo].[CN_NodeLikes] AS L
+			ON @IsFavorite = 1 AND L.ApplicationID = @ApplicationID AND L.NodeID = C.NodeID AND
+				L.UserID = @CurrentUserID AND L.Deleted = 0
+		WHERE ISNULL(@IsFavorite, 0) = 0 OR L.NodeID IS NOT NULL
+	),
+	[Group] AS (
+		SELECT F.NodeID, F.SequenceNumber
+		FROM Favorite AS F
+			LEFT JOIN [dbo].[CN_View_NodeMembers] AS M
+			ON @IsGroup = 1 AND M.ApplicationID = @ApplicationID AND M.NodeID = F.NodeID AND
+				M.UserID = @CurrentUserID AND ISNULL(M.IsPending, 0) = 0
+		WHERE ISNULL(@IsGroup, 0) = 0 OR M.NodeID IS NOT NULL
+	),
+	Expertise AS (
+		SELECT G.NodeID, G.SequenceNumber
+		FROM [Group] AS G
+			LEFT JOIN [dbo].[CN_View_Experts] AS E
+			ON @IsExpertise = 1 AND E.ApplicationID = @ApplicationID AND 
+				E.NodeID = G.NodeID AND E.UserID = @CurrentUserID
+		WHERE ISNULL(@IsExpertise, 0) = 0 OR E.NodeID IS NOT NULL
+	)
+	INSERT INTO @CreatorLevelIDs ([Value])
+	SELECT E.NodeID
+	FROM Expertise AS E
+	ORDER BY E.SequenceNumber ASC
+	
+	-- Check Access
+	DECLARE @AccessLevelIDs KeyLessGuidTableType
+	
+	DECLARE	@PermissionTypes StringPairTableType
+		
+	INSERT INTO @PermissionTypes (FirstValue, SecondValue)
+	VALUES (N'View', @DefaultPrivacy), (N'ViewAbstract', @DefaultPrivacy)
+	
+	INSERT INTO @AccessLevelIDs ([Value])
+	SELECT I.[Value]
+	FROM @CreatorLevelIDs AS I
+		LEFT JOIN (
+			SELECT A.ID
+			FROM [dbo].[PRVC_FN_CheckAccess](@ApplicationID, @CurrentUserID, 
+				@CreatorLevelIDs, N'Node', @Now, @PermissionTypes) AS A
+			GROUP BY A.ID
+		) AS X
+		ON @CheckAccess = 1 AND X.ID = I.[Value]
+	WHERE @CheckAccess = 0 OR X.ID IS NOT NULL
+	ORDER BY I.SequenceNumber ASC
+	-- end of Check Access
+
+	IF (SELECT COUNT(*) FROM @FormFilters) > 0 BEGIN
+		DECLARE @IDs GuidTableType
+		
+		INSERT INTO @IDs (Value)
+		SELECT X.[Value]
+		FROM @AccessLevelIDs AS X
+		
+		INSERT INTO @outputTable (NodeID)
+		SELECT Ref.OwnerID
+		FROM @AccessLevelIDs AS IDs
+			INNER JOIN [dbo].[FG_FN_FilterInstanceOwners](@ApplicationID, NULL, @IDs, @FormFilters, @MatchAllFilters) AS Ref
+			ON Ref.OwnerID = IDs.[Value]
+		ORDER BY Ref.[Rank] ASC, IDs.SequenceNumber ASC
+	END
+	ELSE BEGIN
+		INSERT INTO @outputTable (NodeID)
+		SELECT IDs.[Value]
+		FROM @AccessLevelIDs AS IDs
+		ORDER BY IDs.SequenceNumber ASC
+	END
+
+	RETURN
 END
 
 GO
