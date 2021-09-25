@@ -11,18 +11,22 @@ AS
 $$
 BEGIN
 	RETURN QUERY
-    SELECT nm.node_id,
-		   nm.user_id,
-		   nm.membership_date,
-		   nm.is_admin,
-		   CASE WHEN nm.status = 'Pending' THEN TRUE ELSE FALSE END::BOOLEAN AS is_pending,
-		   nm.status,
-		   nm.acception_date,
-		   nm.position,
-		   usr.username,
-		   usr.first_name,
-		   usr.last_name,
-		   vr_total_count AS total_count
+    SELECT 	nm.node_id,
+		   	nm.user_id,
+		   	nm.membership_date,
+		   	nm.is_admin,
+		   	CASE WHEN nm.status = 'Pending' THEN TRUE ELSE FALSE END::BOOLEAN AS is_pending,
+		   	nm.status,
+		   	nm.acception_date,
+		   	nm.position,
+		   	NULL::VARCHAR AS node_additional_id,
+		   	NULL::VARCHAR AS node_name,
+			NULL::UUID AS node_type_id,
+			NULL::VARCHAR AS node_type,
+		   	usr.username,
+		   	usr.first_name,
+		   	usr.last_name,
+		   	vr_total_count AS total_count
     FROM UNNEST(vr_members) AS ext
 		INNER JOIN cn_node_members AS nm 
 		ON nm.application_id = vr_application_id AND 

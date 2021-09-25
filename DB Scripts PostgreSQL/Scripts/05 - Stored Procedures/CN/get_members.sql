@@ -25,74 +25,37 @@ BEGIN
 		vr_is_admin := NULL;
 	END IF;
 	
-	DROP TABLE IF EXISTS mm_24968;
-	
-	CREATE TEMP TABLE mm_24968 (
-		node_id		UUID,
-		user_id		UUID,
-		total_count	INTEGER
-	);
-	
-	IF COALESCE(vr_search_text, N'') = N'' THEN
-		INSERT INTO mm_24968 (node_id, user_id, total_count)
-		SELECT 	"ref".node_id, 
-				"ref".user_id, 
-				"ref".row_number + "ref".rev_row_number - 1 AS total_count
-		FROM (
-				SELECT	ROW_NUMBER() OVER (ORDER BY nm.is_admin DESC, nm.node_id DESC, nm.user_id DESC) AS "row_number",
-						ROW_NUMBER() OVER (ORDER BY nm.is_admin ASC, nm.node_id ASC, nm.user_id ASC) AS rev_row_number,
-						nm.node_id,
-						nm.user_id
-				FROM UNNEST(vr_node_ids) AS rf
-					INNER JOIN cn_view_node_members AS nm 
-					ON nm.node_id = rf.value
-				WHERE nm.application_id = vr_application_id AND 
-					(vr_is_pending IS NULL OR nm.is_pending = vr_is_pending) AND
-					(vr_is_admin IS NULL OR nm.is_admin = vr_is_admin)
-			) AS "ref"
-		WHERE "ref".row_number >= COALESCE(vr_lower_boundary, 0)
-		ORDER BY "ref".row_number ASC
-		LIMIT vr_count;
-	ELSE
-		INSERT INTO mm_24968 (node_id, user_id, total_count)
-		SELECT 	"ref".node_id, 
-				"ref".user_id, 
-				"ref".row_number + "ref".rev_row_number - 1 AS total_count
-		FROM (
-				SELECT	ROW_NUMBER() OVER (ORDER BY x.rank DESC, nm.node_id DESC, nm.user_id DESC) AS "row_number",
-						ROW_NUMBER() OVER (ORDER BY x.rank ASC, nm.node_id ASC, nm.user_id ASC) AS rev_row_number,
-						nm.node_id,
-						nm.user_id
-				FROM UNNEST(vr_node_ids) AS rf
-					INNER JOIN cn_view_node_members AS nm 
-					ON nm.application_id = vr_application_id AND nm.node_id = rf.value
-					INNER JOIN (
-						SELECT 	u.user_id,
-								(pgroonga_score(u.tableoid, u.ctid)::FLOAT + 
-								 	pgroonga_score("p".tableoid, "p".ctid)::FLOAT) AS "rank"
-						FROM rv_users AS u
-							INNER JOIN usr_profile AS "p"
-							ON "p".user_id = u.user_id
-						WHERE u.username &@~ vr_search_text OR u.first_name &@~ vr_search_text OR
-							u.last_name &@~ vr_search_text
-					) AS x
-					ON nm.user_id = x.user_id
-				WHERE (vr_is_pending IS NULL OR nm.is_pending = vr_is_pending) AND
-					(vr_is_admin IS NULL OR nm.is_admin = vr_is_admin)
-			) AS "ref"
-		WHERE "ref".row_number >= COALESCE(vr_lower_boundary, 0)
-		ORDER BY "ref".row_number ASC
-		LIMIT vr_count;
-	END IF;
-	
-	SELECT vr_total_count = "m".total_count
-	FROM mm_24968 AS "m"
-	LIMIT 1;
-	
-	vr_members := ARRAY(
-		SELECT ROW("m".node_id, "m".user_id)
-		FROM mm_24968 AS "m"
-	);
+	WITH "data" AS (
+		SELECT	ROW_NUMBER() OVER (
+					ORDER BY	pgroonga_score("p".tableoid, "p".ctid) DESC, 
+								nm.is_admin DESC, 
+								nm.node_id DESC, 
+								nm.user_id DESC
+				) AS "row_number",
+				nm.node_id,
+				nm.user_id
+		FROM UNNEST(vr_node_ids) AS rf
+			INNER JOIN cn_view_node_members AS nm 
+			ON nm.application_id = vr_application_id AND nm.node_id = rf.value AND
+				(vr_is_pending IS NULL OR nm.is_pending = vr_is_pending) AND
+				(vr_is_admin IS NULL OR nm.is_admin = vr_is_admin)
+			INNER JOIN usr_profile AS "p"
+			ON "p".user_id = nm.user_id AND (
+					COALESCE(vr_search_text, '') = '' OR "p".username &@~ vr_search_text OR 
+					"p".first_name &@~ vr_search_text OR "p".last_name &@~ vr_search_text
+				)
+	)
+	SELECT 	vr_members = ARRAY(
+				SELECT ROW(d.node_id, d.user_id)
+				FROM "data" AS d
+				WHERE d.row_number >= COALESCE(vr_lower_boundary, 0)
+				ORDER BY d.row_number ASC
+				LIMIT vr_count
+			),
+			vr_total_count = COALESCE((
+				SELECT COUNT(d.node_id)
+				FROM "data" AS d
+			), 0)::INTEGER;
 	
 	RETURN QUERY
 	SELECT *

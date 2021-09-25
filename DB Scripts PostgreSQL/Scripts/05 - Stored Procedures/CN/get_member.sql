@@ -1,29 +1,27 @@
-DROP FUNCTION IF EXISTS cn_arithmetic_delete_nodes;
+DROP FUNCTION IF EXISTS cn_get_member;
 
-CREATE OR REPLACE FUNCTION cn_arithmetic_delete_nodes
+CREATE OR REPLACE FUNCTION cn_get_member
 (
 	vr_application_id	UUID,
-    vr_node_ids			guid_table_type[],
-    vr_remove_hierarchy	BOOLEAN,
-    vr_current_user_id	UUID,
-    vr_now 				TIMESTAMP
+    vr_node_id			UUID,
+    vr_user_id			UUID
 )
-RETURNS INTEGER
+RETURNS SETOF cn_member_ret_composite
 AS
 $$
 DECLARE
-	vr_ids		UUID[];
-	vr_result	INTEGER = 0;
+	vr_members	guid_pair_table_type[];
 BEGIN
-	vr_ids := ARRAY(
-		SELECT x.value
-		FROM UNNEST(vr_node_ids) AS x
+	vr_members := ARRAY( 
+		SELECT ROW(nm.node_id, nm.user_id)
+		FROM cn_code_members AS nm
+		WHERE nm.application_id = vr_application_id AND 
+			nm.node_id = vr_node_id AND nm.user_id = vr_user_id AND nm.deleted = FALSE
 	);
 	
-	CALL _cn_p_arithmetic_delete_nodes(vr_application_id, vr_ids, vr_remove_hierarchy, 
-									   vr_current_user_id, vr_now, vr_result);
-	
-	RETURN vr_result;
+	RETURN QUERY
+	SELECT *
+	FROM cn_p_get_members(vr_application_id, vr_members);
 END;
 $$ LANGUAGE plpgsql;
 
