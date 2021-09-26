@@ -5,7 +5,7 @@ CREATE OR REPLACE FUNCTION gfn_is_system_admin
 	vr_application_id	UUID,
 	vr_user_id			UUID
 )
-RETURNS UUID
+RETURNS BOOLEAN
 AS
 $$
 BEGIN

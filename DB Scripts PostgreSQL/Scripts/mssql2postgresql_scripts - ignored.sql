@@ -493,3 +493,83 @@ BEGIN
     RETURN 1
 END;
 
+
+
+/*
+DROP PROCEDURE IF EXISTS cn_i_am_expert;
+
+CREATE PROCEDURE cn_i_am_expert
+	vr_application_id							UUID,
+	vr_user_id									UUID,
+	vr_expertise_domain					 VARCHAR(255),
+	vr_now								 TIMESTAMP,
+	vr_default_min_acceptable_referrals_count	 INTEGER,
+	vr_default_min_acceptable_confirms_percentage INTEGER
+WITH ENCRYPTION
+AS
+BEGIN TRANSACTION
+	SET NOCOUNT ON
+	
+	SET vr_expertise_domain = gfn_verify_string(vr_expertise_domain)
+	
+	DECLARE vr_nodeTypeID UUID = cn_fn_get_expertise_node_type_id(vr_application_id)
+	
+	DECLARE vr_node_id UUID = (
+		SELECT TOP(1) NodeID 
+		FROM cn_nodes 
+		WHERE ApplicationID = vr_application_id AND 
+			NodeTypeID = vr_nodeTypeID AND Name = vr_expertise_domain
+	)
+	
+	DECLARE vr__result INTEGER, vr__error_message varchar(1000)
+	
+	IF vr_node_id IS NULL BEGIN
+		SET vr_node_id = gen_random_uuid()
+		
+		EXEC cn_p_add_node vr_application_id, vr_node_id, NULL, vr_nodeTypeID, 
+			NULL, NULL, NULL, vr_expertise_domain, NULL, NULL, 0, vr_user_id, vr_now, NULL, 
+			NULL, NULL, vr__result output, vr__error_message output
+			
+		IF vr__result <= 0 BEGIN
+			SELECT -1
+			ROLLBACK TRANSACTION
+			RETURN
+		END
+	END
+	
+	IF EXISTS(SELECT TOP(1) * FROM cn_experts
+		WHERE NodeID = vr_node_id AND UserID = vr_user_id) BEGIN
+	
+		EXEC cn_p_calculate_social_expertise vr_application_id, vr_node_id, vr_user_id, 
+			vr_default_min_acceptable_referrals_count, vr_default_min_acceptable_confirms_percentage, 
+			vr__result output
+	END
+	ELSE BEGIN
+		INSERT INTO cn_experts(
+			ApplicationID,
+			NodeID,
+			UserID,
+			Approved,
+			ReferralsCount,
+			ConfirmsPercentage,
+			SocialApproved,
+			UniqueID
+		)
+		VALUES(
+			vr_application_id,
+			vr_node_id,
+			vr_user_id,
+			0,
+			0,
+			0,
+			0,
+			gen_random_uuid()
+		)
+		
+		SET vr__result = @vr_rowcount
+	END
+	
+	IF vr__result <= 0 SELECT NULL
+	ELSE SELECT vr_node_id
+COMMIT TRANSACTION;
+*/
