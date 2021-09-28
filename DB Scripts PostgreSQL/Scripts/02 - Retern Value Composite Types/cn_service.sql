@@ -1,0 +1,32 @@
+DROP TYPE IF EXISTS cn_service_ret_composite;
+
+CREATE TYPE cn_service_ret_composite AS (
+	node_type_id					UUID,
+	node_type						VARCHAR,
+	service_title					VARCHAR,
+	service_description				VARCHAR,
+	admin_type						VARCHAR,
+	admin_node_id					UUID,
+	max_acceptable_admin_level		INTEGER,
+	limit_attached_files_to			VARCHAR,
+	max_attached_file_size			INTEGER,
+	max_attached_files_count		INTEGER,
+	enable_contribution				BOOLEAN,
+	no_content						BOOLEAN,
+	is_document						BOOLEAN,
+	enable_previous_version_select	BOOLEAN,
+	is_knowledge					BOOLEAN,
+	is_tree							BOOLEAN,
+	unique_membership				BOOLEAN,
+	unique_admin_member				BOOLEAN,
+	disable_abstract_and_keywords	BOOLEAN,
+	disable_file_upload				BOOLEAN,
+	disable_related_nodes_select	BOOLEAN,
+	editable_for_admin				BOOLEAN,
+	editable_for_creator			BOOLEAN,
+	editable_for_owners				BOOLEAN,
+	editable_for_experts			BOOLEAN,
+	editable_for_members			BOOLEAN,
+	edit_suggestion					BOOLEAN,
+	total_count						INTEGER
+);

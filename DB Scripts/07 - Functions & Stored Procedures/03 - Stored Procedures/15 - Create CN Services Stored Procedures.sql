@@ -775,7 +775,7 @@ BEGIN
 	)
 	
 	IF @Value IS NULL BEGIN
-		SELECT TOP(1) IsDocument
+		SELECT TOP(1) EnablePreviousVersionSelect
 		FROM [dbo].[CN_Services]
 		WHERE ApplicationID = @ApplicationID AND NodeTypeID = @NodeTypeIDOrNodeID
 	END
@@ -1307,8 +1307,6 @@ BEGIN
 	SELECT UserID AS ID
 	FROM [dbo].[CN_FreeUsers]
 	WHERE ApplicationID = @ApplicationID AND NodeTypeID = @NodeTypeID AND Deleted = 0
-	
-	SELECT @@ROWCOUNT
 END
 
 GO
@@ -1661,9 +1659,8 @@ BEGIN TRANSACTION
 			RETURN
 		END
 	END
-	ELSE BEGIN
-		SELECT 1
-	END
+
+	SELECT 1
 COMMIT TRANSACTION
 
 GO
