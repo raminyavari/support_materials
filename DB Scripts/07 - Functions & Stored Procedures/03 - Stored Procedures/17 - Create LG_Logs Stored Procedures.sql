@@ -220,3 +220,37 @@ BEGIN
 END
 
 GO
+
+
+IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'[dbo].[LG_SaveRawLog]') and 
+	OBJECTPROPERTY(id, N'IsProcedure') = 1)
+DROP PROCEDURE [dbo].[LG_SaveRawLog]
+GO
+
+CREATE PROCEDURE [dbo].[LG_SaveRawLog]
+	@ApplicationID		uniqueidentifier,
+	@UserID				uniqueidentifier,
+	@Date				datetime,
+	@Info				nvarchar(max)
+WITH ENCRYPTION
+AS
+BEGIN
+	SET NOCOUNT ON
+
+	INSERT INTO [dbo].[LG_RawLogs] (
+		ApplicationID,
+		UserID,
+		[Date],
+		Info
+	)
+	VALUES (
+		@ApplicationID,
+		@UserID, 
+		@Date, 
+		@Info
+	)
+	
+	SELECT @@ROWCOUNT
+END
+
+GO
