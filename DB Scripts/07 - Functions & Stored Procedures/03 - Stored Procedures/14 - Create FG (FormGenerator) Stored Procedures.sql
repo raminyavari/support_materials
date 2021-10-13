@@ -1488,7 +1488,7 @@ BEGIN
 		(X.DateValue IS NOT NULL AND ISNULL(E.DateValue, E1.DateValue) IS NOT NULL AND 
 			X.DateValue <> ISNULL(E.DateValue, E1.DateValue))
 	-- end of Save Changes
-	
+
 	-- Update Existing Data
 	-- A: Update based on ElementID. We split them for performance reasons
 	UPDATE IE
