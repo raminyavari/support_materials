@@ -741,6 +741,80 @@ END
 GO
 
 
+IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'[dbo].[WF_SaveWorkFlowStateActions]') and 
+	OBJECTPROPERTY(id, N'IsProcedure') = 1)
+DROP PROCEDURE [dbo].[WF_SaveWorkFlowStateActions]
+GO
+
+CREATE PROCEDURE [dbo].[WF_SaveWorkFlowStateActions]
+	@ApplicationID	uniqueidentifier,
+	@WorkFlowID		uniqueidentifier,
+	@StateID		uniqueidentifier,
+	@ActionsTemp	StringTableType readonly,
+	@CurrentUserID	uniqueidentifier,
+	@Now			datetime
+WITH ENCRYPTION, RECOMPILE
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+	DECLARE @Actions StringTableType
+	INSERT INTO @Actions SELECT * FROM @ActionsTemp 
+
+	INSERT INTO [dbo].[WF_WorkFlowStateActions] (ApplicationID, WorkFlowID, StateID, [Action], CreatorUserID, CreationDate, Deleted)
+	SELECT @ApplicationID, @WorkFlowID, @StateID, C.[Value], @CurrentUserID, @Now, 0
+	FROM @Actions AS C
+		LEFT JOIN [dbo].[WF_WorkFlowStateActions] AS AC
+		ON AC.ApplicationID = @ApplicationID AND AC.WorkFlowID = @WorkFlowID AND 
+			AC.StateID = @StateID AND LOWER(AC.[Action]) = LOWER(C.[Value])
+	WHERE AC.WorkFlowID IS NULL
+
+	;WITH [Data] AS (
+		SELECT	ROW_NUMBER() OVER (ORDER BY (SELECT 1) ASC) AS Seq,
+				A.[Value] AS [Action]
+		FROM @Actions AS A
+	)
+	UPDATE AC
+	SET Deleted = CASE WHEN C.[Action] IS NULL THEN 1 ELSE 0 END,
+		SequenceNumber = ISNULL(C.Seq, AC.SequenceNumber),
+		LastModifierUserID = @CurrentUserID,
+		LastModificationDate = @Now
+	FROM [dbo].[WF_WorkFlowStateActions] AS AC
+		LEFT JOIN [Data] AS C
+		ON LOWER(C.[Action]) = LOWER(AC.[Action])
+	WHERE AC.ApplicationID = @ApplicationID AND AC.WorkFlowID = @WorkFlowID AND AC.StateID = @StateID
+	
+	SELECT 1
+END
+
+GO
+
+
+IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'[dbo].[WF_GetWorkFlowStateActions]') and 
+	OBJECTPROPERTY(id, N'IsProcedure') = 1)
+DROP PROCEDURE [dbo].[WF_GetWorkFlowStateActions]
+GO
+
+CREATE PROCEDURE [dbo].[WF_GetWorkFlowStateActions]
+	@ApplicationID	uniqueidentifier,
+	@WorkFlowID		uniqueidentifier,
+	@StateID		uniqueidentifier
+WITH ENCRYPTION, RECOMPILE
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+	SELECT	AC.StateID,
+			AC.[Action]
+	FROM [dbo].[WF_WorkFlowStateActions] AS AC
+	WHERE AC.ApplicationID = @ApplicationID AND AC.WorkFlowID = @WorkFlowID AND
+		(@StateID IS NULL OR AC.StateID = @StateID) AND AC.Deleted = 0
+	ORDER BY AC.SequenceNumber ASC, AC.CreationDate ASC
+END
+
+GO
+
+
 IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'[dbo].[WF_SetStateDirector]') and 
 	OBJECTPROPERTY(id, N'IsProcedure') = 1)
 DROP PROCEDURE [dbo].[WF_SetStateDirector]
