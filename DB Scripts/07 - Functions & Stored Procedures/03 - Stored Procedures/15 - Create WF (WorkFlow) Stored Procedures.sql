@@ -741,15 +741,14 @@ END
 GO
 
 
-IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'[dbo].[WF_SaveWorkFlowStateActions]') and 
+IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'[dbo].[WF_SaveWorkFlowActions]') and 
 	OBJECTPROPERTY(id, N'IsProcedure') = 1)
-DROP PROCEDURE [dbo].[WF_SaveWorkFlowStateActions]
+DROP PROCEDURE [dbo].[WF_SaveWorkFlowActions]
 GO
 
-CREATE PROCEDURE [dbo].[WF_SaveWorkFlowStateActions]
+CREATE PROCEDURE [dbo].[WF_SaveWorkFlowActions]
 	@ApplicationID	uniqueidentifier,
-	@WorkFlowID		uniqueidentifier,
-	@StateID		uniqueidentifier,
+	@ConnectionID	uniqueidentifier,
 	@ActionsTemp	StringTableType readonly,
 	@CurrentUserID	uniqueidentifier,
 	@Now			datetime
@@ -761,13 +760,12 @@ BEGIN
 	DECLARE @Actions StringTableType
 	INSERT INTO @Actions SELECT * FROM @ActionsTemp 
 
-	INSERT INTO [dbo].[WF_WorkFlowStateActions] (ApplicationID, WorkFlowID, StateID, [Action], CreatorUserID, CreationDate, Deleted)
-	SELECT @ApplicationID, @WorkFlowID, @StateID, C.[Value], @CurrentUserID, @Now, 0
+	INSERT INTO [dbo].[WF_WorkFlowActions] (ApplicationID, ConnectionID, [Action], CreatorUserID, CreationDate, Deleted)
+	SELECT @ApplicationID, @ConnectionID, C.[Value], @CurrentUserID, @Now, 0
 	FROM @Actions AS C
-		LEFT JOIN [dbo].[WF_WorkFlowStateActions] AS AC
-		ON AC.ApplicationID = @ApplicationID AND AC.WorkFlowID = @WorkFlowID AND 
-			AC.StateID = @StateID AND LOWER(AC.[Action]) = LOWER(C.[Value])
-	WHERE AC.WorkFlowID IS NULL
+		LEFT JOIN [dbo].[WF_WorkFlowActions] AS AC
+		ON AC.ApplicationID = @ApplicationID AND AC.ConnectionID = @ConnectionID AND LOWER(AC.[Action]) = LOWER(C.[Value])
+	WHERE AC.ConnectionID IS NULL
 
 	;WITH [Data] AS (
 		SELECT	ROW_NUMBER() OVER (ORDER BY (SELECT 1) ASC) AS Seq,
@@ -779,10 +777,10 @@ BEGIN
 		SequenceNumber = ISNULL(C.Seq, AC.SequenceNumber),
 		LastModifierUserID = @CurrentUserID,
 		LastModificationDate = @Now
-	FROM [dbo].[WF_WorkFlowStateActions] AS AC
+	FROM [dbo].[WF_WorkFlowActions] AS AC
 		LEFT JOIN [Data] AS C
 		ON LOWER(C.[Action]) = LOWER(AC.[Action])
-	WHERE AC.ApplicationID = @ApplicationID AND AC.WorkFlowID = @WorkFlowID AND AC.StateID = @StateID
+	WHERE AC.ApplicationID = @ApplicationID AND AC.ConnectionID = @ConnectionID
 	
 	SELECT 1
 END
@@ -790,25 +788,64 @@ END
 GO
 
 
-IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'[dbo].[WF_GetWorkFlowStateActions]') and 
+IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'[dbo].[WF_GetWorkFlowActions]') and 
 	OBJECTPROPERTY(id, N'IsProcedure') = 1)
-DROP PROCEDURE [dbo].[WF_GetWorkFlowStateActions]
+DROP PROCEDURE [dbo].[WF_GetWorkFlowActions]
 GO
 
-CREATE PROCEDURE [dbo].[WF_GetWorkFlowStateActions]
+CREATE PROCEDURE [dbo].[WF_GetWorkFlowActions]
 	@ApplicationID	uniqueidentifier,
 	@WorkFlowID		uniqueidentifier,
-	@StateID		uniqueidentifier
+	@ConnectionID	uniqueidentifier
 WITH ENCRYPTION, RECOMPILE
 AS
 BEGIN
 	SET NOCOUNT ON
 	
-	SELECT	AC.StateID,
+	IF @ConnectionID IS NOT NULL BEGIN
+		SELECT	AC.ConnectionID,
+				AC.[Action]
+		FROM [dbo].[WF_WorkFlowActions] AS AC
+		WHERE AC.ApplicationID = @ApplicationID AND AC.ConnectionID = @ConnectionID AND AC.Deleted = 0
+		ORDER BY AC.SequenceNumber ASC, AC.CreationDate ASC
+	END
+	ELSE IF @WorkFlowID IS NOT NULL BEGIN
+		SELECT	AC.ConnectionID,
+				AC.[Action]
+		FROM [dbo].[WF_StateConnections] AS S
+			INNER JOIN [dbo].[WF_WorkFlowActions] AS AC
+			ON AC.ApplicationID = @ApplicationID AND AC.ConnectionID = S.ID AND AC.Deleted = 0
+		WHERE S.ApplicationID = @ApplicationID AND S.WorkFlowID = @WorkFlowID AND S.Deleted = 0
+		ORDER BY AC.SequenceNumber ASC, AC.CreationDate ASC
+	END
+END
+
+GO
+
+
+IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'[dbo].[WF_GetNextStateActions]') and 
+	OBJECTPROPERTY(id, N'IsProcedure') = 1)
+DROP PROCEDURE [dbo].[WF_GetNextStateActions]
+GO
+
+CREATE PROCEDURE [dbo].[WF_GetNextStateActions]
+	@ApplicationID	uniqueidentifier,
+	@HistoryID		uniqueidentifier,
+	@NextStateID	uniqueidentifier
+WITH ENCRYPTION, RECOMPILE
+AS
+BEGIN
+	SET NOCOUNT ON
+
+	SELECT	AC.ConnectionID,
 			AC.[Action]
-	FROM [dbo].[WF_WorkFlowStateActions] AS AC
-	WHERE AC.ApplicationID = @ApplicationID AND AC.WorkFlowID = @WorkFlowID AND
-		(@StateID IS NULL OR AC.StateID = @StateID) AND AC.Deleted = 0
+	FROM [dbo].[WF_History] AS H
+		INNER JOIN [dbo].[WF_StateConnections] AS S
+		ON S.ApplicationID = @ApplicationID AND 
+			S.WorkFlowID = H.WorkFlowID AND S.OutStateID = @NextStateID AND S.InStateID = H.StateID
+		INNER JOIN [dbo].[WF_WorkFlowActions] AS AC
+		ON AC.ApplicationID = @ApplicationID AND AC.ConnectionID = S.ID AND AC.Deleted = 0
+	WHERE H.ApplicationID = @ApplicationID AND H.HistoryID = @HistoryID
 	ORDER BY AC.SequenceNumber ASC, AC.CreationDate ASC
 END
 

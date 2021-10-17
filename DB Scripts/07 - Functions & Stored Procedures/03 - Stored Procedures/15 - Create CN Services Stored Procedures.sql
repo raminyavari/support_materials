@@ -1524,7 +1524,7 @@ BEGIN TRANSACTION
 	DECLARE @Contributors GuidFloatTableType
 	INSERT INTO @Contributors SELECT * FROM @ContributorsTemp
 	
-	DECLARE @Searchable bit = 1
+	DECLARE @Searchable bit = CASE WHEN @WorkFlowID IS NULL THEN 1 ELSE 0 END
 	
 	-- Set searchability 
 	SELECT TOP(1) @Searchable = (
@@ -1539,7 +1539,7 @@ BEGIN TRANSACTION
 		ON KT.ApplicationID = @ApplicationID AND KT.KnowledgeTypeID = S.NodeTypeID
 	WHERE S.ApplicationID = @ApplicationID AND 
 		S.NodeTypeID = @NodeTypeID AND S.IsKnowledge = 1
-	
+
 	DECLARE @_Message varchar(1000)
 	DECLARE @_Result int = -1
 	
