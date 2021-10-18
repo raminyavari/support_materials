@@ -1132,6 +1132,34 @@ END
 GO
 
 
+IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'[dbo].[FG_RecoverFormInstance]') and 
+	OBJECTPROPERTY(id, N'IsProcedure') = 1)
+DROP PROCEDURE [dbo].[FG_RecoverFormInstance]
+GO
+
+CREATE PROCEDURE [dbo].[FG_RecoverFormInstance]
+	@ApplicationID	uniqueidentifier,
+	@InstanceID		uniqueidentifier,
+	@CurrentUserID	uniqueidentifier,
+	@Now			datetime
+WITH ENCRYPTION
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+	UPDATE FI
+		SET Deleted = 0,
+			LastModifierUserID = @CurrentUserID,
+			LastModificationDate = @Now
+	FROM [dbo].[FG_FormInstances] AS FI
+	WHERE FI.ApplicationID = @ApplicationID AND FI.InstanceID = @InstanceID AND FI.[Deleted] = 1
+	
+	SELECT @@ROWCOUNT
+END
+
+GO
+
+
 IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'[dbo].[FG_P_GetFormInstancesByIDs]') and 
 	OBJECTPROPERTY(id, N'IsProcedure') = 1)
 DROP PROCEDURE [dbo].[FG_P_GetFormInstancesByIDs]
