@@ -39,9 +39,10 @@ BEGIN
 
 	DECLARE @UserIDs GuidTableType
 
+	DECLARE @GroupsCount int = (SELECT COUNT(*) FROM @CreatorNodeIDs)
 	DECLARE @AllUsers bit = 0
 
-	IF @CreatorNodeTypeID IS NULL AND NOT EXISTS (SELECT TOP(1) * FROM @CreatorNodeIDs) SET @AllUsers = 1
+	IF @CreatorNodeTypeID IS NULL AND @GroupsCount = 0 SET @AllUsers = 1
 
 	DECLARE @GroupMembers TABLE (
 		GroupID				uniqueidentifier, 
@@ -70,7 +71,44 @@ BEGIN
 		FROM @GroupMembers AS G
 	END
 
-	IF @AllUsers = 0 BEGIN
+	IF @AllUsers = 1 OR @GroupsCount = 1 BEGIN
+		;WITH Content AS (
+			SELECT X.UserID, X.ContentID, X.ContentCollaborationShare, X.ContentStatus,
+				X.ContentScore, X.ContentPublished, X.AnswerID, X.WikiParagraphID, X.[Date]
+			FROM [dbo].[RV_FN_KnowledgeSupplyIndicatorsReport](@ApplicationID, @CurrentUserID, @ContentTypeIDs, 
+				@UserIDs, @AllUsers, @LowerCreationDateLimit, @UpperCreationDateLimit) AS X
+		)
+		SELECT	X.UserID AS UserID_Hide,
+				LTRIM(RTRIM(ISNULL(UN.FirstName, N' ') + N' ' + ISNULL(UN.LastName, N' '))) AS FullName,
+				X.ContentsCount,
+				X.AverageCollaborationShare,
+				X.AcceptedCount,
+				X.AverageAcceptedScore,
+				X.PublishedCount,
+				X.AnswersCount,
+				X.WikiChangesCount
+		FROM (
+				SELECT	C.UserID, 
+						COUNT(DISTINCT C.ContentID) AS ContentsCount,
+						CASE 
+							WHEN COUNT(DISTINCT C.ContentID) = 0 THEN 0 
+							ELSE SUM(ISNULL(C.ContentCollaborationShare, 0)) / COUNT(DISTINCT C.ContentID) 
+						END AS AverageCollaborationShare,
+						COUNT(DISTINCT (CASE WHEN C.ContentStatus = N'Accepted' THEN C.ContentID ELSE NULL END)) AS AcceptedCount,
+						CASE 
+							WHEN COUNT(DISTINCT C.ContentID) = 0 THEN 0 
+							ELSE SUM(ISNULL(C.ContentScore, 0)) / COUNT(DISTINCT C.ContentID) 
+						END AS AverageAcceptedScore,
+						COUNT(DISTINCT (CASE WHEN C.ContentPublished = 1 THEN C.ContentID ELSE NULL END)) AS PublishedCount,
+						COUNT(DISTINCT C.AnswerID) AS AnswersCount,
+						COUNT(DISTINCT C.WikiParagraphID) AS WikiChangesCount
+				FROM Content AS C
+				GROUP BY C.UserID
+			) AS X
+			INNER JOIN [dbo].[Users_Normal] AS UN
+			ON UN.ApplicationID = @ApplicationID AND UN.UserID = X.UserID
+	END
+	ELSE BEGIN
 		;WITH Content AS (
 			SELECT X.UserID, X.ContentID, X.ContentCollaborationShare, X.ContentStatus,
 				X.ContentScore, X.ContentPublished, X.AnswerID, X.WikiParagraphID, X.[Date]
@@ -110,43 +148,6 @@ BEGIN
 			INNER JOIN SummaryScore AS SC
 			ON SC.GroupID = G.GroupID AND SC.ContentID = C.ContentID
 		GROUP BY G.GroupID
-	END
-	ELSE BEGIN
-		;WITH Content AS (
-			SELECT X.UserID, X.ContentID, X.ContentCollaborationShare, X.ContentStatus,
-				X.ContentScore, X.ContentPublished, X.AnswerID, X.WikiParagraphID, X.[Date]
-			FROM [dbo].[RV_FN_KnowledgeSupplyIndicatorsReport](@ApplicationID, @CurrentUserID, @ContentTypeIDs, 
-				@UserIDs, @AllUsers, @LowerCreationDateLimit, @UpperCreationDateLimit) AS X
-		)
-		SELECT	X.UserID AS UserID_Hide,
-				LTRIM(RTRIM(ISNULL(UN.FirstName, N' ') + N' ' + ISNULL(UN.LastName, N' '))) AS FullName,
-				X.ContentsCount,
-				X.AverageCollaborationShare,
-				X.AcceptedCount,
-				X.AverageAcceptedScore,
-				X.PublishedCount,
-				X.AnswersCount,
-				X.WikiChangesCount
-		FROM (
-				SELECT	C.UserID, 
-						COUNT(DISTINCT C.ContentID) AS ContentsCount,
-						CASE 
-							WHEN COUNT(DISTINCT C.ContentID) = 0 THEN 0 
-							ELSE SUM(ISNULL(C.ContentCollaborationShare, 0)) / COUNT(DISTINCT C.ContentID) 
-						END AS AverageCollaborationShare,
-						COUNT(DISTINCT (CASE WHEN C.ContentStatus = N'Accepted' THEN C.ContentID ELSE NULL END)) AS AcceptedCount,
-						CASE 
-							WHEN COUNT(DISTINCT C.ContentID) = 0 THEN 0 
-							ELSE SUM(ISNULL(C.ContentScore, 0)) / COUNT(DISTINCT C.ContentID) 
-						END AS AverageAcceptedScore,
-						COUNT(DISTINCT (CASE WHEN C.ContentPublished = 1 THEN C.ContentID ELSE NULL END)) AS PublishedCount,
-						COUNT(DISTINCT C.AnswerID) AS AnswersCount,
-						COUNT(DISTINCT C.WikiParagraphID) AS WikiChangesCount
-				FROM Content AS C
-				GROUP BY C.UserID
-			) AS X
-			INNER JOIN [dbo].[Users_Normal] AS UN
-			ON UN.ApplicationID = @ApplicationID AND UN.UserID = X.UserID
 	END
 	
 	SELECT ('{' +

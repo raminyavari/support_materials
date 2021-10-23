@@ -39,9 +39,10 @@ BEGIN
 
 	DECLARE @UserIDs GuidTableType
 
+	DECLARE @GroupsCount int = (SELECT COUNT(*) FROM @CreatorNodeIDs)
 	DECLARE @AllUsers bit = 0
 
-	IF @CreatorNodeTypeID IS NULL AND NOT EXISTS (SELECT TOP(1) * FROM @CreatorNodeIDs) SET @AllUsers = 1
+	IF @CreatorNodeTypeID IS NULL AND @GroupsCount = 0 SET @AllUsers = 1
 
 	DECLARE @GroupMembers TABLE (
 		GroupID				uniqueidentifier, 
@@ -70,27 +71,7 @@ BEGIN
 		FROM @GroupMembers AS G
 	END
 
-	IF @AllUsers = 0 BEGIN
-		;WITH Content AS (
-			SELECT X.UserID, X.VisitedID, X.SearchID, X.QuestionID, X.PostID, X.CommentID, X.[Date]
-			FROM [dbo].[RV_FN_KnowledgeDemandIndicatorsReport](@ApplicationID, @CurrentUserID, @ContentTypeIDs, 
-				@UserIDs, @AllUsers, @LowerCreationDateLimit, @UpperCreationDateLimit) AS X
-		)
-		SELECT	G.GroupID AS GroupID_Hide, 
-				MAX(G.GroupName) AS GroupName,
-				COUNT(DISTINCT G.UserID) AS MembersCount,
-				COUNT(C.SearchID) AS SearchesCount,
-				COUNT(C.QuestionID) AS QuestionsCount,
-				COUNT(C.VisitedID) AS ContentVisitsCount,
-				COUNT(DISTINCT C.VisitedID) AS DistinctContentVisitsCount,
-				COUNT(DISTINCT C.PostID) AS PostsCount,
-				COUNT(DISTINCT C.CommentID) AS CommentsCount
-		FROM @GroupMembers AS G
-			INNER JOIN Content AS C
-			ON C.UserID = G.UserID
-		GROUP BY G.GroupID
-	END
-	ELSE BEGIN
+	IF @AllUsers = 1 OR @GroupsCount = 1 BEGIN
 		;WITH Content AS (
 			SELECT X.UserID, X.VisitedID, X.SearchID, X.QuestionID, X.PostID, X.CommentID, X.[Date]
 			FROM [dbo].[RV_FN_KnowledgeDemandIndicatorsReport](@ApplicationID, @CurrentUserID, @ContentTypeIDs, 
@@ -118,7 +99,27 @@ BEGIN
 			INNER JOIN [dbo].[Users_Normal] AS UN
 			ON UN.ApplicationID = @ApplicationID AND UN.UserID = X.UserID
 	END
-	
+	ELSE BEGIN
+		;WITH Content AS (
+			SELECT X.UserID, X.VisitedID, X.SearchID, X.QuestionID, X.PostID, X.CommentID, X.[Date]
+			FROM [dbo].[RV_FN_KnowledgeDemandIndicatorsReport](@ApplicationID, @CurrentUserID, @ContentTypeIDs, 
+				@UserIDs, @AllUsers, @LowerCreationDateLimit, @UpperCreationDateLimit) AS X
+		)
+		SELECT	G.GroupID AS GroupID_Hide, 
+				MAX(G.GroupName) AS GroupName,
+				COUNT(DISTINCT G.UserID) AS MembersCount,
+				COUNT(C.SearchID) AS SearchesCount,
+				COUNT(C.QuestionID) AS QuestionsCount,
+				COUNT(C.VisitedID) AS ContentVisitsCount,
+				COUNT(DISTINCT C.VisitedID) AS DistinctContentVisitsCount,
+				COUNT(DISTINCT C.PostID) AS PostsCount,
+				COUNT(DISTINCT C.CommentID) AS CommentsCount
+		FROM @GroupMembers AS G
+			INNER JOIN Content AS C
+			ON C.UserID = G.UserID
+		GROUP BY G.GroupID
+	END
+
 	SELECT ('{' +
 		'"GroupName": {"Action": "Link", "Type": "Node",' +
 			'"Requires": {"ID": "GroupID_Hide"}' +

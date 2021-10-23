@@ -35,9 +35,10 @@ BEGIN
 
 	DECLARE @UserIDs GuidTableType
 
+	DECLARE @GroupsCount int = (SELECT COUNT(*) FROM @CreatorNodeIDs)
 	DECLARE @AllUsers bit = 0
 
-	IF @CreatorNodeTypeID IS NULL AND NOT EXISTS (SELECT TOP(1) * FROM @CreatorNodeIDs) SET @AllUsers = 1
+	IF @CreatorNodeTypeID IS NULL AND @GroupsCount = 0 SET @AllUsers = 1
 
 	DECLARE @GroupMembers TABLE (
 		GroupID				uniqueidentifier, 
@@ -66,7 +67,36 @@ BEGIN
 		FROM @GroupMembers AS G
 	END
 
-	IF @AllUsers = 0 BEGIN
+	IF @AllUsers = 1 OR @GroupsCount = 1 BEGIN
+		;WITH Social AS (
+			SELECT X.UserID, X.PostID, X.CommentID, X.PostSendDate, X.CommentSendDate
+			FROM [dbo].[RV_FN_SocialContributionIndicatorsReport](@ApplicationID, @CurrentUserID, @UserIDs, 
+				@AllUsers, @LowerCreationDateLimit, @UpperCreationDateLimit) AS X
+		)
+		SELECT	R.UserID AS UserID_Hide,
+				LTRIM(RTRIM(ISNULL(MAX(UN.FirstName), N' ') + N' ' + ISNULL(MAX(UN.LastName), N' '))) AS FullName,
+				MAX(R.PostsCount) AS PostsCount,
+				MAX(R.CommentsCount) AS CommentsCount
+		FROM (
+				SELECT	S.UserID,
+						COUNT(S.PostID) AS PostsCount,
+						0 AS CommentsCount
+				FROM Social AS S
+				GROUP BY S.UserID
+
+				UNION ALL
+
+				SELECT	S.UserID,
+						0 AS PostsCount,
+						COUNT(S.CommentID) AS CommentsCount
+				FROM Social AS S
+				GROUP BY S.UserID
+			) AS R
+			INNER JOIN [dbo].[Users_Normal] AS UN
+			ON UN.ApplicationID = @ApplicationID AND UN.UserID = R.UserID
+		GROUP BY R.UserID
+	END
+	ELSE BEGIN
 		;WITH Social AS (
 			SELECT X.UserID, X.PostID, X.CommentID, X.PostSendDate, X.CommentSendDate
 			FROM [dbo].[RV_FN_SocialContributionIndicatorsReport](@ApplicationID, @CurrentUserID, @UserIDs, 
@@ -114,36 +144,7 @@ BEGIN
 			ON G.GroupID = R.GroupID
 		GROUP BY G.GroupID
 	END
-	ELSE BEGIN
-		;WITH Social AS (
-			SELECT X.UserID, X.PostID, X.CommentID, X.PostSendDate, X.CommentSendDate
-			FROM [dbo].[RV_FN_SocialContributionIndicatorsReport](@ApplicationID, @CurrentUserID, @UserIDs, 
-				@AllUsers, @LowerCreationDateLimit, @UpperCreationDateLimit) AS X
-		)
-		SELECT	R.UserID AS UserID_Hide,
-				LTRIM(RTRIM(ISNULL(MAX(UN.FirstName), N' ') + N' ' + ISNULL(MAX(UN.LastName), N' '))) AS FullName,
-				MAX(R.PostsCount) AS PostsCount,
-				MAX(R.CommentsCount) AS CommentsCount
-		FROM (
-				SELECT	S.UserID,
-						COUNT(S.PostID) AS PostsCount,
-						0 AS CommentsCount
-				FROM Social AS S
-				GROUP BY S.UserID
 
-				UNION ALL
-
-				SELECT	S.UserID,
-						0 AS PostsCount,
-						COUNT(S.CommentID) AS CommentsCount
-				FROM Social AS S
-				GROUP BY S.UserID
-			) AS R
-			INNER JOIN [dbo].[Users_Normal] AS UN
-			ON UN.ApplicationID = @ApplicationID AND UN.UserID = R.UserID
-		GROUP BY R.UserID
-	END
-	
 	SELECT ('{' +
 		'"GroupName": {"Action": "Link", "Type": "Node",' +
 			'"Requires": {"ID": "GroupID_Hide"}' +
