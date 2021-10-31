@@ -2706,6 +2706,8 @@ BEGIN
 		INNER JOIN [dbo].[WF_StateConnections] AS SC
 		ON SC.ApplicationID = @ApplicationID AND SC.WorkFlowID = @WorkFlowID AND
 			SC.InStateID = ExternalIDs.Value AND SC.Deleted  = 0
+		INNER JOIN [dbo].[WF_WorkFlowStates] AS WS
+		ON WS.ApplicationID = @ApplicationID AND WS.WorkFlowID = @WorkFlowID AND WS.StateID = SC.OutStateID AND WS.Deleted = 0
 		INNER JOIN [dbo].[WF_States] AS S
 		ON S.ApplicationID = @ApplicationID AND S.StateID = SC.OutStateID AND S.Deleted  = 0
 		LEFT JOIN [dbo].[CN_NodeTypes] AS NT
