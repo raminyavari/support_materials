@@ -41,13 +41,13 @@ BEGIN
 	INSERT INTO @CreatorUserIDs (Value) SELECT Ref.Value FROM @CreatorUserIDsTemp AS Ref
 
 	;WITH Content AS (
-		SELECT X.*
+		SELECT	X.NodeID,
+				[dbo].[GFN_GetTimePeriod](X.[VisitDate], @Period, @CalendarType) AS [Period]
 		FROM [dbo].[CN_FN_NodeVisitDetailsReport](@ApplicationID, @CurrentUserID, @NodeTypeID, 
 			@NodeIDs, @GrabSubNodeTypes, @CreatorGroupIDs, @CreatorUserIDs, @DateFrom, @DateTo) AS X
 	)
 	SELECT	P.[Value] AS [Period],
-			COUNT(C.VisitedID) AS VisitsCount,
-			COUNT(C.SearchID) AS SearchesCount
+			COUNT(C.NodeID) AS VisitsCount
 	FROM @PeriodList AS P
 		LEFT JOIN Content AS C
 		ON C.[Period] = P.[Value]

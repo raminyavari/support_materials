@@ -37,16 +37,23 @@ BEGIN
 	DECLARE @CreatorUserIDs GuidTableType
 	INSERT INTO @CreatorUserIDs (Value) SELECT Ref.Value FROM @CreatorUserIDsTemp AS Ref
 
-	SELECT X.*
+	SELECT	X.UserID AS UserID_Hide,
+			X.FullName,
+			X.NodeID AS NodeID_Hide,
+			X.NodeName,
+			X.NodeAdditionalID,
+			X.NodeType,
+			X.VisitDate
 	FROM [dbo].[CN_FN_NodeVisitDetailsReport](@ApplicationID, @CurrentUserID, @NodeTypeID, 
 		@NodeIDs, @GrabSubNodeTypes, @CreatorGroupIDs, @CreatorUserIDs, @DateFrom, @DateTo) AS X
+	ORDER BY X.VisitDate DESC, X.NodeID ASC
 
 	SELECT ('{' +
-		'"GroupName": {"Action": "Link", "Type": "Node",' +
-			'"Requires": {"ID": "GroupID_Hide"}' +
-		'},' +
 		'"FullName": {"Action": "Link", "Type": "User",' +
 			'"Requires": {"ID": "UserID_Hide"}' +
+		'},' +
+		'"NodeName": {"Action": "Link", "Type": "Node",' +
+			'"Requires": {"ID": "NodeID_Hide"}' +
 		'}' +
 	   '}') AS Actions
 END
