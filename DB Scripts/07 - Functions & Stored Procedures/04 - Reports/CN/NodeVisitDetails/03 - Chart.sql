@@ -24,6 +24,7 @@ CREATE PROCEDURE [dbo].[CN_NodeVisitDetailsReport_Chart]
 	@GrabSubNodeTypes		bit,
 	@CreatorGroupIDsTemp	GuidTableType readonly,
 	@CreatorUserIDsTemp		GuidTableType readonly,
+	@UniqueVisitors			bit,
 	@DateFrom				datetime,
 	@DateTo					datetime
 WITH ENCRYPTION, RECOMPILE
@@ -42,12 +43,17 @@ BEGIN
 
 	;WITH Content AS (
 		SELECT	X.NodeID,
+				X.UserID,
+				CHECKSUM(X.NodeID, X.UserID) AS UniqueValue,
 				[dbo].[GFN_GetTimePeriod](X.[VisitDate], @Period, @CalendarType) AS [Period]
 		FROM [dbo].[CN_FN_NodeVisitDetailsReport](@ApplicationID, @CurrentUserID, @NodeTypeID, 
 			@NodeIDs, @GrabSubNodeTypes, @CreatorGroupIDs, @CreatorUserIDs, @DateFrom, @DateTo) AS X
 	)
 	SELECT	P.[Value] AS [Period],
-			COUNT(C.NodeID) AS VisitsCount
+			CASE 
+				WHEN @UniqueVisitors = 1 THEN COUNT(DISTINCT C.UniqueValue) 
+				ELSE COUNT(C.NodeID) 
+			END AS VisitsCount
 	FROM @PeriodList AS P
 		LEFT JOIN Content AS C
 		ON C.[Period] = P.[Value]
@@ -56,4 +62,6 @@ BEGIN
 END
 
 GO
+
+
 

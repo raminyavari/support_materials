@@ -21,6 +21,7 @@ CREATE PROCEDURE [dbo].[CN_NodeVisitDetailsReport]
 	@GrabSubNodeTypes		bit,
 	@CreatorGroupIDsTemp	GuidTableType readonly,
 	@CreatorUserIDsTemp		GuidTableType readonly,
+	@UniqueVisitors			bit,
 	@DateFrom				datetime,
 	@DateTo					datetime
 WITH ENCRYPTION, RECOMPILE
@@ -36,17 +37,35 @@ BEGIN
 
 	DECLARE @CreatorUserIDs GuidTableType
 	INSERT INTO @CreatorUserIDs (Value) SELECT Ref.Value FROM @CreatorUserIDsTemp AS Ref
-
-	SELECT	X.UserID AS UserID_Hide,
-			X.FullName,
-			X.NodeID AS NodeID_Hide,
-			X.NodeName,
-			X.NodeAdditionalID,
-			X.NodeType,
-			X.VisitDate
-	FROM [dbo].[CN_FN_NodeVisitDetailsReport](@ApplicationID, @CurrentUserID, @NodeTypeID, 
-		@NodeIDs, @GrabSubNodeTypes, @CreatorGroupIDs, @CreatorUserIDs, @DateFrom, @DateTo) AS X
-	ORDER BY X.VisitDate DESC, X.NodeID ASC
+	
+	IF @UniqueVisitors = 1 BEGIN
+		SELECT	Ref.UserID AS UserID_Hide,
+				MAX(Ref.FullName) AS FullName,
+				Ref.NodeID AS NodeID_Hide,
+				MAX(Ref.NodeName) AS NodeName,
+				MAX(Ref.NodeAdditionalID) AS NodeAdditionalID,
+				MAX(Ref.NodeType) AS NodeType,
+				MAX(Ref.VisitDate) AS LastVisitDate
+		FROM (
+				SELECT	X.*
+				FROM [dbo].[CN_FN_NodeVisitDetailsReport](@ApplicationID, @CurrentUserID, @NodeTypeID, 
+					@NodeIDs, @GrabSubNodeTypes, @CreatorGroupIDs, @CreatorUserIDs, @DateFrom, @DateTo) AS X
+			) AS Ref
+		GROUP BY Ref.UserID, NodeID
+		ORDER BY MAX(Ref.VisitDate) DESC, Ref.NodeID ASC
+	END
+	ELSE BEGIN
+		SELECT	X.UserID AS UserID_Hide,
+				X.FullName,
+				X.NodeID AS NodeID_Hide,
+				X.NodeName,
+				X.NodeAdditionalID,
+				X.NodeType,
+				X.VisitDate
+		FROM [dbo].[CN_FN_NodeVisitDetailsReport](@ApplicationID, @CurrentUserID, @NodeTypeID, 
+			@NodeIDs, @GrabSubNodeTypes, @CreatorGroupIDs, @CreatorUserIDs, @DateFrom, @DateTo) AS X
+		ORDER BY X.VisitDate DESC, X.NodeID ASC
+	END
 
 	SELECT ('{' +
 		'"FullName": {"Action": "Link", "Type": "User",' +
