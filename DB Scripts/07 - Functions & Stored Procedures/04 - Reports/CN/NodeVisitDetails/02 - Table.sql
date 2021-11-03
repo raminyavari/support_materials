@@ -37,7 +37,12 @@ BEGIN
 	DECLARE @CreatorUserIDs GuidTableType
 	INSERT INTO @CreatorUserIDs (Value) SELECT Ref.Value FROM @CreatorUserIDsTemp AS Ref
 
-	SELECT X.*
+	SELECT	X.UserID AS UserID_Hide,
+			X.FullName,
+			X.NodeID AS NodeID_Hide,
+			X.NodeName,
+			X.NodeType,
+			X.VisitDate
 	FROM [dbo].[CN_FN_NodeVisitDetailsReport](@ApplicationID, @CurrentUserID, @NodeTypeID, 
 		@NodeIDs, @GrabSubNodeTypes, @CreatorGroupIDs, @CreatorUserIDs, @DateFrom, @DateTo) AS X
 
