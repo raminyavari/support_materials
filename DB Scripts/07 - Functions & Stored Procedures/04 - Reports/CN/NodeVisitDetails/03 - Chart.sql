@@ -41,12 +41,7 @@ BEGIN
 	INSERT INTO @CreatorUserIDs (Value) SELECT Ref.Value FROM @CreatorUserIDsTemp AS Ref
 
 	;WITH Content AS (
-		SELECT	X.UserID,
-				X.FullName,
-				X.NodeID,
-				X.NodeName,
-				X.NodeTypeID,
-				X.NodeType,
+		SELECT	X.NodeID,
 				X.VisitDate,
 				[dbo].[GFN_GetTimePeriod](X.VisitDate, @Period, @CalendarType) AS [Period]
 		FROM [dbo].[CN_FN_NodeVisitDetailsReport](@ApplicationID, @CurrentUserID, @NodeTypeID, 
