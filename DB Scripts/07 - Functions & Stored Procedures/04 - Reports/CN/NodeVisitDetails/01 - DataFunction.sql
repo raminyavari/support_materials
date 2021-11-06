@@ -77,7 +77,7 @@ BEGIN
 
 	;WITH Nodes AS 
 	(
-		SELECT ND.NodeID, ND.NodeName, ND.NodeAdditionalID, ND.TypeName
+		SELECT ND.NodeID, ND.NodeName, ND.NodeAdditionalID, ND.TypeName, ND.CreatorUserID
 		FROM [dbo].[CN_View_Nodes_Normal] AS ND
 		WHERE ND.ApplicationID = @ApplicationID AND ND.Deleted = 0 AND
 			(@NodeTypesCount = 0 OR ND.NodeTypeID IN (SELECT X.[Value] FROM @NodeTypeIDs AS X)) AND
@@ -91,8 +91,9 @@ BEGIN
 				MAX(ND.TypeName) AS TypeName
 		FROM Nodes AS ND
 			LEFT JOIN [dbo].[CN_NodeCreators] AS NC
-			ON @UsersCount > 0 AND NC.ApplicationID = @ApplicationID AND NC.NodeID = ND.NodeID AND NC.Deleted = 0
-		WHERE @UsersCount = 0 OR NC.NodeID IS NOT NULL
+			ON @UsersCount > 0 AND NC.ApplicationID = @ApplicationID AND NC.NodeID = ND.NodeID AND 
+				NC.Deleted = 0 AND NC.UserID IN (SELECT X.[Value] FROM @CreatorUserIDs AS X)
+		WHERE @UsersCount = 0 OR NC.NodeID IS NOT NULL OR ND.CreatorUserID IN (SELECT X.[Value] FROM @CreatorUserIDs AS X)
 		GROUP BY ND.NodeID
 	)
 	INSERT INTO @outputTable (UserID, FullName, NodeID, NodeName, NodeAdditionalID, NodeType, VisitDate)
