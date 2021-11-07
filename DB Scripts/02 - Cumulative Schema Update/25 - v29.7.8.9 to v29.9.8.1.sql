@@ -75,7 +75,7 @@ GO
 
 IF (SELECT TOP(1) X.[Version] FROM [dbo].[AppSetting] AS X) = N'v29.7.8.9' BEGIN
 	UPDATE [dbo].[AppSetting]
-		SET [Version] = 'v28.45.0.0' -- 14000725
+		SET [Version] = 'v29.9.8.1' -- 14000725
 END
 GO
 
