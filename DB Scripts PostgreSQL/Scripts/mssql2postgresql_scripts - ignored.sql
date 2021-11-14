@@ -573,3 +573,402 @@ BEGIN TRANSACTION
 	ELSE SELECT vr_node_id
 COMMIT TRANSACTION;
 */
+
+-- User Groups
+
+DROP PROCEDURE IF EXISTS usr_create_user_group;
+
+CREATE PROCEDURE usr_create_user_group
+	vr_application_id	UUID,
+	vr_group_id		UUID,
+	vr_title		 VARCHAR(512),
+	vr_description VARCHAR(2000),
+	vr_creator_user_id	UUID,
+	vr_now		 TIMESTAMP
+WITH ENCRYPTION
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+	SET vr_title = gfn_verify_string(vr_title)
+	SET vr_description = gfn_verify_string(vr_description)
+	
+	INSERT usr_user_groups (
+		ApplicationID,
+		GroupID,
+		Title,
+		description,
+		CreatorUserID,
+		CreationDate,
+		Deleted
+	)
+	VALUES (
+		vr_application_id,
+		vr_group_id,
+		vr_title,
+		vr_description,
+		vr_creator_user_id,
+		vr_now,
+		0
+	)
+	
+	SELECT @vr_rowcount
+END;
+
+
+DROP PROCEDURE IF EXISTS usr_modify_user_group;
+
+CREATE PROCEDURE usr_modify_user_group
+	vr_application_id		UUID,
+	vr_group_id			UUID,
+	vr_title			 VARCHAR(512),
+	vr_description	 VARCHAR(2000),
+	vr_last_modifier_user_id	UUID,
+	vr_now			 TIMESTAMP
+WITH ENCRYPTION
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+	SET vr_title = gfn_verify_string(vr_title)
+	SET vr_description = gfn_verify_string(vr_description)
+	
+	UPDATE usr_user_groups
+		SET Title = vr_title,
+			description = vr_description,
+			LastModifierUserID = vr_last_modifier_user_id,
+			LastModificationDate = vr_now
+	WHERE ApplicationID = vr_application_id AND GroupID = vr_group_id
+	
+	SELECT @vr_rowcount
+END;
+
+
+DROP PROCEDURE IF EXISTS usr_remove_user_group;
+
+CREATE PROCEDURE usr_remove_user_group
+	vr_application_id		UUID,
+	vr_group_id			UUID,
+	vr_last_modifier_user_id	UUID,
+	vr_now			 TIMESTAMP
+WITH ENCRYPTION
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+	UPDATE usr_user_groups
+		SET deleted = TRUE,
+			LastModifierUserID = vr_last_modifier_user_id,
+			LastModificationDate = vr_now
+	WHERE ApplicationID = vr_application_id AND GroupID = vr_group_id
+	
+	SELECT @vr_rowcount
+END;
+
+
+DROP PROCEDURE IF EXISTS usr_add_user_group_members;
+
+CREATE PROCEDURE usr_add_user_group_members
+	vr_application_id		UUID,
+	vr_group_id			UUID,
+	vr_strUserIDs			varchar(max),
+	vr_delimiter			char,
+	vr_current_user_id		UUID,
+	vr_now			 TIMESTAMP
+WITH ENCRYPTION
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+	DECLARE vr_user_ids GuidTableType
+	
+	INSERT INTO vr_user_ids (Value)
+	SELECT DISTINCT ref.value
+	FROM gfn_str_to_guid_table(vr_strUserIDs, vr_delimiter) AS ref
+	
+	DECLARE vr_changed_count INTEGER = 0
+	
+	UPDATE M
+		SET deleted = FALSE,
+			LastModifierUserID = vr_current_user_id,
+			LastModificationDate = vr_now
+	FROM vr_user_ids AS u
+		INNER JOIN usr_user_group_members AS m
+		ON m.user_id = u.value
+	WHERE m.application_id = vr_application_id AND m.group_id = vr_group_id
+		
+	SET vr_changed_count = @vr_rowcount
+	
+	INSERT INTO usr_user_group_members (
+		ApplicationID,
+		GroupID,
+		UserID,
+		CreatorUserID,
+		CreationDate,
+		Deleted
+	)
+	SELECT vr_application_id, vr_group_id, u.value, vr_current_user_id, vr_now, 0
+	FROM vr_user_ids AS u
+		LEFT JOIN usr_user_group_members AS m
+		ON m.application_id = vr_application_id AND m.group_id = vr_group_id AND m.user_id = u.value
+	WHERE m.group_id IS NULL
+	
+	SELECT @vr_rowcount + vr_changed_count
+END;
+
+
+DROP PROCEDURE IF EXISTS usr_remove_user_group_members;
+
+CREATE PROCEDURE usr_remove_user_group_members
+	vr_application_id		UUID,
+	vr_group_id			UUID,
+	vr_strUserIDs			varchar(max),
+	vr_delimiter			char,
+	vr_current_user_id		UUID,
+	vr_now			 TIMESTAMP
+WITH ENCRYPTION
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+	DECLARE vr_user_ids GuidTableType
+	
+	INSERT INTO vr_user_ids (Value)
+	SELECT DISTINCT ref.value
+	FROM gfn_str_to_guid_table(vr_strUserIDs, vr_delimiter) AS ref
+	
+	DECLARE vr_changed_count INTEGER = 0
+	
+	UPDATE M
+		SET deleted = TRUE,
+			LastModifierUserID = vr_current_user_id,
+			LastModificationDate = vr_now
+	FROM vr_user_ids AS u
+		INNER JOIN usr_user_group_members AS m
+		ON m.user_id = u.value
+	WHERE m.application_id = vr_application_id AND m.group_id = vr_group_id
+	
+	SELECT @vr_rowcount
+END;
+
+
+DROP PROCEDURE IF EXISTS usr_set_user_group_permission;
+
+CREATE PROCEDURE usr_set_user_group_permission
+	vr_application_id		UUID,
+	vr_group_id			UUID,
+	vr_role_id				UUID,
+	vr_current_user_id		UUID,
+	vr_now			 TIMESTAMP
+WITH ENCRYPTION
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+	IF EXISTS(
+		SELECT TOP(1) *
+		FROM usr_user_group_permissions
+		WHERE ApplicationID = vr_application_id AND GroupID = vr_group_id AND RoleID = vr_role_id
+	) BEGIN
+		UPDATE usr_user_group_permissions
+			SET deleted = FALSE,
+				LastModifierUserID = vr_current_user_id,
+				LastModificationDate = vr_now
+		WHERE ApplicationID = vr_application_id AND GroupID = vr_group_id AND RoleID = vr_role_id
+	END
+	ELSE BEGIN
+		INSERT INTO usr_user_group_permissions (
+			ApplicationID,
+			GroupID,
+			RoleID,
+			CreatorUserID,
+			CreationDate,
+			Deleted
+		)
+		VALUES (
+			vr_application_id,
+			vr_group_id,
+			vr_role_id,
+			vr_current_user_id,
+			vr_now,
+			0
+		)
+	END
+	
+	SELECT @vr_rowcount
+END;
+
+
+DROP PROCEDURE IF EXISTS usr_unset_user_group_permission;
+
+CREATE PROCEDURE usr_unset_user_group_permission
+	vr_application_id		UUID,
+	vr_group_id			UUID,
+	vr_role_id				UUID,
+	vr_current_user_id		UUID,
+	vr_now			 TIMESTAMP
+WITH ENCRYPTION
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+	UPDATE usr_user_group_permissions
+		SET deleted = TRUE,
+			LastModifierUserID = vr_current_user_id,
+			LastModificationDate = vr_now
+	WHERE ApplicationID = vr_application_id AND GroupID = vr_group_id AND RoleID = vr_role_id
+	
+	SELECT @vr_rowcount
+END;
+
+
+DROP PROCEDURE IF EXISTS usr_get_user_groups;
+
+CREATE PROCEDURE usr_get_user_groups
+	vr_application_id		UUID,
+	vr_strGroupIDs		varchar(max),
+	vr_delimiter			char
+WITH ENCRYPTION
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+	DECLARE vr_group_ids GuidTableType
+	
+	INSERT INTO vr_group_ids (Value)
+	SELECT DISTINCT ref.value
+	FROM gfn_str_to_guid_table(vr_strGroupIDs, vr_delimiter) AS ref
+	
+	DECLARE vr_groups_count INTEGER = (SELECT COUNT(*) FROM vr_group_ids)
+	
+	SELECT	g.group_id,
+			g.title,
+			g.description
+	FROM usr_user_groups AS g
+	WHERE g.application_id = vr_application_id AND 
+		(vr_groups_count = 0 OR g.group_id IN (SELECT ref.value FROM vr_group_ids AS ref)) AND
+		g.deleted = FALSE
+END;
+
+
+DROP PROCEDURE IF EXISTS usr_get_user_group_members;
+
+CREATE PROCEDURE usr_get_user_group_members
+	vr_application_id		UUID,
+	vr_group_id			UUID
+WITH ENCRYPTION
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+	DECLARE vr_user_ids KeyLessGuidTableType
+	
+	INSERT INTO vr_user_ids (Value)
+	SELECT DISTINCT m.user_id
+	FROM usr_user_groups AS g
+		INNER JOIN usr_user_group_members AS m
+		ON m.application_id = vr_application_id AND m.group_id = g.group_id
+		INNER JOIN users_normal AS un
+		ON un.application_id = vr_application_id AND un.user_id = m.user_id
+	WHERE g.application_id = vr_application_id AND g.group_id = vr_group_id AND
+		m.deleted = FALSE AND un.is_approved = TRUE
+		
+	EXEC usr_p_get_users_by_ids vr_application_id, vr_user_ids
+END;
+
+
+DROP PROCEDURE IF EXISTS usr_p_get_access_roles_by_ids;
+
+CREATE PROCEDURE usr_p_get_access_roles_by_ids
+	vr_application_id	UUID,
+	vr_role_idsTemp	GuidTableType readonly
+WITH ENCRYPTION, RECOMPILE
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+	DECLARE vr_role_ids GuidTableType
+	INSERT INTO vr_role_ids SELECT * FROM vr_role_idsTemp
+	
+	SELECT a.role_id, a.name, a.title
+	FROM vr_role_ids AS r
+		INNER JOIN usr_access_roles AS a
+		ON a.role_id = r.value
+	WHERE a.application_id = vr_application_id
+END;
+
+
+DROP PROCEDURE IF EXISTS usr_get_access_roles;
+
+CREATE PROCEDURE usr_get_access_roles
+	vr_application_id		UUID
+WITH ENCRYPTION
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+	DECLARE vr_role_ids GuidTableType
+	
+	INSERT INTO vr_role_ids (Value)
+	SELECT RoleID
+	FROM usr_access_roles
+	WHERE ApplicationID = vr_application_id
+	
+	EXEC usr_p_get_access_roles_by_ids vr_application_id, vr_role_ids
+END;
+
+
+DROP PROCEDURE IF EXISTS usr_get_user_group_access_roles;
+
+CREATE PROCEDURE usr_get_user_group_access_roles
+	vr_application_id		UUID,
+	vr_group_id			UUID
+WITH ENCRYPTION
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+	DECLARE vr_role_ids GuidTableType
+	
+	INSERT INTO vr_role_ids (Value)
+	SELECT DISTINCT r.role_id
+	FROM usr_user_groups AS g
+		INNER JOIN usr_user_group_permissions AS p
+		ON p.application_id = vr_application_id AND p.group_id = g.group_id
+		INNER JOIN usr_access_roles AS r
+		ON r.application_id = vr_application_id AND r.role_id = p.role_id
+	WHERE g.application_id = vr_application_id AND g.group_id = vr_group_id 
+		AND g.deleted = FALSE AND p.deleted = FALSE
+	
+	EXEC usr_p_get_access_roles_by_ids vr_application_id, vr_role_ids
+END;
+
+
+DROP PROCEDURE IF EXISTS usr_check_user_group_permissions;
+
+CREATE PROCEDURE usr_check_user_group_permissions
+	vr_application_id		UUID,
+	vr_user_id				UUID,
+	vr_permissions_temp	StringTableType readonly
+WITH ENCRYPTION, RECOMPILE
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+	DECLARE vr_permissions StringTableType
+	INSERT INTO vr_permissions SELECT * FROM vr_permissions_temp
+	
+	SELECT DISTINCT r.name AS value
+	FROM usr_user_group_members AS m
+		INNER JOIN usr_user_groups AS g
+		ON g.application_id = vr_application_id AND g.group_id = m.group_id
+		INNER JOIN usr_user_group_permissions AS p
+		ON p.application_id = vr_application_id AND p.group_id = g.group_id
+		INNER JOIN usr_access_roles AS r
+		ON r.application_id = vr_application_id AND r.role_id = p.role_id
+	WHERE m.application_id = vr_application_id AND m.user_id = vr_user_id AND 
+		(LOWER(r.name) IN (SELECT LOWER(ref.value) FROM vr_permissions AS ref)) AND
+		m.deleted = FALSE AND g.deleted = FALSE AND p.deleted = FALSE
+END;
+
+-- end of User Groups
