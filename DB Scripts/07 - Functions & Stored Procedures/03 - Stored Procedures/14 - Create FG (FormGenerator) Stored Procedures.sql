@@ -1195,6 +1195,7 @@ BEGIN
 		ON EF.ApplicationID = @ApplicationID AND EF.FormID = FI.FormID
 		LEFT JOIN [dbo].[Users_Normal] AS UN
 		ON UN.ApplicationID = @ApplicationID AND UN.UserID = FI.CreatorUserID
+	ORDER BY FI.CreationDate DESC
 END
 
 GO
