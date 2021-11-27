@@ -25,7 +25,8 @@ SELECT  U.UserId AS UserID,
 		P.TwoStepAuthentication,
 		M.IsApproved,
 		M.IsLockedOut,
-		M.CreateDate AS CreationDate
+		M.CreateDate AS CreationDate,
+		U.LastActivityDate
 FROM    [dbo].[aspnet_Users] AS U
 		INNER JOIN [dbo].[USR_Profile] AS P
 		ON P.UserID = U.UserId
