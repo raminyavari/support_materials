@@ -3423,7 +3423,7 @@ BEGIN
 			INNER JOIN [dbo].[CN_View_Experts] AS EX
 			ON EX.ApplicationID = @ApplicationID AND 
 				EX.NodeID = RN.NodeID AND EX.UserID = @UserID
-		WHERE RN.ApplicationID = @ApplicationID AND RN.QuestionID = QuestionID
+		WHERE RN.ApplicationID = @ApplicationID AND RN.QuestionID = @QuestionID
 	END
 
 	IF @Exists = 0 AND @Members = 1 AND @CheckCandidates = 0 BEGIN
@@ -3432,7 +3432,7 @@ BEGIN
 			INNER JOIN [dbo].[CN_View_NodeMembers] AS NM
 			ON NM.ApplicationID = @ApplicationID AND 
 				NM.NodeID = RN.NodeID AND NM.UserID = @UserID
-		WHERE RN.ApplicationID = @ApplicationID AND RN.QuestionID = QuestionID
+		WHERE RN.ApplicationID = @ApplicationID AND RN.QuestionID = @QuestionID
 	END
 
 	SELECT @Exists
