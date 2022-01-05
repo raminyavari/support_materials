@@ -123,7 +123,10 @@ BEGIN
 				AF.OwnerID,
 				AF.Extension AS [Type],
 				AF.[FileName] AS Title,
-				FC.Content AS [FileContent]
+				CASE 
+					WHEN FC.NotExtractable = 0 AND FC.FileNotFound = 0 THEN FC.Content 
+					ELSE NULL 
+				END AS [FileContent]
 			FROM [dbo].[DCT_FileContents] AS FC
 				INNER JOIN (
 					SELECT DISTINCT OwnerID, FileNameGuid, [FileName], Extension
@@ -131,8 +134,7 @@ BEGIN
 					WHERE AF.ApplicationID = @ApplicationID
 				) AS AF
 				ON AF.FileNameGuid = FC.FileID
-			WHERE FC.ApplicationID = @ApplicationID AND 
-				FC.NotExtractable = 0 AND FC.FileNotFound = 0
+			WHERE FC.ApplicationID = @ApplicationID
 			ORDER BY ISNULL(FC.IndexLastUpdateDate, N'1977-01-01 00:00:00.000')
 		)
 		(
