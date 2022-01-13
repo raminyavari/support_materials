@@ -441,3 +441,18 @@ CREATE TYPE [dbo].[CNExtensionTableType] AS TABLE(
     [Disabled]		bit NULL
 )
 GO
+
+
+IF NOT EXISTS (SELECT * FROM sys.types WHERE is_table_type = 1 AND name = 'WikiBlockTableType')
+--DROP TYPE dbo.WikiBlockTableType
+
+CREATE TYPE [dbo].[WikiBlockTableType] AS TABLE(
+	[BlockID]		uniqueidentifier NULL,
+    [Key]			varchar NULL,
+    [Type]			varchar(20) NULL,
+    Body			nvarchar(max) NULL,
+	[Action]		varchar(20) NULL,
+	SequenceNumber	int NULL,
+	Depth			int NULL
+)
+GO

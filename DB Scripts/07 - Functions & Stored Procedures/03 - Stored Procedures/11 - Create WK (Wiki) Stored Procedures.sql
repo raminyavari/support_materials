@@ -1683,3 +1683,153 @@ BEGIN
 END
 
 GO
+
+
+IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'[dbo].[WK_GetBlocks]') and 
+	OBJECTPROPERTY(id, N'IsProcedure') = 1)
+DROP PROCEDURE [dbo].[WK_GetBlocks]
+GO
+
+CREATE PROCEDURE [dbo].[WK_GetBlocks]
+	@ApplicationID		uniqueidentifier,
+	@OwnerID			uniqueidentifier
+WITH ENCRYPTION
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+	SELECT	B.BlockID,
+			B.[Key],
+			B.[Type],
+			B.Body,
+			OB.SequenceNumber,
+			OB.Depth
+	FROM [dbo].[WK_OwnerBlocks] AS OB
+		INNER JOIN [dbo].[WK_Blocks] AS B
+		ON B.BlockID = OB.BlockID
+	WHERE OB.ApplicationID = @ApplicationID AND OB.OwnerID = @OwnerID
+	ORDER BY OB.SequenceNumber ASC
+END
+
+GO
+
+
+IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'[dbo].[WK_GetEntityMap]') and 
+	OBJECTPROPERTY(id, N'IsProcedure') = 1)
+DROP PROCEDURE [dbo].[WK_GetEntityMap]
+GO
+
+CREATE PROCEDURE [dbo].[WK_GetEntityMap]
+	@ApplicationID		uniqueidentifier,
+	@OwnerID			uniqueidentifier
+WITH ENCRYPTION
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+	SELECT EM.EntityMap
+	FROM [dbo].[WK_EntityMaps] AS EM
+	WHERE EM.ApplicationID = @ApplicationID AND EM.OwnerID = @OwnerID
+END
+
+GO
+
+
+IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'[dbo].[WK_SaveWikiBlocks]') and 
+	OBJECTPROPERTY(id, N'IsProcedure') = 1)
+DROP PROCEDURE [dbo].[WK_SaveWikiBlocks]
+GO
+
+CREATE PROCEDURE [dbo].[WK_SaveWikiBlocks]
+	@ApplicationID		uniqueidentifier,
+	@OwnerID			uniqueidentifier,
+	@HistoryTemp		WikiBlockTableType readonly,
+	@EntityMap			varchar(max),
+	@CurrentUserID		uniqueidentifier,
+	@Now				datetime
+WITH ENCRYPTION
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+	DECLARE @History WikiBlockTableType
+	INSERT INTO @History SELECT * FROM @HistoryTemp
+
+
+	-- preparation: add BlockID to new blocks
+	UPDATE @History
+	SET BlockID = NEWID()
+	WHERE [Action] = N'Add' AND BlockID IS NULL
+	-- end of preparation: add BlockID to new blocks
+
+
+	-- remove old blocks
+	DELETE OB
+	FROM @History AS H
+		INNER JOIN [dbo].[WK_OwnerBlocks] AS OB
+		ON OB.ApplicationID = @ApplicationID AND OB.OwnerID = @OwnerID AND 
+			OB.BlockID = H.BlockID AND H.[Action] = N'Remove'
+	-- remove old blocks
+
+
+	-- edit existing blocks
+	UPDATE B
+	SET [Type] = H.[Type],
+		Body = H.Body
+	FROM @History AS H
+		INNER JOIN [dbo].[WK_Blocks] AS B
+		ON B.ApplicationID = @ApplicationID AND B.BlockID = H.BlockID 
+	WHERE H.[Action] = N'Edit'
+	-- end of edit existing blocks
+
+	
+	-- add new blocks
+	INSERT INTO [dbo].[WK_Blocks] (ApplicationID, BlockID, OwnerID, [Key], Body, [Type])
+	SELECT @ApplicationID, H.BlockID, @OwnerID, H.[Key], H.Body, H.[Type]
+	FROM @History AS H
+		LEFT JOIN [dbo].[WK_Blocks] AS B
+		ON B.ApplicationID = @ApplicationID AND B.BlockID = H.BlockID
+	WHERE H.[Action] = N'Add' AND B.BlockID IS NULL
+
+	INSERT INTO [dbo].[WK_OwnerBlocks] (ApplicationID, OwnerID, BlockID, SequenceNumber, Depth, ModifierUserID, ModificationDate)
+	SELECT @ApplicationID, @OwnerID, H.BlockID, H.SequenceNumber, H.Depth, @CurrentUserID, @Now
+	FROM @History AS H
+		LEFT JOIN [dbo].[WK_OwnerBlocks] AS OB
+		ON OB.ApplicationID = @ApplicationID AND OB.OwnerID = @OwnerID AND OB.BlockID = H.BlockID
+	WHERE H.[Action] = N'Add' AND OB.BlockID IS NULL
+	-- end of add new blocks
+
+
+	-- update SequenceNumber and Depth of wiki blocks
+	UPDATE OB
+	SET SequenceNumber = H.SequenceNumber,
+		Depth = H.Depth
+	FROM @History AS H
+		INNER JOIN [dbo].[WK_OwnerBlocks] AS OB
+		ON OB.ApplicationID = @ApplicationID AND OB.OwnerID = @OwnerID AND OB.BlockID = H.BlockID
+	WHERE ISNULL(H.[Action], N'') IN (N'', N'Add', N'Edit')
+	-- end of update SequenceNumber and Depth of wiki blocks
+
+
+	-- add history items
+	INSERT INTO [dbo].[WK_History] (ApplicationID, BlockID, OwnerID, UserID, [Action], Body, [Time])
+	SELECT @ApplicationID, H.BlockID, @OwnerID, @CurrentUserID, H.[Action], H.Body, @Now
+	FROM @History AS H
+	WHERE ISNULL(H.[Action], N'') <> N''
+	-- end of add history items
+
+
+	-- update EntityMap
+	IF ISNULL(@EntityMap, N'') <> N'' BEGIN
+		UPDATE [dbo].[WK_EntityMaps]
+		SET EntityMap = @EntityMap,
+			ModifierUserID = @CurrentUserID,
+			ModificationDate = @Now
+		WHERE ApplicationID = @ApplicationID AND OwnerID = @OwnerID
+	END
+	-- end of update EntityMap
+
+	SELECT 1
+END
+
+GO

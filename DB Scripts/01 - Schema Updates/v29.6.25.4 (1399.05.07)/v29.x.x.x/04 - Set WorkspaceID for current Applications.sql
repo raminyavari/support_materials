@@ -9,7 +9,7 @@ GO
 
 
 INSERT INTO [dbo].[RV_Workspaces] (WorkspaceID, [Name], CreatorUserID, CreationDate, Deleted)
-SELECT NEWID(), 'پیش فرض', Creators.CreatorUserID, GETDATE(), 0
+SELECT NEWID(), N'پیش فرض', Creators.CreatorUserID, GETDATE(), 0
 FROM (
 		SELECT A.CreatorUserID
 		FROM [dbo].[aspnet_Applications] AS A
