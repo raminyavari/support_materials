@@ -12,7 +12,7 @@ CREATE TABLE [dbo].[WK_OwnerBlocks](
 	[OwnerID] [uniqueidentifier] NOT NULL,
 	[BlockID] [uniqueidentifier] NOT NULL,
 	[SequenceNumber] [int] NOT NULL,
-	[Depth] [varchar](30) NOT NULL,
+	[Depth] [int] NOT NULL,
 	[ModifierUserID] [uniqueidentifier] NOT NULL,
 	[ModificationDate] [datetime] NOT NULL,
 	[ApplicationID] [uniqueidentifier] NOT NULL

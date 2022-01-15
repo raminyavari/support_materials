@@ -1744,7 +1744,7 @@ CREATE PROCEDURE [dbo].[WK_SaveWikiBlocks]
 	@ApplicationID		uniqueidentifier,
 	@OwnerID			uniqueidentifier,
 	@HistoryTemp		WikiBlockTableType readonly,
-	@EntityMap			varchar(max),
+	@EntityMap			nvarchar(max),
 	@CurrentUserID		uniqueidentifier,
 	@Now				datetime
 WITH ENCRYPTION
@@ -1826,6 +1826,11 @@ BEGIN
 			ModifierUserID = @CurrentUserID,
 			ModificationDate = @Now
 		WHERE ApplicationID = @ApplicationID AND OwnerID = @OwnerID
+
+		IF @@ROWCOUNT <= 0 BEGIN
+			INSERT INTO [dbo].[WK_EntityMaps] (ApplicationID, OwnerID, EntityMap, ModifierUserID, ModificationDate)
+			SELECT @ApplicationID, @OwnerID, @EntityMap, @CurrentUserID, @Now
+		END
 	END
 	-- end of update EntityMap
 

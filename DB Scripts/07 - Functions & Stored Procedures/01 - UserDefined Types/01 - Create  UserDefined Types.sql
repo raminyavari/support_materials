@@ -448,7 +448,7 @@ IF NOT EXISTS (SELECT * FROM sys.types WHERE is_table_type = 1 AND name = 'WikiB
 
 CREATE TYPE [dbo].[WikiBlockTableType] AS TABLE(
 	[BlockID]		uniqueidentifier NULL,
-    [Key]			varchar NULL,
+    [Key]			varchar(20) NULL,
     [Type]			varchar(20) NULL,
     Body			nvarchar(max) NULL,
 	[Action]		varchar(20) NULL,
