@@ -215,29 +215,31 @@ CREATE FUNCTION [dbo].[DCT_FN_GetFileOwnerNodes](
 	@FileIDs		GuidTableType readonly
 )	
 RETURNS @OutputTable TABLE (
-	FileID uniqueidentifier,
-	NodeID uniqueidentifier,
-	NodeTypeID uniqueidentifier,
-	NodeName nvarchar(500),
-	NodeType nvarchar(500),
-	[FileName] nvarchar(500),
-	Extension nvarchar(20)
+	FileID			uniqueidentifier,
+	NodeID			uniqueidentifier,
+	NodeTypeID		uniqueidentifier,
+	NodeName		nvarchar(500),
+	NodeType		nvarchar(500),
+	[FileName]		nvarchar(500),
+	Extension		nvarchar(20),
+	CreationDate	datetime,
+	Size			bigint
 )
 WITH ENCRYPTION
 AS
 BEGIN
-	DECLARE @Files TABLE (ID uniqueidentifier, OwnerID uniqueidentifier,
-		OwnerType varchar(20), [FileName] nvarchar(500), Extension nvarchar(20))
+	DECLARE @Files TABLE (ID uniqueidentifier, OwnerID uniqueidentifier, OwnerType varchar(20), 
+		[FileName] nvarchar(500), Extension nvarchar(20), CreationDate datetime, Size bigint)
 
-	INSERT INTO @Files (ID, OwnerID, OwnerType, [FileName], Extension)
-	SELECT ID.Value, F.OwnerID, F.OwnerType, F.[FileName], F.Extension
+	INSERT INTO @Files (ID, OwnerID, OwnerType, [FileName], Extension, CreationDate, Size)
+	SELECT ID.Value, F.OwnerID, F.OwnerType, F.[FileName], F.Extension, F.CreationDate, F.Size
 	FROM @FileIDs AS ID
 		INNER JOIN [dbo].[DCT_Files] AS F
 		ON F.ApplicationID = @ApplicationID AND 
 			(F.ID = ID.Value OR F.FileNameGuid = ID.Value) AND F.Deleted = 0
 		
 	INSERT INTO @OutputTable (FileID, NodeID, NodeTypeID, 
-		NodeName, NodeType, [FileName], Extension)
+		NodeName, NodeType, [FileName], Extension, CreationDate, Size)
 	(
 		SELECT	F.ID AS FileID, 
 				ND.NodeID, 
@@ -245,7 +247,9 @@ BEGIN
 				ND.NodeName AS Name,
 				ND.TypeName AS NodeType,
 				F.[FileName],
-				F.Extension
+				F.Extension,
+				F.CreationDate,
+				F.Size
 		FROM @Files AS F
 			INNER JOIN [dbo].[CN_View_Nodes_Normal] AS ND
 			ON ND.ApplicationID = @ApplicationID AND ND.NodeID = F.OwnerID AND ND.Deleted = 0
@@ -259,7 +263,9 @@ BEGIN
 				ND.NodeName AS Name,
 				ND.TypeName AS NodeType,
 				F.[FileName],
-				F.Extension
+				F.Extension,
+				F.CreationDate,
+				F.Size
 		FROM @Files AS F
 			INNER JOIN [dbo].[FG_InstanceElements] AS E
 			ON E.ApplicationID = @ApplicationID AND E.ElementID = F.OwnerID AND 

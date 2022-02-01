@@ -4345,10 +4345,17 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	SELECT QuestionID AS ID
+	SELECT	Q.QuestionID,
+			Q.SendDate,
+			Q.SenderUserID,
+			UN.UserName AS SenderUserName,
+			UN.FirstName AS SenderFirstName,
+			UN.LastName AS SenderLastName
 	FROM [dbo].[GFN_StrToGuidTable](@strQuestionIDs, @delimiter) AS IDs
 		INNER JOIN [dbo].[QA_Questions] AS Q
 		ON Q.QuestionID = IDs.Value
+		LEFT JOIN [dbo].[Users_Normal] AS UN
+		ON UN.ApplicationID = @ApplicationID AND UN.UserID = Q.SenderUserID
 	WHERE Q.ApplicationID = @ApplicationID AND Q.Deleted = 0
 END
 
