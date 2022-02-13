@@ -128,6 +128,8 @@ BEGIN
 		   S.EnablePreviousVersionSelect,
 		   S.IsKnowledge,
 		   S.IsTree,
+		   S.IsCommunityPage,
+		   S.EnableComments,
 		   S.UniqueMembership,
 		   S.UniqueAdminMember,
 		   S.DisableAbstractAndKeywords,
@@ -743,6 +745,84 @@ BEGIN
 	ELSE BEGIN
 		UPDATE [dbo].[CN_Services]
 			SET IsDocument = @IsDocument
+		WHERE ApplicationID = @ApplicationID AND NodeTypeID = @NodeTypeIDOrNodeID
+		
+		SELECT @@ROWCOUNT
+	END
+END
+
+GO
+
+
+IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'[dbo].[CN_IsCommunityPage]') and 
+	OBJECTPROPERTY(id, N'IsProcedure') = 1)
+DROP PROCEDURE [dbo].[CN_IsCommunityPage]
+GO
+
+CREATE PROCEDURE [dbo].[CN_IsCommunityPage]
+	@ApplicationID			uniqueidentifier,
+	@NodeTypeIDOrNodeID		uniqueidentifier,
+	@Value					bit
+WITH ENCRYPTION
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+	SET @NodeTypeIDOrNodeID = ISNULL(
+		(
+			SELECT TOP(1) NodeTypeID 
+			FROM [dbo].[CN_Nodes] 
+			WHERE ApplicationID = @ApplicationID AND NodeID = @NodeTypeIDOrNodeID
+		), @NodeTypeIDOrNodeID
+	)
+	
+	IF @Value IS NULL BEGIN
+		SELECT TOP(1) IsCommunityPage
+		FROM [dbo].[CN_Services]
+		WHERE ApplicationID = @ApplicationID AND NodeTypeID = @NodeTypeIDOrNodeID
+	END
+	ELSE BEGIN
+		UPDATE [dbo].[CN_Services]
+			SET IsCommunityPage = @Value
+		WHERE ApplicationID = @ApplicationID AND NodeTypeID = @NodeTypeIDOrNodeID
+		
+		SELECT @@ROWCOUNT
+	END
+END
+
+GO
+
+
+IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'[dbo].[CN_EnableComments]') and 
+	OBJECTPROPERTY(id, N'IsProcedure') = 1)
+DROP PROCEDURE [dbo].[CN_EnableComments]
+GO
+
+CREATE PROCEDURE [dbo].[CN_EnableComments]
+	@ApplicationID			uniqueidentifier,
+	@NodeTypeIDOrNodeID		uniqueidentifier,
+	@Value					bit
+WITH ENCRYPTION
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+	SET @NodeTypeIDOrNodeID = ISNULL(
+		(
+			SELECT TOP(1) NodeTypeID 
+			FROM [dbo].[CN_Nodes] 
+			WHERE ApplicationID = @ApplicationID AND NodeID = @NodeTypeIDOrNodeID
+		), @NodeTypeIDOrNodeID
+	)
+	
+	IF @Value IS NULL BEGIN
+		SELECT TOP(1) EnableComments
+		FROM [dbo].[CN_Services]
+		WHERE ApplicationID = @ApplicationID AND NodeTypeID = @NodeTypeIDOrNodeID
+	END
+	ELSE BEGIN
+		UPDATE [dbo].[CN_Services]
+			SET EnableComments = @Value
 		WHERE ApplicationID = @ApplicationID AND NodeTypeID = @NodeTypeIDOrNodeID
 		
 		SELECT @@ROWCOUNT
