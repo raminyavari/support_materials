@@ -972,3 +972,124 @@ BEGIN
 END;
 
 -- end of User Groups
+
+
+DROP PROCEDURE IF EXISTS prvc_refine_access_roles;
+
+CREATE PROCEDURE prvc_refine_access_roles
+	vr_application_id		UUID
+WITH ENCRYPTION
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+    DECLARE vr_tbl Table(ID INTEGER identity(1,1) primary key clustered, 
+	OldValue varchar(1000), NewValue varchar(1000), Title VARCHAR(1000), UQID UUID)
+
+	INSERT INTO vr_tbl (OldValue, NewValue, Title)
+	VALUES	('AssignUsersAsExpert','', N''),
+			('AssignUsersToDepartments','', N''),
+			('AssignUsersToProcesses','', N''),
+			('AssignUsersToProjects','', N''),
+			('CopCreation','', N''),
+			('DefaultContentRegistration','', N''),
+			('DepartmentsManipulation','', N''),
+			('KDsManagement','', N''),
+			('ManageDepartmentGroups','', N''),
+			('OrganizationalProperties','', N''),
+			('ProcessesManagement','', N''),
+			('ProjectsManagement','', N''),
+			('Navigation','', N''),
+			('VisualKMap','', N''),
+			('AssignUsersToClassifications','ManageConfidentialityLevels', N'مدیریت سطوح محرمانگی'),
+			('ContentsManagement','ContentsManagement', N'مديريت مستندات'),
+			('DepsAndUsersImport','DataImport', N'ورود اطلاعات از طریق XML'),
+			('ManagementSystem','ManagementSystem', N'مديريت سيستم'),
+			('ManageOntology','ManageOntology', N'پیکربندی نقشه'),
+			('Reports','Reports', N'گزارشات'),
+			('UserGroupsManagement','UserGroupsManagement', N'مدیران سامانه'),
+			('UsersManagement','UsersManagement', N'کاربران'),
+			('ManageWorkflow','ManageWorkflow', N'جریان های کاری'),
+			('ManageForms','ManageForms', N'فرم ها'),
+			('ManagePolls','ManagePolls', N'نظرسنجی ها'),
+			('KnowledgeAdmin','KnowledgeAdmin', N'فرآیندهای ارزیابی دانش'),
+			('SMSEMailNotifier','SMSEMailNotifier', N'پیام کوتاه و پست الکترونیکی'),
+			('','ManageQA', N'پرسش و پاسخ'),
+			('','RemoteServers', N'سرورهای راه دور')
+			
+	UPDATE AR
+		SET ar.name = t.new_value
+	FROM vr_tbl AS t
+		INNER JOIN usr_access_roles AS ar
+		ON ar.application_id = vr_application_id AND LOWER(ar.name) = LOWER(t.old_value)
+		
+	DELETE UAR
+	FROM usr_user_group_permissions AS uar
+		INNER JOIN usr_access_roles AS ar
+		ON ar.application_id = vr_application_id AND ar.role_id = Uar.role_id
+	WHERE uar.application_id = vr_application_id AND 
+		ar.name NOT IN (SELECT NewValue FROM vr_tbl AS t WHERE t.new_value <> '')
+	
+	DELETE AR
+	FROM usr_access_roles AS ar
+	WHERE ar.application_id = vr_application_id AND 
+		ar.name NOT IN (SELECT NewValue FROM vr_tbl AS t WHERE t.new_value <> '')
+
+	DELETE vr_tbl
+	WHERE NewValue = ''
+
+	INSERT INTO usr_access_roles (ApplicationID, RoleID, Name, Title)
+	SELECT vr_application_id, gen_random_uuid(), t.new_value, N''
+	FROM vr_tbl AS t
+	WHERE t.new_value <> '' AND
+		LOWER(t.new_value) NOT IN (
+			SELECT LOWER(Name) 
+			FROM usr_access_roles
+			WHERE ApplicationID = vr_application_id
+		)
+
+	UPDATE AR
+		SET Title = REPLACE(REPLACE(t.title, N'ي', N'ی'), N'ك', N'ک')
+	FROM vr_tbl AS t
+		INNER JOIN usr_access_roles AS ar
+		ON LOWER(ar.name) = LOWER(t.new_value)
+	WHERE ar.application_id = vr_application_id
+		
+	UPDATE T
+		SET UQID = ar.role_id
+	FROM vr_tbl AS t
+		INNER JOIN usr_access_roles AS ar
+		ON LOWER(ar.name) = LOWER(t.new_value)
+	WHERE ar.application_id = vr_application_id
+	
+	DELETE UGP
+	FROM usr_user_group_permissions AS ugp
+		INNER JOIN (
+			SELECT	ROW_NUMBER() OVER 
+						(PARTITION BY uar.group_id, t.uqid ORDER BY uar.role_id ASC) AS row_number,
+					uar.group_id, 
+					uar.role_id, 
+					t.uqid
+			FROM vr_tbl AS t
+				INNER JOIN usr_user_group_permissions AS uar
+				INNER JOIN usr_access_roles AS ar
+				ON ar.application_id = vr_application_id AND ar.role_id = Uar.role_id
+				ON uar.application_id = vr_application_id AND LOWER(ar.name) = LOWER(t.new_value)
+		) AS r
+		ON r.group_id = ugp.group_id AND r.role_id = ugp.role_id
+	WHERE r.row_number > 1
+	
+	UPDATE UAR
+		SET RoleID = t.uqid
+	FROM vr_tbl AS t
+		INNER JOIN usr_user_group_permissions AS uar
+		INNER JOIN usr_access_roles AS ar
+		ON ar.application_id = vr_application_id AND ar.role_id = Uar.role_id
+		ON uar.application_id = vr_application_id AND LOWER(ar.name) = LOWER(t.new_value)
+
+	DELETE usr_access_roles
+	WHERE ApplicationID = vr_application_id AND 
+		RoleID NOT IN (SELECT UQID FROM vr_tbl)
+    
+    RETURN 1
+END;
