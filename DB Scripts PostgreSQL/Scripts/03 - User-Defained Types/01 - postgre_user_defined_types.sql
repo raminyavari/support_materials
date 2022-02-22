@@ -228,6 +228,14 @@ CREATE TYPE guid_int_table_type AS (
 );
 
 
+DROP TYPE IF EXISTS int_string_table_type;
+
+CREATE TYPE int_string_table_type AS (
+	"first_value" INTEGER,
+	"second_value" VARCHAR
+);
+
+
 DROP TYPE IF EXISTS guid_pair_bit_table_type;
 
 CREATE TYPE guid_pair_bit_table_type AS (
