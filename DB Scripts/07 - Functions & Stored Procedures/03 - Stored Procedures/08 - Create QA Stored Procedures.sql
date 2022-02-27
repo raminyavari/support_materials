@@ -1967,6 +1967,8 @@ BEGIN
 			UN.UserName AS SenderUserName,
 			UN.FirstName AS SenderFirstName,
 			UN.LastName AS SenderLastName,
+			UN.AvatarName AS SenderAvatarName,
+			UN.UseAvatar AS SenderUseAvatar,
 			Q.[Status],
 			Q.PublicationDate,
 			(
@@ -2063,6 +2065,8 @@ BEGIN
 		UN.UserName AS SenderUserName,
 		UN.FirstName AS SenderFirstName,
 		UN.LastName AS SenderLastName,
+		UN.AvatarName AS SenderAvatarName,
+		UN.UseAvatar AS SenderUseAvatar,
 		(
 			SELECT COUNT(A.AnswerID)
 			FROM [dbo].[QA_Answers] AS A
@@ -2206,6 +2210,8 @@ BEGIN
 		UN.UserName AS SenderUserName,
 		UN.FirstName AS SenderFirstName,
 		UN.LastName AS SenderLastName,
+		UN.AvatarName AS SenderAvatarName,
+		UN.UseAvatar AS SenderUseAvatar,
 		(
 			SELECT COUNT(R.NodeID)
 			FROM [dbo].[QA_RelatedNodes] AS R
@@ -2275,6 +2281,8 @@ BEGIN
 		UN.UserName AS SenderUserName,
 		UN.FirstName AS SenderFirstName,
 		UN.LastName AS SenderLastName,
+		UN.AvatarName AS SenderAvatarName,
+		UN.UseAvatar AS SenderUseAvatar,
 		(
 			SELECT COUNT(R.NodeID)
 			FROM [dbo].[QA_RelatedNodes] AS R
@@ -2341,6 +2349,8 @@ BEGIN
 		UN.UserName AS SenderUserName,
 		UN.FirstName AS SenderFirstName,
 		UN.LastName AS SenderLastName,
+		UN.AvatarName AS SenderAvatarName,
+		UN.UseAvatar AS SenderUseAvatar,
 		(
 			SELECT COUNT(R.NodeID)
 			FROM [dbo].[QA_RelatedNodes] AS R
@@ -2410,6 +2420,8 @@ BEGIN
 		UN.UserName AS SenderUserName,
 		UN.FirstName AS SenderFirstName,
 		UN.LastName AS SenderLastName,
+		UN.AvatarName AS SenderAvatarName,
+		UN.UseAvatar AS SenderUseAvatar,
 		(
 			SELECT COUNT(R.NodeID)
 			FROM [dbo].[QA_RelatedNodes] AS R
@@ -2484,6 +2496,8 @@ BEGIN
 			UN.UserName AS SenderUserName,
 			UN.FirstName AS SenderFirstName,
 			UN.LastName AS SenderLastName,
+			UN.AvatarName AS SenderAvatarName,
+			UN.UseAvatar AS SenderUseAvatar,
 			(
 				SELECT COUNT(R.NodeID)
 				FROM [dbo].[QA_RelatedNodes] AS R
@@ -2535,6 +2549,8 @@ BEGIN
 			UN.UserName AS SenderUserName,
 			UN.FirstName AS SenderFirstName,
 			UN.LastName AS SenderLastName,
+			UN.AvatarName AS SenderAvatarName,
+			UN.UseAvatar AS SenderUseAvatar,
 			(
 				SELECT COUNT(R.NodeID)
 				FROM [dbo].[QA_RelatedNodes] AS R
@@ -2606,6 +2622,8 @@ BEGIN
 		UN.UserName AS SenderUserName,
 		UN.FirstName AS SenderFirstName,
 		UN.LastName AS SenderLastName,
+		UN.AvatarName AS SenderAvatarName,
+		UN.UseAvatar AS SenderUseAvatar,
 		(
 			SELECT COUNT(R.NodeID)
 			FROM [dbo].[QA_RelatedNodes] AS R
@@ -2689,6 +2707,8 @@ BEGIN
 			UN.UserName AS SenderUserName,
 			UN.FirstName AS SenderFirstName,
 			UN.LastName AS SenderLastName,
+			UN.AvatarName AS SenderAvatarName,
+			UN.UseAvatar AS SenderUseAvatar,
 			(
 				SELECT COUNT(R.NodeID)
 				FROM [dbo].[QA_RelatedNodes] AS R
@@ -2743,6 +2763,8 @@ BEGIN
 			UN.UserName AS SenderUserName,
 			UN.FirstName AS SenderFirstName,
 			UN.LastName AS SenderLastName,
+			UN.AvatarName AS SenderAvatarName,
+			UN.UseAvatar AS SenderUseAvatar,
 			(
 				SELECT COUNT(R.NodeID)
 				FROM [dbo].[QA_RelatedNodes] AS R
@@ -3566,6 +3588,8 @@ BEGIN
 			UN.UserName AS SenderUserName,
 			UN.FirstName AS SenderFirstName,
 			UN.LastName AS SenderLastName,
+			UN.AvatarName AS SenderAvatarName,
+			UN.UseAvatar AS SenderUseAvatar,
 			A.SendDate,
 			(
 				SELECT COUNT(L.UserID)
@@ -3780,6 +3804,8 @@ BEGIN
 					UN.UserName AS SenderUserName,
 					UN.FirstName AS SenderFirstName,
 					UN.LastName AS SenderLastName,
+					UN.AvatarName AS SenderAvatarName,
+					UN.UseAvatar AS SenderUseAvatar,
 					C.SendDate,
 					(
 						SELECT COUNT(L.UserID)
@@ -3808,6 +3834,8 @@ BEGIN
 					UN.UserName AS SenderUserName,
 					UN.FirstName AS SenderFirstName,
 					UN.LastName AS SenderLastName,
+					UN.AvatarName AS SenderAvatarName,
+					UN.UseAvatar AS SenderUseAvatar,
 					C.SendDate,
 					(
 						SELECT COUNT(L.UserID)
@@ -4350,7 +4378,9 @@ BEGIN
 			Q.SenderUserID,
 			UN.UserName AS SenderUserName,
 			UN.FirstName AS SenderFirstName,
-			UN.LastName AS SenderLastName
+			UN.LastName AS SenderLastName,
+			UN.AvatarName AS SenderAvatarName,
+			UN.UseAvatar AS SenderUseAvatar
 	FROM [dbo].[GFN_StrToGuidTable](@strQuestionIDs, @delimiter) AS IDs
 		INNER JOIN [dbo].[QA_Questions] AS Q
 		ON Q.QuestionID = IDs.Value

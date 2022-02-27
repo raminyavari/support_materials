@@ -2061,6 +2061,8 @@ BEGIN
 		   UN.UserName,
 		   UN.FirstName,
 		   UN.LastName,
+		   UN.AvatarName,
+		   UN.UseAvatar,
 		   WFS.FreeDataNeedRequests,
 		   WFS.MaxAllowedRejections,
 		   WFS.RejectionTitle,
@@ -2854,6 +2856,8 @@ BEGIN
 		   U.UserName AS SenderUserName,
 		   U.FirstName AS SenderFirstName,
 		   U.LastName AS SenderLastName,
+		   U.AvatarName AS SenderAvatarName,
+		   U.UseAvatar AS SenderUseAvatar,
 		   H.SendDate AS SendDate,
 		   (
 				SELECT TOP(1) PollID

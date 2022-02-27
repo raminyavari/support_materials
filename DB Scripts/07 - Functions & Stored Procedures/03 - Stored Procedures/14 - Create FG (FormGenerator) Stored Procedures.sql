@@ -1187,7 +1187,9 @@ BEGIN
 		   FI.CreatorUserID AS CreatorUserID,
 		   UN.UserName AS CreatorUserName,
 		   UN.FirstName AS CreatorFirstName,
-		   UN.LastName AS CreatorLastName
+		   UN.LastName AS CreatorLastName,
+		   UN.AvatarName AS CreatorAvatarName,
+		   UN.UseAvatar AS CreatorUseAvatar
 	FROM @InstanceIDs AS ExternalIDs
 		INNER JOIN [dbo].[FG_FormInstances] AS FI
 		ON FI.ApplicationID = @ApplicationID AND FI.InstanceID = ExternalIDs.Value
@@ -1749,7 +1751,9 @@ BEGIN
 			UN.UserID AS CreatorUserID,
 			UN.UserName AS CreatorUserName,
 			UN.FirstName AS CreatorFirstName,
-			UN.LastName AS CreatorLastName
+			UN.LastName AS CreatorLastName,
+			UN.AvatarName AS CreatorAvatarName,
+			UN.UseAvatar AS CreatorUseAvatar
 	FROM @InstanceIDs AS INS
 		INNER JOIN [dbo].[FG_InstanceElements] AS IE
 		ON IE.ApplicationID = @ApplicationID AND IE.InstanceID = INS.Value
@@ -1783,7 +1787,9 @@ BEGIN
 			NULL AS CreatorUserID,
 			NULL AS CreatorUserName,
 			NULL AS CreatorFirstName,
-			NULL AS CreatorLastName
+			NULL AS CreatorLastName,
+			NULL AS CreatorAvatarName,
+			NULL AS CreatorUseAvatar
 	FROM @InstanceIDs AS INS
 		INNER JOIN [dbo].[FG_FormInstances] AS FI
 		ON FI.ApplicationID = @ApplicationID AND FI.InstanceID = INS.Value
@@ -1865,7 +1871,9 @@ BEGIN
 					C.CreatorUserID,
 					UN.UserName AS CreatorUserName,
 					UN.FirstName AS CreatorFirstName,
-					UN.LastName AS CreatorLastName
+					UN.LastName AS CreatorLastName,
+					UN.AvatarName AS CreatorAvatarName,
+					UN.UseAvatar AS CreatorUseAvatar
 			FROM [dbo].[FG_Changes] AS C
 				LEFT JOIN [dbo].[Users_Normal] AS UN
 				ON UN.ApplicationID = @ApplicationID AND UN.UserID = C.CreatorUserID
@@ -3039,6 +3047,8 @@ BEGIN
 			MAX(USR.UserName) AS ActivatorUserName,
 			MAX(USR.FirstName) AS ActivatorFirstName,
 			MAX(USR.LastName) AS ActivatorLastName,
+			MAX(USR.AvatarName) AS ActivatorAvatarName,
+			CAST(MAX(CAST(USR.UseAvatar AS int)) AS bit) AS ActivatorUseAvatar,
 			COUNT(DISTINCT CASE WHEN Elems.RefDeleted = 0 THEN Elems.RefElementID ELSE NULL END) AS TemplateElementsCount,
 			COUNT(DISTINCT CASE WHEN Elems.Deleted = 0 THEN Elems.ElementID ELSE NULL END) AS ElementsCount,
 			COUNT(DISTINCT
@@ -4104,6 +4114,8 @@ BEGIN
 					UN.UserName,
 					UN.FirstName,
 					UN.LastName,
+					UN.AvatarName,
+					UN.UseAvatar,
 					IE.ElementID,
 					IE.RefElementID,
 					IE.[Type],

@@ -1201,7 +1201,9 @@ BEGIN
 		   C.[UserID] AS SenderUserID,
 		   UN.[UserName] AS SenderUserName,
 		   UN.[FirstName] AS SenderFirstName,
-		   UN.[LastName] AS SenderLastName
+		   UN.[LastName] AS SenderLastName,
+		   UN.[AvatarName] AS SenderAvatarName,
+		   UN.[UseAvatar] AS SenderUseAvatar
 	FROM @ChangeIDs AS ExternalIDs
 		INNER JOIN [dbo].[WK_Changes] AS C
 		ON C.ApplicationID = @ApplicationID AND C.[ChangeID] = ExternalIDs.Value

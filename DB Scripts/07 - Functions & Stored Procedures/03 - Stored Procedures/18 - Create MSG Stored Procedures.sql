@@ -29,6 +29,8 @@ BEGIN
 		UN.UserName, 
 		UN.FirstName, 
 		UN.LastName,
+		UN.AvatarName,
+		UN.UseAvatar,
 		CAST((CASE WHEN UN.UserID IS NULL THEN 1 ELSE 0 END) AS bit) AS IsGroup,
 		D.MessagesCount,
 		D.SentCount,
