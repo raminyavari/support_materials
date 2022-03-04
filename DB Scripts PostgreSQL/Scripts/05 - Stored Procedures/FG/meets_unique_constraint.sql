@@ -14,7 +14,8 @@ $$
 DECLARE
 	vr_ref_element_id	UUID;
 BEGIN
-	SELECT vr_ref_element_id = e.ref_element_id
+	SELECT INTO vr_ref_element_id 
+				e.ref_element_id
 	FROM fg_instance_elements AS e
 	WHERE e.application_id = vr_application_id AND e.element_id = vr_element_id
 	LIMIT 1;

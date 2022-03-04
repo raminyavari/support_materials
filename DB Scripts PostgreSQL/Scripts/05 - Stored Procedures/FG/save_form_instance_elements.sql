@@ -41,12 +41,13 @@ BEGIN
 				ie1.ref_element_id = rf.ref_element_id AND ie1.instance_id = rf.instance_id
 		WHERE ie.element_id IS NULL	
 	)
-	SELECT vr_guid_items = ARRAY(
-		SELECT ROW(COALESCE("m".main_element_id, e.first_value), e.second_value)
-		FROM UNNEST(vr_guid_items) AS e
-			LEFT JOIN main_ids AS "m"
-			ON "m".element_id = e.first_value
-	);
+	SELECT INTO vr_guid_items 
+				ARRAY(
+					SELECT ROW(COALESCE("m".main_element_id, e.first_value), e.second_value)
+					FROM UNNEST(vr_guid_items) AS e
+						LEFT JOIN main_ids AS "m"
+						ON "m".element_id = e.first_value
+				);
 	-- end of Find Main ElementIDs
 	
 	

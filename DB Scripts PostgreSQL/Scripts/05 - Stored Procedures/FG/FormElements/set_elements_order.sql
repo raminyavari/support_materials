@@ -12,7 +12,8 @@ DECLARE
 	vr_form_id	UUID;
 	vr_result	INTEGER;
 BEGIN
-	SELECT vr_form_id = e.form_id
+	SELECT INTO vr_form_id 
+				e.form_id
 	FROM fg_extended_form_elements AS e
 	WHERE e.application_id = vr_application_id AND 
 		e.element_id = (SELECT rf.value FROM UNNEST(vr_element_ids) AS rf LIMIT 1);

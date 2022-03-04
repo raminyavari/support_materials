@@ -14,7 +14,8 @@ DECLARE
 	vr_ids	UUID[];
 BEGIN
 	IF vr_form_id IS NULL AND vr_owner_id IS NOT NULL THEN
-		SELECT vr_form_id = o.form_id
+		SELECT INTO vr_form_id 
+					o.form_id
 		FROM fg_form_owners AS o
 		WHERE o.application_id = vr_application_id AND 
 			o.owner_id = vr_owner_id AND o.deleted = FALSE

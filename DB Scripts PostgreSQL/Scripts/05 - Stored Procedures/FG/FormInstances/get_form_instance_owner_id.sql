@@ -11,14 +11,16 @@ $$
 DECLARE
 	vr_owner_id	UUID;
 BEGIN
-	SELECT vr_owner_id = fi.owner_id
+	SELECT INTO vr_owner_id 
+				fi.owner_id
 	FROM fg_form_instances AS fi
 	WHERE fi.application_id = vr_application_id AND 
 		fi.instance_id = vr_instance_id_or_element_id
 	LIMIT 1;
 	
 	IF vr_owner_id IS NULL THEN
-		SELECT vr_owner_id = fi.owner_id
+		SELECT INTO vr_owner_id
+					fi.owner_id
 		FROM fg_instance_elements AS ie
 			INNER JOIN fg_form_instances AS fi
 			ON fi.application_id = vr_application_id AND fi.instance_id = ie.instance_id

@@ -36,8 +36,9 @@ BEGIN
 		SELECT COUNT(d.form_id) AS total_count
 		FROM "data" AS d
 	)
-	SELECT 	vr_total_count = COALESCE((SELECT "t".total_count FROM total AS "t" LIMIT 1))::INTEGER,
-			vr_ids = ARRAY(
+	SELECT INTO	vr_total_count, vr_ids
+			COALESCE((SELECT "t".total_count FROM total AS "t" LIMIT 1))::INTEGER,
+			 ARRAY(
 				SELECT d.form_id
 				FROM "data" AS d
 				WHERE d.row_number >= COALESCE(vr_lower_boundary, 0)

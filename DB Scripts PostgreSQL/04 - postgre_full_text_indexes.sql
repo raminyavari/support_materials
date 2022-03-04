@@ -1,6 +1,3 @@
-CREATE EXTENSION IF NOT EXISTS pgroonga;
-
-
 DROP INDEX IF EXISTS ix_fts_cn_nodes;
 
 CREATE INDEX ix_fts_cn_nodes ON cn_nodes
