@@ -226,7 +226,8 @@ BEGIN
 				'SELECT r.instance_id, r.owner_id, r.creation_date, r.ref_element_id, r.body_text ' ||
 				'FROM results_34523 AS r ' ||
 				'WHERE r.row_num > ' || vr_lower::VARCHAR || ' AND ' || 
-					'r.row_num <= ' || (vr_lower + vr_batch_size)::VARCHAR ||
+					'r.row_num <= ' || (vr_lower + vr_batch_size)::VARCHAR || ' ' ||
+				'ORDER BY r.instance_id ASC' ||
 				''', ' ||
 				'''' ||
 				ARRAY_TO_STRING(ARRAY(

@@ -5,7 +5,7 @@ CREATE OR REPLACE FUNCTION dct_fn_files_count
 	vr_application_id	UUID,
 	vr_owner_id			UUID
 )
-RETURNS BOOLEAN
+RETURNS INTEGER
 AS
 $$
 BEGIN
