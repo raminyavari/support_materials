@@ -2014,7 +2014,7 @@ CREATE TABLE IF NOT EXISTS evt_related_nodes (
 );
 
 
-CREATE TABLE IF NOT EXISTS rv_id2_guid (
+CREATE TABLE IF NOT EXISTS rv_id2guid (
 	"id" VARCHAR(100) NOT NULL,
 	"type" VARCHAR(100) NOT NULL,
 	"guid" UUID NOT NULL,
