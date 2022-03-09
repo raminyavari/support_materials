@@ -1,1387 +1,853 @@
+DROP PROCEDURE IF EXISTS lg_save_log;
 
-DROP PROCEDURE IF EXISTS ntfn_send_notification;
+CREATE PROCEDURE lg_save_log
+	vr_application_id		UUID,
+	vr_user_id				UUID,
+	vr_host_address		varchar(100),
+	vr_host_name		 VARCHAR(255),
+	vr_action				varchar(100),
+	vr_level				varchar(20),
+	vr_not_authorized	 BOOLEAN,
+	vr_strSubjectIDs		varchar(max),
+	vr_delimiter			char,
+	vr_secondSubjectID	UUID,
+	vr_third_subject_id		UUID,
+	vr_fourth_subject_id	UUID,
+	vr_date			 TIMESTAMP,
+	vr_info			 VARCHAR(max),
+	vr_module_identifier	varchar(20)
+WITH ENCRYPTION
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+	DECLARE vr_subjectIDs GuidTableType
+	INSERT INTO vr_subjectIDs
+	SELECT ref.value FROM gfn_str_to_guid_table(vr_strSubjectIDs, vr_delimiter) AS ref
 
-CREATE PROCEDURE ntfn_send_notification
+	INSERT INTO lg_logs(
+		ApplicationID,
+		UserID,
+		HostAddress,
+		HostName,
+		action,
+		level,
+		NotAuthorized,
+		SubjectID,
+		SecondSubjectID,
+		ThirdSubjectID,
+		FourthSubjectID,
+		date,
+		Info,
+		ModuleIdentifier
+	)
+	SELECT vr_application_id, vr_user_id, vr_host_address, vr_host_name, vr_action, vr_level, vr_not_authorized, ref.value, 
+		vr_secondSubjectID, vr_third_subject_id, vr_fourth_subject_id, vr_date, vr_info, vr_module_identifier
+	FROM vr_subjectIDs AS ref
+	
+	SELECT @vr_rowcount
+END;
+
+
+DROP PROCEDURE IF EXISTS lg_p_get_logs;
+
+CREATE PROCEDURE lg_p_get_logs
 	vr_application_id	UUID,
-    vr_usersTemp		GuidStringTableType readonly,
-    vr_subjectID 		UUID,
-    vr_ref_item_id 		UUID,
-    vr_subjectType	varchar(20),
-    vr_subjectName VARCHAR(2000),
-    vr_action			varchar(20),
-    vr_senderUserID 	UUID,
-    vr_sendDate	 TIMESTAMP,
-    vr_description VARCHAR(2000),
-    vr_info		 VARCHAR(2000)
+    vr_user_idsTemp	GuidTableType readonly,
+    vr_actionsTemp	StringTableType readonly,
+    vr_beginDate	 TIMESTAMP,
+    vr_finish_date	 TIMESTAMP,
+    vr_last_id			bigint,
+    vr_count		 INTEGER
 WITH ENCRYPTION, RECOMPILE
 AS
 BEGIN
 	SET NOCOUNT ON
 	
-	DECLARE vr_users GuidStringTableType
-	INSERT INTO vr_users SELECT * FROM vr_usersTemp
+	DECLARE vr_user_ids GuidTableType
+	INSERT INTO vr_user_ids SELECT * FROM vr_user_idsTemp
 	
-	DECLARE vr_vu GuidStringTableType
-	INSERT INTO vr_vu(FirstValue, SecondValue)
-	SELECT ref.first_value, ref.second_value
-	FROM vr_users AS ref
-		INNER JOIN users_normal AS un
-		ON un.application_id = vr_application_id AND un.user_id = ref.first_value
+    DECLARE vr_actions StringTableType
+    INSERT INTO vr_actions SELECT * FROM vr_actionsTemp
+	
+	DECLARE vr_actionsCount INTEGER = (SELECT COUNT(*) FROM vr_actions)
+	DECLARE vr_usersCount INTEGER = (SELECT COUNT(*) FROM vr_user_ids)
+	SET vr_count = COALESCE(vr_count, 100)
+	
+	IF vr_usersCount = 0 BEGIN
+		SELECT TOP(vr_count) 
+			lg.log_id,
+			lg.user_id,
+			un.username,
+			un.first_name,
+			un.last_name,
+			lg.host_address,
+			lg.host_name,
+			lg.action,
+			lg.date,
+			lg.info,
+			lg.module_identifier
+		FROM lg_logs AS lg
+			LEFT JOIN usr_view_users AS un
+			ON un.user_id = lg.user_id
+		WHERE (vr_application_id IS NULL OR lg.application_id = vr_application_id) AND
+			(vr_last_id IS NULL OR LogID > vr_last_id) AND
+			(vr_finish_date IS NULL OR lg.date < vr_finish_date) AND
+			(vr_beginDate IS NULL OR lg.date > vr_beginDate) AND
+			(vr_actionsCount = 0 OR lg.action IN (SELECT * FROM vr_actions))
+		ORDER BY lg.log_id DESC
+	END
+	ELSE BEGIN
+		SELECT TOP(vr_count)
+			lg.log_id,
+			lg.user_id,
+			un.username,
+			un.first_name,
+			un.last_name,
+			lg.host_address,
+			lg.host_name,
+			lg.action,
+			lg.date,
+			lg.info,
+			lg.module_identifier
+		FROM vr_user_ids AS usr
+			INNER JOIN lg_logs AS lg
+			ON (vr_application_id IS NULL OR lg.application_id = vr_application_id) AND
+				lg.user_id = usr.value
+			LEFT JOIN usr_view_users AS un
+			ON un.user_id = lg.user_id
+		WHERE (vr_last_id IS NULL OR LogID > vr_last_id) AND
+			(vr_finish_date IS NULL OR lg.date < vr_finish_date) AND
+			(vr_beginDate IS NULL OR lg.date > vr_beginDate) AND
+			(vr_actionsCount = 0 OR lg.action IN (SELECT * FROM vr_actions))
+		ORDER BY lg.log_id DESC
+	END
+END;
 
-	INSERT INTO ntfn_notifications(
+
+DROP PROCEDURE IF EXISTS lg_get_logs;
+
+CREATE PROCEDURE lg_get_logs
+	vr_application_id	UUID,
+    vr_strUserIDs 	varchar(max),
+    vr_strActions		varchar(max),
+    vr_delimiter		char,
+    vr_beginDate	 TIMESTAMP,
+    vr_finish_date	 TIMESTAMP,
+    vr_last_id			bigint,
+    vr_count		 INTEGER
+WITH ENCRYPTION
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+	DECLARE vr_user_ids GuidTableType
+	INSERT INTO vr_user_ids
+	SELECT ref.value FROM gfn_str_to_guid_table(vr_strUserIDs, vr_delimiter) AS ref
+	
+	DECLARE vr_actions StringTableType
+	INSERT INTO vr_actions
+	SELECT ref.value FROM gfn_str_to_string_table(vr_strActions, vr_delimiter) AS ref
+	
+	EXEC lg_p_get_logs vr_application_id, vr_user_ids, 
+		vr_actions, vr_beginDate, vr_finish_date, vr_last_id, vr_count
+END;
+
+
+DROP PROCEDURE IF EXISTS lg_save_error_log;
+
+CREATE PROCEDURE lg_save_error_log
+	vr_application_id		UUID,
+	vr_user_id				UUID,
+	vr_subject			varchar(1000),
+	vr_description	 VARCHAR(2000),
+	vr_date			 TIMESTAMP,
+	vr_module_identifier	varchar(20),
+	vr_level				varchar(20)
+WITH ENCRYPTION
+AS
+BEGIN
+	SET NOCOUNT ON
+
+	INSERT INTO lg_error_logs(
 		ApplicationID,
 		UserID,
-		SubjectID,
-		RefItemID,
-		SubjectType,
-		SubjectName,
-		action,
-		SenderUserID,
-		SendDate,
+		subject,
 		description,
-		Info,
-		UserStatus,
-		Seen,
-		Deleted
+		date,
+		ModuleIdentifier,
+		level
 	)
-	SELECT vr_application_id, ref.first_value, vr_subjectID, vr_ref_item_id, vr_subjectType, 
-		vr_subjectName, vr_action, vr_senderUserID, vr_sendDate, vr_description, 
-		vr_info, ref.second_value, 0, 0
-	FROM vr_vu AS ref
-	WHERE ref.first_value <> vr_senderUserID AND 
-		NOT EXISTS(
-			SELECT TOP(1) * 
-			FROM ntfn_notifications
-			WHERE ApplicationID = vr_application_id AND UserID = ref.first_value AND 
-				SubjectID = vr_subjectID AND RefItemID = vr_ref_item_id AND 
-				action = vr_action AND SenderUserID = vr_senderUserID AND deleted = FALSE
-		)
+	VALUES (
+		vr_application_id,
+		vr_user_id, 
+		vr_subject, 
+		vr_description, 
+		vr_date, 
+		vr_module_identifier,
+		vr_level
+	)
 	
 	SELECT @vr_rowcount
 END;
 
+DROP PROCEDURE IF EXISTS msg_get_threads;
 
-DROP PROCEDURE IF EXISTS ntfn_set_notifications_as_seen;
-
-CREATE PROCEDURE ntfn_set_notifications_as_seen
-	vr_application_id	UUID,
-	vr_user_id			UUID,
-    vr_strIDs			varchar(max),
-    vr_delimiter		char,
-    vr_view_date	 TIMESTAMP
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-	
-	DECLARE vr_iDs BigIntTableType
-	INSERT INTO vr_iDs
-	SELECT DISTINCT ref.value 
-	FROM gfn_str_to_big_int_table(vr_strIDs, vr_delimiter) AS ref
-	
-	UPDATE N
-		SET Seen = 1,
-			ViewDate = vr_view_date
-	FROM vr_iDs AS ref
-		INNER JOIN ntfn_notifications AS n
-		ON n.id = ref.value
-	WHERE n.application_id = vr_application_id AND n.user_id = vr_user_id AND n.seen = 0
-	
-	SELECT @vr_rowcount
-END;
-
-
-DROP PROCEDURE IF EXISTS ntfn_set_user_notifications_as_seen;
-
-CREATE PROCEDURE ntfn_set_user_notifications_as_seen
+CREATE PROCEDURE msg_get_threads
 	vr_application_id	UUID,
     vr_user_id			UUID,
-    vr_view_date	 TIMESTAMP
+    vr_count		 INTEGER,
+    vr_last_id		 INTEGER
+WITH ENCRYPTION
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+	SELECT TOP(COALESCE(vr_count, 10))
+		d.thread_id, 
+		un.username, 
+		un.first_name, 
+		un.last_name,
+		CAST((CASE WHEN un.user_id IS NULL THEN 1 ELSE 0 END) AS boolean) AS is_group,
+		d.messages_count,
+		d.sent_count,
+		d.not_seen_count,
+		d.row_number
+	FROM (
+			SELECT ROW_NUMBER() OVER (ORDER BY ref.max_id DESC) AS row_number, ref.*
+			FROM (
+					SELECT md.thread_id, MAX(md.id) AS max_id,
+						COUNT(md.id) AS messages_count, 
+						SUM(CAST(md.is_sender AS integer)) AS sent_count,
+						SUM(
+							CAST((CASE WHEN md.is_sender = FALSE AND md.seen = 0 THEN 1 ELSE 0 END) AS integer)
+						) AS not_seen_count
+					FROM msg_message_details AS md
+					WHERE md.application_id = vr_application_id AND 
+						md.user_id = vr_user_id AND md.deleted = FALSE
+					GROUP BY md.thread_id
+				) AS ref
+		) AS d
+		LEFT JOIN users_normal AS un
+		ON un.application_id = vr_application_id AND un.user_id = d.thread_id
+	WHERE (vr_last_id IS NULL OR d.row_number > vr_last_id)
+	ORDER BY d.row_number ASC
+END;
+
+
+DROP PROCEDURE IF EXISTS msg_get_thread_info;
+
+CREATE PROCEDURE msg_get_thread_info
+	vr_application_id	UUID,
+    vr_user_id			UUID,
+    vr_thread_id		UUID
+WITH ENCRYPTION
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+	SELECT	COUNT(md.id) AS messages_count, 
+			SUM(CAST(md.is_sender AS integer)) AS sent_count,
+			SUM(
+				CAST((CASE WHEN md.is_sender = FALSE AND md.seen = 0 THEN 1 ELSE 0 END) AS integer)
+			) AS not_seen_count
+	FROM msg_message_details AS md
+	WHERE md.application_id = vr_application_id AND 
+		md.user_id = vr_user_id AND md.thread_id = vr_thread_id AND md.deleted = FALSE
+END;
+
+
+DROP PROCEDURE IF EXISTS msg_get_messages;
+
+CREATE PROCEDURE msg_get_messages
+	vr_application_id	UUID,
+    vr_user_id			UUID,
+    vr_thread_id		UUID,
+    vr_sent		 BOOLEAN,
+    vr_count		 INTEGER,
+    vr_min_id			BIGINT
+WITH ENCRYPTION
+AS
+BEGIN
+	SET NOCOUNT ON
+	--vr_sent IS NULL --> Sent and Received Messages
+	--vr_sent IS NOT NULL --> vr_sent = 1 --> Sent Messages
+	--                  --> vr_sent = 0 --> Received Messages
+	
+	SELECT 
+		m.message_id,
+		m.title,
+		m.message_text,
+		m.send_date,
+		m.sender_user_id,
+		m.forwarded_from,
+		d.id,
+		d.is_group,
+		d.is_sender,
+		d.seen,
+		d.thread_id,
+		un.username,
+		un.first_name,
+		un.last_name,
+		m.has_attachment
+	FROM (
+			SELECT TOP(COALESCE(vr_count, 20)) *
+			FROM msg_message_details AS md
+			WHERE md.application_id = vr_application_id AND
+				(vr_min_id IS NULL OR  md.id < vr_min_id) AND 
+				md.user_id = vr_user_id AND
+				(md.thread_id IS NULL OR ThreadID = vr_thread_id) AND 
+				(vr_sent IS NULL OR IsSender = vr_sent) AND 
+				md.deleted = FALSE
+			ORDER BY md.id DESC
+		)AS D
+		INNER JOIN msg_messages AS m
+		ON m.application_id = vr_application_id AND m.message_id = d.message_id
+		INNER JOIN users_normal AS un
+		ON un.application_id = vr_application_id AND un.user_id = m.sender_user_id
+	ORDER BY d.id ASC
+END;
+
+
+DROP PROCEDURE IF EXISTS msg_has_message;
+
+CREATE PROCEDURE msg_has_message
+	vr_application_id	UUID,
+	vr_iD				BIGINT,
+    vr_user_id			UUID,
+    vr_thread_id		UUID,
+    vr_messageID		UUID
+WITH ENCRYPTION
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+	SELECT
+		CASE
+			WHEN EXISTS(
+				SELECT TOP(1) ID
+				FROM msg_message_details
+				WHERE ApplicationID = vr_application_id AND (vr_iD IS NULL OR ID = vr_iD) AND
+					UserID = vr_user_id AND 
+					(vr_thread_id IS NULL OR ThreadID = vr_thread_id) AND
+					(vr_messageID IS NULL OR MessageID = vr_messageID)
+			) THEN 1
+			ELSE 0
+		END
+END;
+
+
+DROP PROCEDURE IF EXISTS msg_send_new_message;
+
+CREATE PROCEDURE msg_send_new_message
+	vr_application_id		UUID,
+    vr_user_id				UUID,
+    vr_thread_id			UUID,
+    vr_messageID			UUID,
+    vr_forwarded_from		UUID,
+    vr_title			 VARCHAR(500),
+    vr_messageText	 VARCHAR(MAX),
+    vr_isGroup		 BOOLEAN,
+    vr_now			 TIMESTAMP,
+    vr_receivers_temp		GuidTableType readonly,
+    vr_attachedFilesTemp	DocFileInfoTableType readonly
+WITH ENCRYPTION, RECOMPILE
+AS
+BEGIN TRANSACTION
+	SET NOCOUNT ON
+	
+	DECLARE vr_receivers GuidTableType
+	INSERT INTO vr_receivers SELECT * FROM vr_receivers_temp
+    
+    DECLARE vr_attachedFiles DocFileInfoTableType
+    INSERT INTO vr_attachedFiles SELECT * FROM vr_attachedFilesTemp
+	
+	IF vr_isGroup IS NULL SET vr_isGroup = 0
+	
+	IF vr_thread_id IS NOT NULL BEGIN
+		SET vr_isGroup = COALESCE(
+			(
+				SELECT TOP(1) md.is_group
+				FROM msg_message_details AS md
+				WHERE md.application_id = vr_application_id AND md.thread_id = vr_thread_id
+			), vr_isGroup
+		)
+	END
+	
+	DECLARE vr_receiver_user_ids GuidTableType
+	
+	INSERT INTO vr_receiver_user_ids SELECT * FROM vr_receivers
+	
+	DECLARE vr_count INTEGER = (SELECT COUNT(*) FROM vr_receiver_user_ids)
+	
+	IF vr_count = 1 SET vr_isGroup = 0
+	
+	IF(vr_count > 1) DELETE FROM vr_receiver_user_ids WHERE Value = vr_user_id --Farzane Added
+	
+	IF (vr_thread_id IS NULL AND vr_isGroup = 0) AND vr_count = 0 BEGIN
+		SELECT -1
+		RETURN
+	END
+	
+	IF vr_thread_id IS NOT NULL AND vr_count = 0 AND 
+		EXISTS(
+			SELECT TOP(1) UserID 
+			FROM users_normal 
+			WHERE ApplicationID = vr_application_id AND UserID = vr_thread_id
+	) BEGIN
+		INSERT INTO vr_receiver_user_ids (Value)
+		VALUES (vr_thread_id)
+		
+		SET vr_count = 1
+	END
+	
+	IF vr_isGroup = 1 BEGIN
+		IF vr_count = 1 SET vr_thread_id = (SELECT TOP(1) ref.value FROM vr_receiver_user_ids AS ref)
+		ELSE IF (vr_thread_id IS NULL AND vr_count > 0) SET vr_thread_id = gen_random_uuid()
+	END
+	
+	IF vr_count = 0 BEGIN
+		INSERT INTO vr_receiver_user_ids
+		SELECT DISTINCT md.user_id 
+		FROM msg_message_details AS md
+		WHERE md.application_id = vr_application_id AND md.thread_id = vr_thread_id
+		EXCEPT (SELECT vr_user_id)
+		
+		SET vr_count = (SELECT COUNT(*) FROM vr_receiver_user_ids)
+	END
+	
+	DECLARE vr_attachmentsCount INTEGER = (SELECT COUNT(*) FROM vr_attachedFiles)
+	
+	INSERT INTO msg_messages(
+		ApplicationID,
+		MessageID,
+		Title,
+		MessageText,
+		SenderUserID,
+		SendDate,
+		ForwardedFrom,
+		HasAttachment
+	)
+	VALUES(
+		vr_application_id,
+		vr_messageID,
+		vr_title,
+		vr_messageText,
+		vr_user_id,
+		vr_now,
+		vr_forwarded_from,
+		CASE WHEN vr_attachmentsCount > 0 THEN 1 ELSE 0 END
+	)
+	
+	IF @vr_rowcount <= 0 BEGIN
+		SELECT -1
+		ROLLBACK TRANSACTION
+		RETURN
+	END
+	
+	DECLARE vr__result INTEGER
+	
+	IF vr_attachmentsCount > 0 BEGIN
+		EXEC dct_p_add_files vr_application_id, vr_messageID, 
+			N'Message', vr_attachedFiles, vr_user_id, vr_now, vr__result output
+		
+		IF vr__result <= 0 BEGIN
+			SELECT -1
+			ROLLBACK TRANSACTION
+			RETURN
+		END
+	END
+	
+	IF vr_forwarded_from IS NOT NULL BEGIN
+		EXEC dct_p_copy_attachments vr_application_id, vr_forwarded_from, 
+			vr_messageID, N'Message', vr_user_id, vr_now, vr__result output
+		
+		IF vr__result > 0 BEGIN
+			UPDATE msg_messages
+				SET HasAttachment = 1
+			WHERE ApplicationID = vr_application_id AND MessageID = vr_messageID
+		END 
+	END
+	
+	INSERT INTO msg_message_details(
+		ApplicationID,
+		UserID,
+		ThreadID,
+		MessageID,
+		Seen,
+		IsSender,
+		IsGroup,
+		Deleted
+	)
+	(
+		SELECT	TOP(CASE WHEN vr_isGroup = 1 THEN 1 ELSE 1000000000 END)
+				vr_application_id,
+				vr_user_id,
+				CASE WHEN vr_isGroup = 0 THEN r.value ELSE vr_thread_id END,
+				vr_messageID,
+				1,
+				1,
+				vr_isGroup,
+				0
+		FROM vr_receiver_user_ids AS r
+		
+		UNION ALL
+		
+		SELECT	vr_application_id,
+				r.value,
+				CASE WHEN vr_isGroup = 0 THEN vr_user_id ELSE vr_thread_id END,
+				vr_messageID,
+				0,
+				0,
+				vr_isGroup,
+				0
+		FROM vr_receiver_user_ids AS r
+	)
+	
+	IF @vr_rowcount <= 0 BEGIN
+		SELECT -1
+		ROLLBACK TRANSACTION
+		RETURN
+	END
+	
+	SELECT @vr_iDENTITY - vr_count
+COMMIT TRANSACTION;
+
+
+DROP PROCEDURE IF EXISTS msg_bulk_send_message;
+
+CREATE PROCEDURE msg_bulk_send_message
+	vr_application_id	UUID,
+    vr_messagesTemp	MessageTableType readonly,
+    vr_receivers_temp	GuidPairTableType readonly,
+    vr_now		 TIMESTAMP
+WITH ENCRYPTION, RECOMPILE
+AS
+BEGIN TRANSACTION
+	SET NOCOUNT ON
+	
+	DECLARE vr_messages MessageTableType
+	INSERT INTO vr_messages SELECT * FROM vr_messagesTemp
+    
+    DECLARE vr_receivers GuidPairTableType
+    INSERT INTO vr_receivers SELECT * FROM vr_receivers_temp
+	
+	INSERT INTO msg_messages(
+		ApplicationID,
+		MessageID,
+		Title,
+		MessageText,
+		SenderUserID,
+		SendDate,
+		HasAttachment
+	)
+	SELECT	vr_application_id,
+			m.message_id,
+			m.title,
+			m.message_text,
+			m.sender_user_id,
+			vr_now,
+			0
+	FROM vr_messages AS m
+	WHERE m.message_id IN (SELECT DISTINCT r.first_value FROM vr_receivers AS r)
+	
+	IF @vr_rowcount <= 0 BEGIN
+		SELECT -1
+		ROLLBACK TRANSACTION
+		RETURN
+	END
+	
+	INSERT INTO msg_message_details(
+		ApplicationID,
+		UserID,
+		ThreadID,
+		MessageID,
+		Seen,
+		IsSender,
+		IsGroup,
+		Deleted
+	)
+	SELECT *
+	FROM (
+			SELECT	vr_application_id AS application_id,
+					m.sender_user_id,
+					r.second_value,
+					m.message_id,
+					1 AS seen,
+					1 AS is_sender,
+					0 AS is_group,
+					0 AS deleted
+			FROM vr_messages AS m
+				INNER JOIN vr_receivers AS r
+				ON r.first_value = m.message_id
+			
+			UNION ALL
+			
+			SELECT	vr_application_id,
+					r.second_value,
+					m.sender_user_id,
+					m.message_id,
+					0,
+					0,
+					0,
+					0
+			FROM vr_messages AS m
+				INNER JOIN vr_receivers AS r
+				ON r.first_value = m.message_id
+		) AS ref
+	ORDER BY ref.is_sender DESC
+	
+	IF @vr_rowcount <= 0 BEGIN
+		SELECT -1
+		ROLLBACK TRANSACTION
+		RETURN
+	END
+	
+	SELECT @vr_iDENTITY
+COMMIT TRANSACTION;
+
+
+DROP PROCEDURE IF EXISTS msg_get_thread_users;
+
+CREATE PROCEDURE msg_get_thread_users
+	vr_application_id	UUID,
+	vr_user_id			UUID,
+    vr_strThreadIDs	VARCHAR(MAX),
+    vr_delimiter		CHAR,
+	vr_count		 INTEGER,
+	vr_last_id		 INTEGER
 WITH ENCRYPTION
 AS
 BEGIN
 	SET NOCOUNT ON
 
-	UPDATE ntfn_notifications
-		SET Seen = 1,
-			ViewDate = vr_view_date
-	WHERE ApplicationID = vr_application_id AND UserID = vr_user_id AND Seen = 0
+	DECLARE vr_thread_ids GuidTableType
+
+	INSERT INTO vr_thread_ids
+	SELECT ref.value FROM gfn_str_to_guid_table(vr_strThreadIDs, vr_delimiter) AS ref
 	
+	DECLARE vr_messageIDs GuidPairTableType
+
+	;WITH X AS (
+		SELECT md.thread_id, MIN(md.id) AS min_id
+		FROM vr_thread_ids AS t
+			INNER JOIN msg_message_details AS md
+			ON md.application_id = vr_application_id AND md.thread_id = t.value
+		GROUP BY md.thread_id
+	)
+	INSERT INTO vr_messageIDs(FirstValue, SecondValue)
+	SELECT md.thread_id, md.message_id
+	FROM X
+		INNER JOIN msg_message_details AS md
+		ON md.application_id = vr_application_id AND md.id = x.min_id
+
+	;WITH Y AS (
+		SELECT *
+		FROM (
+				SELECT  ROW_NUMBER() OVER (PARTITION BY md.thread_id ORDER BY md.id DESC) AS row_number, 
+						ROW_NUMBER() OVER (PARTITION BY md.thread_id ORDER BY md.id ASC) AS rev_row_number,
+						md.thread_id, md.user_id
+				FROM vr_messageIDs AS m
+					INNER JOIN msg_message_details AS md
+					ON md.thread_id = m.first_value AND md.message_id = m.second_value
+				WHERE md.application_id = vr_application_id AND md.user_id NOT IN (SELECT vr_user_id)
+			) AS ref
+		WHERE ref.row_number > COALESCE(vr_last_id, 0) AND ref.row_number <= (COALESCE(vr_last_id, 0) + COALESCE(vr_count, 3))
+	)
+	SELECT	y.thread_id, 
+			y.user_id, 
+			un.username, 
+			un.first_name, 
+			un.last_name,
+			y.rev_row_number
+	FROM Y
+		INNER JOIN users_normal AS un
+		ON un.application_id = vr_application_id AND un.user_id = y.user_id
+END;
+
+
+DROP PROCEDURE IF EXISTS msg_remove_messages;
+
+CREATE PROCEDURE msg_remove_messages
+	vr_application_id	UUID,
+    vr_user_id			UUID,
+    vr_thread_id		UUID,
+    vr_iD				BIGINT
+WITH ENCRYPTION
+AS
+BEGIN
+	SET NOCOUNT ON
+
+	UPDATE msg_message_details
+		SET deleted = TRUE
+	WHERE ApplicationID = vr_application_id AND (vr_iD IS NOT NULL AND ID = vr_iD) OR  
+		(vr_iD IS NULL AND UserID = vr_user_id AND ThreadID = vr_thread_id)
+		
+		
 	SELECT @vr_rowcount
 END;
 
 
-DROP PROCEDURE IF EXISTS ntfn_arithmetic_delete_notification;
+DROP PROCEDURE IF EXISTS msg_set_messages_as_seen;
 
-CREATE PROCEDURE ntfn_arithmetic_delete_notification
+CREATE PROCEDURE msg_set_messages_as_seen
 	vr_application_id	UUID,
-    vr_iD				bigint,
+    vr_user_id			UUID,
+    vr_thread_id		UUID,
+    vr_now		 TIMESTAMP
+WITH ENCRYPTION
+AS
+BEGIN
+	SET NOCOUNT ON
+
+	IF vr_user_id IS NOT NULL AND vr_thread_id IS NOT NULL BEGIN
+		UPDATE MD
+			SET Seen = 1,
+				ViewDate = COALESCE(ViewDate, vr_now)
+		FROM msg_message_details AS md
+		WHERE md.application_id = vr_application_id AND
+			md.user_id = vr_user_id AND md.thread_id = vr_thread_id AND ViewDate IS NULL
+		
+		SELECT 1
+	END
+	ELSE SELECT 0
+END;
+
+
+DROP PROCEDURE IF EXISTS msg_get_not_seen_messages_count;
+
+CREATE PROCEDURE msg_get_not_seen_messages_count
+	vr_application_id	UUID,
     vr_user_id			UUID
 WITH ENCRYPTION
 AS
 BEGIN
 	SET NOCOUNT ON
 
-	UPDATE ntfn_notifications
-		SET deleted = TRUE
-	WHERE ApplicationID = vr_application_id AND ID = vr_iD AND UserID = vr_user_id
-	
-	SELECT @vr_rowcount
+	SELECT COUNT(md.id)
+	FROM msg_message_details AS md
+	WHERE md.application_id = vr_application_id AND
+		md.user_id = vr_user_id AND md.is_sender = FALSE AND md.seen = 0 AND md.deleted = FALSE
 END;
 
 
-DROP PROCEDURE IF EXISTS ntfn_arithmetic_delete_notifications;
+DROP PROCEDURE IF EXISTS msg_get_message_receivers;
 
-CREATE PROCEDURE ntfn_arithmetic_delete_notifications
+CREATE PROCEDURE msg_get_message_receivers
 	vr_application_id	UUID,
-    vr_strSubjectIDs	varchar(max),
-    vr_strRefItemIDs	varchar(max),
-    vr_senderUserID	UUID,
-    vr_strActions		varchar(max),
-    vr_delimiter		char
+    vr_strMessageIDs VARCHAR(MAX),
+    vr_delimiter		CHAR,
+	vr_count		 INTEGER,
+	vr_last_id		 INTEGER
 WITH ENCRYPTION
 AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE vr_subjectIDs GuidTableType, vr_ref_item_ids GuidTableType
+	DECLARE vr_messageIDs GuidTableType
+
+	INSERT INTO vr_messageIDs
+	SELECT ref.value FROM gfn_str_to_guid_table(vr_strMessageIDs, vr_delimiter) AS ref
 	
-	INSERT INTO vr_subjectIDs
-	SELECT ref.value FROM gfn_str_to_guid_table(vr_strSubjectIDs, vr_delimiter) AS ref
-	
-	INSERT INTO vr_ref_item_ids
-	SELECT ref.value FROM gfn_str_to_guid_table(vr_strRefItemIDs, vr_delimiter) AS ref
-	
-	DECLARE vr_actions StringTableType
-	INSERT INTO vr_actions
-	SELECT ref.value FROM gfn_str_to_string_table(vr_strActions, vr_delimiter) AS ref
-	
-	DECLARE vr_actionsCount INTEGER = (SELECT COUNT(*) FROM vr_actions),
-		vr_subjectIDsCount INTEGER = (SELECT COUNT(*) FROM vr_subjectIDs),
-		vr_ref_item_idsCount INTEGER = (SELECT COUNT(*) FROM vr_ref_item_ids)
-	
-	IF vr_subjectIDsCount > 0 AND vr_ref_item_idsCount > 0 BEGIN
-		UPDATE N
-			SET deleted = TRUE
-		FROM vr_subjectIDs AS s
-			INNER JOIN ntfn_notifications AS n
-			ON n.subject_id = s.value
-			INNER JOIN vr_ref_item_ids AS r
-			ON r.value = n.ref_item_id
-		WHERE n.application_id = vr_application_id AND
-			(vr_senderUserID IS NULL OR SenderUserID = vr_senderUserID) AND
-			(vr_actionsCount = 0 OR action IN(SELECT * FROM vr_actions))
-	END
-	ELSE IF vr_subjectIDsCount > 0 BEGIN
-		UPDATE N
-			SET deleted = TRUE
-		FROM vr_subjectIDs AS s
-			INNER JOIN ntfn_notifications AS n
-			ON n.subject_id = s.value
-		WHERE n.application_id = vr_application_id AND 
-			(vr_senderUserID IS NULL OR SenderUserID = vr_senderUserID) AND
-			(vr_actionsCount = 0 OR action IN(SELECT * FROM vr_actions))
-	END
-	ELSE IF vr_ref_item_idsCount > 0 BEGIN
-	select vr_senderUserID
-		UPDATE N
-			SET deleted = TRUE
-		FROM vr_ref_item_ids AS r
-			INNER JOIN ntfn_notifications AS n
-			ON n.ref_item_id = r.value
-		WHERE n.application_id = vr_application_id AND 
-			(vr_senderUserID IS NULL OR n.sender_user_id = vr_senderUserID) AND
-			(vr_actionsCount = 0 OR n.action IN(SELECT * FROM vr_actions))
-	END
-	
-	SELECT @vr_rowcount
-END;
-
-
-DROP PROCEDURE IF EXISTS ntfn_get_user_notifications_count;
-
-CREATE PROCEDURE ntfn_get_user_notifications_count
-	vr_application_id	UUID,
-    vr_user_id			UUID,
-    vr_seen		 BOOLEAN
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-
-	SELECT COUNT(ID)
-	FROM ntfn_notifications
-	WHERE ApplicationID = vr_application_id AND 
-		UserID = vr_user_id AND (vr_seen IS NULL OR Seen = vr_seen) AND deleted = FALSE
-END;
-
-
-DROP PROCEDURE IF EXISTS ntfn_p_get_notifications_by_ids;
-
-CREATE PROCEDURE ntfn_p_get_notifications_by_ids
-	vr_application_id	UUID,
-    vr_iDsTemp		BigIntTableType readonly
-WITH ENCRYPTION, RECOMPILE
-AS
-BEGIN
-	SET NOCOUNT ON
-	
-	DECLARE vr_iDs BigIntTableType
-	INSERT INTO vr_iDs SELECT * FROM vr_iDsTemp
-
-	SELECT ntfn.id AS notification_id,
-		   ntfn.user_id AS user_id,
-		   ntfn.subject_id AS subject_id,
-		   ntfn.ref_item_id AS ref_item_id,
-		   ntfn.subject_name AS subject_name,
-		   ntfn.subject_type AS subject_type,
-		   ntfn.sender_user_id AS sender_user_id,
-		   un.username AS sender_username,
-		   un.first_name AS sender_first_name,
-		   un.last_name AS sender_last_name,
-		   ntfn.send_date AS send_date,
-		   ntfn.action AS action,
-		   ntfn.description AS description,
-		   ntfn.info AS info,
-		   ntfn.user_status AS user_status,
-		   ntfn.seen AS seen,
-		   ntfn.view_date AS view_date
-	FROM vr_iDs AS ref
-		INNER JOIN ntfn_notifications AS ntfn
-		ON ntfn.application_id = vr_application_id AND ntfn.id = ref.value
-		LEFT JOIN users_normal AS un
-		ON un.application_id = vr_application_id AND un.user_id = ntfn.user_id
-	ORDER BY ntfn.seen ASC, ntfn.id DESC
-END;
-
-
-DROP PROCEDURE IF EXISTS ntfn_get_user_notifications;
-
-CREATE PROCEDURE ntfn_get_user_notifications
-	vr_application_id	UUID,
-    vr_user_id			UUID,
-    vr_seen		 BOOLEAN,
-    vr_last_not_seen_id	bigint,
-    vr_last_seen_id		bigint,
-    vr_last_view_date TIMESTAMP,
-    vr_lower_date_limit TIMESTAMP,
-    vr_upper_date_limit TIMESTAMP,
-    vr_count		 INTEGER
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-
-	DECLARE vr_iDs BigIntTableType
-	
-	INSERT INTO vr_iDs
-	SELECT TOP(COALESCE(vr_count, 20)) ID
-	FROM ntfn_notifications
-	WHERE ApplicationID = vr_application_id AND UserID = vr_user_id AND
-		(vr_lower_date_limit IS NULL OR SendDate > vr_lower_date_limit) AND
-		(vr_upper_date_limit IS NULL OR SendDate < vr_upper_date_limit) AND
-		(
-			(
-				(ViewDate IS NULL OR vr_last_view_date IS NULL) AND 
-				(vr_last_not_seen_id IS NULL OR ID < vr_last_not_seen_id)
-			) OR
-			(
-				(ViewDate < vr_last_view_date) AND 
-				(vr_last_seen_id IS NULL OR ID < vr_last_seen_id)
-			)
-		) AND
-		(vr_seen IS NULL OR Seen = vr_seen) AND deleted = FALSE
-	ORDER BY Seen ASC, ID DESC
-	
-	EXEC ntfn_p_get_notifications_by_ids vr_application_id, vr_iDs
-END;
-
-
--- Dashboard Procedures
-
-DROP PROCEDURE IF EXISTS ntfn_p_send_dashboards;
-
-CREATE PROCEDURE ntfn_p_send_dashboards
-	vr_application_id	UUID,
-    vr_dashboardsTemp	DashboardTableType readonly,
-    vr__result	 INTEGER output
-WITH ENCRYPTION, RECOMPILE
-AS
-BEGIN
-	SET NOCOUNT ON
-	
-	DECLARE vr_dashboards DashboardTableType
-	INSERT INTO vr_dashboards SELECT * FROM vr_dashboardsTemp
-	
-	INSERT INTO ntfn_dashboards(
-		ApplicationID,
-		UserID,
-		NodeID,
-		RefItemID,
-		type,
-		SubType,
-		Info,
-		Removable,
-		SenderUserID,
-		SendDate,
-		ExpirationDate,
-		Seen,
-		ViewDate,
-		Done,
-		ActionDate,
-		Deleted
-	)
-	SELECT DISTINCT
-		vr_application_id,
-		ref.user_id,
-		ref.node_id,
-		COALESCE(ref.ref_item_id, ref.node_id),
-		ref.type,
-		ref.subtype,
-		ref.info,
-		COALESCE(ref.removable, 0),
-		ref.sender_user_id,
-		ref.send_date,
-		ref.expiration_date,
-		COALESCE(ref.seen, 0),
-		ref.view_date,
-		COALESCE(ref.done, FALSE),
-		ref.action_date,
-		0
-	FROM vr_dashboards AS ref
-		LEFT JOIN ntfn_dashboards AS d
-		ON d.application_id = vr_application_id AND 
-			d.user_id = ref.user_id AND d.node_id = ref.node_id AND 
-			d.ref_item_id = ref.ref_item_id AND d.type = ref.type AND 
-			((d.subtype IS NULL AND ref.subtype IS NULL) OR d.subtype = ref.subtype) AND
-			ref.removable = d.removable AND d.done = FALSE AND d.deleted = FALSE
-	WHERE d.id IS NULL
-	
-	SET vr__result = 1
-END;
-
-
-DROP PROCEDURE IF EXISTS ntfn_set_dashboards_as_seen;
-
-CREATE PROCEDURE ntfn_set_dashboards_as_seen
-	vr_application_id		UUID,
-	vr_user_id				UUID,
-    vr_strDashboardIDs	varchar(max),
-    vr_delimiter			char,
-    vr_now			 TIMESTAMP
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-	
-	DECLARE vr_dashboard_ids BigIntTableType
-	
-	INSERT INTO vr_dashboard_ids
-	SELECT ref.value
-	FROM gfn_str_to_big_int_table(vr_strDashboardIDs, vr_delimiter) AS ref
-	
-	UPDATE D
-		SET Seen = 1,
-			ViewDate = vr_now
-	FROM vr_dashboard_ids AS ref
-		INNER JOIN ntfn_dashboards AS d
-		ON d.id = ref.value
-	WHERE d.application_id = vr_application_id AND d.user_id = vr_user_id
-		
-	SELECT @vr_rowcount
-END;
-
-
-DROP PROCEDURE IF EXISTS ntfn_p_set_dashboards_as_not_seen;
-
-CREATE PROCEDURE ntfn_p_set_dashboards_as_not_seen
-	vr_application_id	UUID,
-    vr_user_id			UUID,
-    vr_node_id			UUID,
-    vr_ref_item_id		UUID,
-    vr_type			varchar(20),
-    vr_subType		varchar(20),
-    vr__result	 INTEGER output
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-	
-	IF EXISTS(
-		SELECT TOP(1) * 
-		FROM ntfn_dashboards
-		WHERE ApplicationID = vr_application_id AND
-			(vr_user_id IS NULL OR UserID = vr_user_id) AND
-			(vr_node_id IS NULL OR NodeID = vr_node_id) AND 
-			(vr_ref_item_id IS NULL OR RefItemID = vr_ref_item_id) AND 
-			(vr_type IS NULL OR type = vr_type) AND
-			(vr_subType IS NULL OR SubType = vr_subType) AND done = FALSE AND deleted = FALSE
-		) BEGIN
-		UPDATE ntfn_dashboards
-			SET Seen = 0
-		WHERE ApplicationID = vr_application_id AND 
-			(vr_user_id IS NULL OR UserID = vr_user_id) AND
-			(vr_node_id IS NULL OR NodeID = vr_node_id) AND 
-			(vr_ref_item_id IS NULL OR RefItemID = vr_ref_item_id) AND 
-			(vr_type IS NULL OR type = vr_type) AND
-			(vr_subType IS NULL OR SubType = vr_subType) AND done = FALSE AND deleted = FALSE
-			
-		SET vr__result = @vr_rowcount
-	END
-	ELSE BEGIN
-		SET vr__result = 1
-	END
-END;
-
-
-DROP PROCEDURE IF EXISTS ntfn_p_set_dashboards_as_done;
-
-CREATE PROCEDURE ntfn_p_set_dashboards_as_done
-	vr_application_id	UUID,
-    vr_user_id			UUID,
-    vr_node_id			UUID,
-    vr_ref_item_id		UUID,
-    vr_type			varchar(20),
-    vr_subType		varchar(20),
-    vr_now		 TIMESTAMP,
-    vr__result	 INTEGER output
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-	
-	IF EXISTS(
-		SELECT TOP(1) * 
-		FROM ntfn_dashboards
-		WHERE ApplicationID = vr_application_id AND 
-			(vr_user_id IS NULL OR UserID = vr_user_id) AND
-			(vr_node_id IS NULL OR NodeID = vr_node_id) AND 
-			(vr_ref_item_id IS NULL OR RefItemID = vr_ref_item_id) AND 
-			(vr_type IS NULL OR type = vr_type) AND
-			(vr_subType IS NULL OR SubType = vr_subType) AND done = FALSE AND deleted = FALSE
-		) BEGIN
-		
-		UPDATE ntfn_dashboards
-			SET done = TRUE,
-				ActionDate = vr_now
-		WHERE ApplicationID = vr_application_id AND 
-			(vr_user_id IS NULL OR UserID = vr_user_id) AND
-			(vr_node_id IS NULL OR NodeID = vr_node_id) AND 
-			(vr_ref_item_id IS NULL OR RefItemID = vr_ref_item_id) AND 
-			(vr_type IS NULL OR type = vr_type) AND
-			(vr_subType IS NULL OR SubType = vr_subType) AND done = FALSE AND deleted = FALSE
-			
-		SET vr__result = @vr_rowcount
-	END
-	ELSE BEGIN
-		SET vr__result = 1
-	END
-END;
-
-
-DROP PROCEDURE IF EXISTS ntfn_p_arithmetic_delete_dashboards;
-
-CREATE PROCEDURE ntfn_p_arithmetic_delete_dashboards
-	vr_application_id	UUID,
-    vr_user_id			UUID,
-    vr_node_id			UUID,
-    vr_ref_item_id		UUID,
-    vr_type			varchar(20),
-    vr_subType		varchar(20),
-    vr__result	 INTEGER output
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-	
-	IF EXISTS(
-		SELECT TOP(1) * 
-		FROM ntfn_dashboards
-		WHERE ApplicationID = vr_application_id AND
-			(vr_user_id IS NULL OR UserID = vr_user_id) AND
-			(vr_node_id IS NULL OR NodeID = vr_node_id) AND 
-			(vr_ref_item_id IS NULL OR RefItemID = vr_ref_item_id) AND 
-			(vr_type IS NULL OR type = vr_type) AND 
-			(vr_subType IS NULL OR SubType = vr_subType) AND done = FALSE AND deleted = FALSE
-		) BEGIN
-		
-		UPDATE ntfn_dashboards
-			SET deleted = TRUE
-		WHERE ApplicationID = vr_application_id AND 
-			(vr_user_id IS NULL OR UserID = vr_user_id) AND
-			(vr_node_id IS NULL OR NodeID = vr_node_id) AND 
-			(vr_ref_item_id IS NULL OR RefItemID = vr_ref_item_id) AND 
-			(vr_subType IS NULL OR SubType = vr_subType) AND done = FALSE AND deleted = FALSE
-			
-		SET vr__result = @vr_rowcount
-	END
-	ELSE BEGIN
-		SET vr__result = 1
-	END
-END;
-
-
-DROP PROCEDURE IF EXISTS ntfn_arithmetic_delete_dashboards;
-
-CREATE PROCEDURE ntfn_arithmetic_delete_dashboards
-	vr_application_id		UUID,
-	vr_user_id				UUID,
-    vr_strDashboardIDs	varchar(max),
-    vr_delimiter			char
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-	
-	DECLARE vr_dashboard_ids BigIntTableType
-	
-	INSERT INTO vr_dashboard_ids
-	SELECT ref.value
-	FROM gfn_str_to_big_int_table(vr_strDashboardIDs, vr_delimiter) AS ref
-	
-	UPDATE D
-		SET deleted = TRUE
-	FROM vr_dashboard_ids AS ref
-		INNER JOIN ntfn_dashboards AS d
-		ON d.id = ref.value
-	WHERE d.application_id = vr_application_id AND d.user_id = vr_user_id
-		
-	SELECT @vr_rowcount
-END;
-
-
-DROP PROCEDURE IF EXISTS ntfn_get_dashboards_count;
-
-CREATE PROCEDURE ntfn_get_dashboards_count
-	vr_application_id		UUID,
-	vr_user_id				UUID,
-	vr_nodeTypeID			UUID,
-	vr_node_id				UUID,
-	vr_nodeAdditionalID	varchar(50),
-	vr_type				varchar(50)
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-	
-	IF vr_node_id IS NOT NULL SET vr_nodeTypeID = NULL
-	IF vr_node_id IS NOT NULL OR vr_nodeAdditionalID = N'' SET vr_nodeAdditionalID = NULL
-
-	DECLARE vr_results TABLE (SeenOrder INTEGER, ID bigint, UserID UUID, 
-		NodeID UUID, NodeAdditionalID varchar(50), NodeName VARCHAR(255), 
-		NodeTypeID UUID, NodeType VARCHAR(255), type varchar(50), SubType VARCHAR(500), 
-		WFState VARCHAR(1000), Removable BOOLEAN, SenderUserID UUID, SendDate TIMESTAMP, 
-		ExpirationDate TIMESTAMP, Seen BOOLEAN, ViewDate TIMESTAMP, Done BOOLEAN, ActionDate TIMESTAMP, 
-		InWorkFlow BOOLEAN, DoneAndInWorkFlow INTEGER, DoneAndNotInWorkFlow INTEGER,
-		PRIMARY KEY CLUSTERED(nodeid, type, id))
-
-
-	INSERT INTO vr_results (SeenOrder, ID, UserID, NodeID, NodeAdditionalID, NodeName, 
-		NodeTypeID, NodeType, type, SubType, WFState, Removable, SenderUserID, SendDate, 
-		ExpirationDate, Seen, ViewDate, Done, ActionDate)
-	SELECT
-		CASE WHEN d.seen = 0 THEN 0 ELSE 1 END AS seen_order,
-		d.id, 
-		d.user_id, 
-		d.node_id, 
-		nd.node_additional_id, 
-		COALESCE(nd.node_name, q.title) AS node_name,
-		nd.node_type_id,
-		nd.type_name AS node_type, 
-		d.type, 
-		d.subtype, 
-		nd.wf_state, 
-		d.removable,
-		d.sender_user_id, 
-		d.send_date, 
-		d.expiration_date,
-		d.seen, 
-		d.view_date, 
-		d.done, 
-		d.action_date
-	FROM ntfn_dashboards AS d
-		LEFT JOIN cn_view_nodes_normal AS nd
-		ON nd.application_id = vr_application_id AND 
-			nd.node_id = d.node_id AND nd.deleted = FALSE
-		LEFT JOIN qa_questions AS q
-		ON q.application_id = vr_application_id AND 
-			q.question_id = d.node_id AND q.deleted = FALSE
-	WHERE d.application_id = vr_application_id AND d.deleted = FALSE AND
-		(nd.node_id IS NOT NULL OR q.question_id IS NOT NULL) AND
-		(vr_user_id IS NULL OR d.user_id = vr_user_id) AND 
-		(vr_node_id IS NULL OR d.node_id = vr_node_id) AND
-		(vr_nodeTypeID IS NULL OR nd.node_type_id = vr_nodeTypeID) AND
-		(vr_nodeAdditionalID IS NULL OR nd.node_additional_id = vr_nodeAdditionalID) AND
-		(vr_type IS NULL OR d.type = vr_type)
-			
-			
-	-- Remove Invalid WorkFlow Items
-	IF COALESCE(vr_type, N'') = N'' OR vr_type = N'WorkFlow' BEGIN
-		DELETE R
-		FROM vr_results AS r
-			LEFT JOIN wf_workflow_owners AS wo
-			ON wo.application_id = vr_application_id AND wo.node_type_id = r.node_type_id AND wo.deleted = FALSE
-			LEFT JOIN cn_services AS s
-			ON s.application_id = vr_application_id AND s.node_type_id = r.node_type_id
-		WHERE r.node_type_id IS NOT NULL AND r.type = N'WorkFlow' AND 
-			(wo.workflow_id IS NULL OR s.is_knowledge = TRUE)
-	END
-	-- end of Remove Invalid WorkFlow Items
-
-
-	-- Remove Invalid Knowledge Items
-	IF COALESCE(vr_type, N'') = N'' OR vr_type = N'Knowledge' BEGIN
-		DELETE R
-		FROM vr_results AS r
-			LEFT JOIN cn_services AS s
-			ON s.application_id = vr_application_id AND s.node_type_id = r.node_type_id
-		WHERE r.node_type_id IS NOT NULL AND r.type = N'Knowledge' AND COALESCE(s.is_knowledge, FALSE) = 0
-	END
-	-- end of Remove Invalid Knowledge Items
-
-
-	-- Remove Invalid Wiki Items
-	IF COALESCE(vr_type, N'') = N'' OR vr_type = N'Wiki' BEGIN
-		DELETE R
-		FROM vr_results AS r
-			LEFT JOIN cn_extensions AS s
-			ON s.application_id = vr_application_id AND s.owner_id = r.node_type_id AND 
-				s.extension = N'Wiki' AND s.deleted = FALSE
-		WHERE r.node_type_id IS NOT NULL AND r.type = N'Wiki' AND s.owner_id IS NULL
-	END
-	-- end of Remove Invalid Wiki Items
-
-
-	UPDATE R
-		SET InWorkFlow = 1
-	FROM vr_results AS r
-		INNER JOIN (
-			SELECT r.node_id, r.type
-			FROM vr_results AS r
-				INNER JOIN ntfn_dashboards AS d
-				ON d.application_id = vr_application_id AND r.node_id IS NOT NULL AND r.type IN (N'WorkFlow', N'Knowledge') AND
-					d.node_id = r.node_id AND d.type = r.type AND d.done = FALSE AND d.deleted = FALSE AND COALESCE(d.removable, 0) = 0
-			GROUP BY r.node_id, r.type
-		) AS x
-		ON x.node_id = r.node_id AND x.type = r.type
-
-
-	UPDATE X
-		SET DoneAndInWorkFlow = a.done_and_in_workflow,
-			DoneAndNotInWorkFlow = a.done_and_not_in_workflow
-	FROM vr_results AS x
-		INNER JOIN (
-			SELECT u.user_id, u.type, u.node_type_id,
-				COUNT(DISTINCT (CASE WHEN u.done_and_in_workflow = 1 THEN u.node_id ELSE NULL END)) AS done_and_in_workflow,
-				COUNT(DISTINCT (CASE WHEN u.done_and_not_in_workflow = 1 THEN u.node_id ELSE NULL END)) AS done_and_not_in_workflow
-			FROM (
-					SELECT r.user_id, r.type, r.node_id, r.node_type_id, 
-						CASE 
-							WHEN MAX(CAST(COALESCE(r.done, FALSE) AS integer)) = 1 AND
-								COALESCE(MAX(CAST(r.in_workflow AS integer)), 0) > 0 THEN 1
-							ELSE 0
-						END AS done_and_in_workflow,
-						CASE 
-							WHEN MAX(CAST(COALESCE(r.done, FALSE) AS integer)) = 1 AND
-								COALESCE(MAX(CAST(r.in_workflow AS integer)), 0) = 0 THEN 1
-							ELSE 0
-						END AS done_and_not_in_workflow
-					FROM vr_results AS r
-					GROUP BY r.user_id, r.type, r.node_id, r.node_type_id
-				) AS u
-			GROUP BY u.user_id, u.type, u.node_type_id
-		) AS a
-		ON a.user_id = x.user_id AND a.type = x.type AND 
-			((a.node_type_id IS NULL AND x.node_type_id IS NULL) OR (a.node_type_id = x.node_type_id))
-
-	UPDATE vr_results
-		SET SubType = WFState
-	WHERE type = N'WorkFlow' 
-
-	SELECT	r.type, 
-			r.subtype, 
-			r.node_type_id, 
-			MAX(r.node_type) AS node_type,
-			COALESCE(MAX(CASE WHEN COALESCE(r.done, FALSE) = 0 THEN r.send_date ELSE NULL END),
-				MAX(CASE WHEN r.done = TRUE THEN r.send_date ELSE NULL END)) AS date_of_effect, -- تاریخ موثر
-			COUNT(CASE WHEN COALESCE(r.done, FALSE) = 0 AND COALESCE(r.seen, 0) = 0 THEN r.node_id ELSE NULL END) AS not_seen, -- منتظر اقدام و دیده نشده
-			COUNT(CASE WHEN COALESCE(r.done, FALSE) = 0 THEN r.node_id ELSE NULL END) AS to_be_done, -- منتظر اقدام
-			COUNT(CASE WHEN r.done = TRUE THEN r.node_id ELSE NULL END) AS done, -- تعداد کل اقدامات انجام شده
-			MAX(r.done_and_in_workflow) AS done_and_in_workflow, -- اقدام شده و از جریان خارج شده
-			MAX(r.done_and_not_in_workflow) AS done_and_not_in_workflow -- اقدام شده و همچنان در جریان
-	FROM vr_results AS r
-	GROUP BY r.user_id, r.type, r.subtype, r.node_type_id
-	ORDER BY DateOfEffect DESC
-END;
-
-
-DROP PROCEDURE IF EXISTS ntfn_p_get_dashboards_count;
-
-CREATE PROCEDURE ntfn_p_get_dashboards_count
-	vr_application_id	UUID,
-    vr_user_id			UUID,
-    vr_node_id			UUID,
-    vr_ref_item_id		UUID,
-    vr_type			varchar(20),
-    vr_subType		varchar(20),
-    vr__result	 INTEGER output
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-	
-	SET vr__result = COALESCE(
-		(
-			SELECT COUNT(ID)
-			FROM ntfn_dashboards
-			WHERE ApplicationID = vr_application_id AND
-				(vr_user_id IS NULL OR UserID = vr_user_id) AND
-				(vr_node_id IS NULL OR NodeID = vr_node_id) AND 
-				(vr_ref_item_id IS NULL OR RefItemID = vr_ref_item_id) AND 
-				(vr_type IS NULL OR type = vr_type) AND
-				(vr_subType IS NULL OR SubType = vr_subType) AND done = FALSE AND deleted = FALSE
-		), 0
-	)
-END;
-
-
-DROP PROCEDURE IF EXISTS ntfn_get_dashboards;
-
-CREATE PROCEDURE ntfn_get_dashboards
-	vr_application_id		UUID,
-	vr_user_id				UUID,
-	vr_nodeTypeID			UUID,
-	vr_node_id				UUID,
-	vr_nodeAdditionalID	varchar(50),
-	vr_type				varchar(50),
-	vr_subType		 VARCHAR(500),
-	vr_doneState		 BOOLEAN,
-	vr_date_from		 TIMESTAMP,
-	vr_date_to			 TIMESTAMP,
-	vr_searchText		 VARCHAR(500),
-	vr_get_distinct_items BOOLEAN,
-	vr_inWorkFlowState BOOLEAN,
-	vr_lower_boundary	 INTEGER,
-	vr_count			 INTEGER
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-	
-	IF vr_node_id IS NOT NULL SET vr_nodeTypeID = NULL
-	IF vr_node_id IS NOT NULL OR vr_nodeAdditionalID = N'' SET vr_nodeAdditionalID = NULL
-
-	DECLARE vr_results TABLE (SeenOrder INTEGER, ID bigint, UserID UUID, 
-		NodeID UUID, NodeAdditionalID varchar(50), NodeName VARCHAR(255), 
-		NodeTypeID UUID, NodeType VARCHAR(255), type varchar(50), 
-		SubType VARCHAR(500), WFState VARCHAR(1000),
-		Info VARCHAR(1000), Removable BOOLEAN, SenderUserID UUID, SendDate TIMESTAMP, 
-		ExpirationDate TIMESTAMP, Seen BOOLEAN, ViewDate TIMESTAMP, Done BOOLEAN, ActionDate TIMESTAMP, 
-		InWorkFlow BOOLEAN, DoneAndInWorkFlow INTEGER, DoneAndNotInWorkFlow INTEGER)
-
-
-	INSERT INTO vr_results (SeenOrder, ID, UserID, NodeID, NodeAdditionalID, NodeName, 
-		NodeTypeID, NodeType, type, SubType, WFState, Info, Removable, SenderUserID, SendDate, 
-		ExpirationDate, Seen, ViewDate, Done, ActionDate)
-	SELECT
-		CASE WHEN d.seen = 0 THEN 0 ELSE 1 END AS seen_order,
-		d.id, 
-		d.user_id, 
-		d.node_id, 
-		nd.node_additional_id, 
-		COALESCE(nd.node_name, q.title) AS node_name,
-		nd.node_type_id,
-		nd.type_name AS node_type, 
-		d.type, 
-		d.subtype, 
-		nd.wf_state,
-		d.info, 
-		d.removable,
-		d.sender_user_id, 
-		d.send_date, 
-		d.expiration_date,
-		d.seen, 
-		d.view_date, 
-		d.done, 
-		d.action_date
-	FROM ntfn_dashboards AS d
-		LEFT JOIN cn_view_nodes_normal AS nd
-		ON nd.application_id = vr_application_id AND 
-			nd.node_id = d.node_id AND nd.deleted = FALSE
-		LEFT JOIN qa_questions AS q
-		ON q.application_id = vr_application_id AND 
-			q.question_id = d.node_id AND q.deleted = FALSE
-	WHERE d.application_id = vr_application_id AND d.deleted = FALSE AND
-		(nd.node_id IS NOT NULL OR q.question_id IS NOT NULL) AND
-		(vr_user_id IS NULL OR d.user_id = vr_user_id) AND 
-		(vr_node_id IS NULL OR d.node_id = vr_node_id) AND
-		(vr_nodeTypeID IS NULL OR nd.node_type_id = vr_nodeTypeID) AND
-		(vr_nodeAdditionalID IS NULL OR nd.node_additional_id = vr_nodeAdditionalID) AND
-		(vr_type IS NULL OR d.type = vr_type)
-			
-			
-	-- Remove Invalid WorkFlow Items
-	IF COALESCE(vr_type, N'') = N'' OR vr_type = N'WorkFlow' BEGIN
-		DELETE R
-		FROM vr_results AS r
-			LEFT JOIN wf_workflow_owners AS wo
-			ON wo.application_id = vr_application_id AND wo.node_type_id = r.node_type_id AND wo.deleted = FALSE
-			LEFT JOIN cn_services AS s
-			ON s.application_id = vr_application_id AND s.node_type_id = r.node_type_id
-		WHERE r.node_type_id IS NOT NULL AND r.type = N'WorkFlow' AND 
-			(wo.workflow_id IS NULL OR s.is_knowledge = TRUE)
-	END
-	-- end of Remove Invalid WorkFlow Items
-
-
-	-- Remove Invalid Knowledge Items
-	IF COALESCE(vr_type, N'') = N'' OR vr_type = N'Knowledge' BEGIN
-		DELETE R
-		FROM vr_results AS r
-			LEFT JOIN cn_services AS s
-			ON s.application_id = vr_application_id AND s.node_type_id = r.node_type_id
-		WHERE r.node_type_id IS NOT NULL AND r.type = N'Knowledge' AND COALESCE(s.is_knowledge, FALSE) = 0
-	END
-	-- end of Remove Invalid Knowledge Items
-
-
-	-- Remove Invalid Wiki Items
-	IF COALESCE(vr_type, N'') = N'' OR vr_type = N'Wiki' BEGIN
-		DELETE R
-		FROM vr_results AS r
-			LEFT JOIN cn_extensions AS s
-			ON s.application_id = vr_application_id AND s.owner_id = r.node_type_id AND 
-				s.extension = N'Wiki' AND s.deleted = FALSE
-		WHERE r.node_type_id IS NOT NULL AND r.type = N'Wiki' AND s.owner_id IS NULL
-	END
-	-- end of Remove Invalid Wiki Items
-	
-	
-	IF COALESCE(vr_searchText, N'') <> N'' BEGIN
-		IF vr_type = N'Wiki' OR vr_type = N'WorkFlow' OR vr_type = N'Knowledge' OR vr_type = N'MembershipRequest' BEGIN
-			DELETE R
-			FROM vr_results AS r
-				LEFT JOIN CONTAINSTABLE(cn_nodes, (name), vr_searchText) AS srch
-				ON srch.key = r.node_id
-			WHERE srch.key IS NULL
-		END
-		ELSE IF vr_type = N'Question' BEGIN
-			DELETE R
-			FROM vr_results AS r
-				LEFT JOIN CONTAINSTABLE(qa_questions, (title), vr_searchText) AS srch
-				ON srch.key = r.node_id
-			WHERE srch.key IS NULL
-		END
-	END
-	
-
-	IF COALESCE(vr_get_distinct_items, 0) = 1 BEGIN
-		IF vr_inWorkFlowState IS NOT NULL BEGIN
-			UPDATE R
-				SET InWorkFlow = 1
-			FROM vr_results AS r
-				INNER JOIN ntfn_dashboards AS d
-				ON d.application_id = vr_application_id AND 
-					d.node_id = r.node_id AND d.type = r.type AND d.done = FALSE AND d.deleted = FALSE AND COALESCE(d.removable, 0) = 0
-			WHERE r.node_id IS NOT NULL AND r.type IN (N'WorkFlow', N'Knowledge')
-		END
-		
-		SELECT TOP(COALESCE(vr_count, 50))
-			(x.row_number + x.rev_row_number - 1) AS total_count,
-			x.node_id AS id
+	;WITH Y AS (
+		SELECT *
 		FROM (
-				SELECT	ROW_NUMBER() OVER (ORDER BY ref.send_date DESC, ref.node_id DESC) AS row_number,
-						ROW_NUMBER() OVER (ORDER BY ref.send_date ASC, ref.node_id ASC) AS rev_row_number,
-						ref.node_id
-				FROM (
-						SELECT	r.node_id, 
-								MAX(r.send_date) AS send_date, 
-								MAX(CAST(r.in_workflow AS integer)) AS in_workflow
-						FROM vr_results AS r
-						WHERE r.node_id IS NOT NULL AND r.done = TRUE
-						GROUP BY r.node_id
-					) AS ref
-				WHERE vr_inWorkFlowState IS NULL OR
-					(vr_inWorkFlowState = 0 AND COALESCE(ref.in_workflow, 0) = 0) OR
-					(vr_inWorkFlowState = 1 AND COALESCE(ref.in_workflow, 0) = 1)
-			) AS x
-		WHERE x.row_number >= COALESCE(vr_lower_boundary, 0)
-		ORDER BY x.row_number ASC
-	END -- end of 'IF vr_inWorkFlowState IS NOT NULL BEGIN'
-	ELSE BEGIN
-		SELECT TOP(COALESCE(vr_count, 50)) 
-			(x.row_number + x.rev_row_number - 1) AS total_count,
-			x.*
-		FROM (
-				SELECT	ROW_NUMBER() OVER (ORDER BY r.seen_order ASC, r.send_date DESC, r.id DESC) AS row_number,
-						ROW_NUMBER() OVER (ORDER BY r.seen_order DESC, r.send_date ASC, r.id ASC) AS rev_row_number,
-						r.*
-				FROM vr_results AS r
-				WHERE (vr_doneState IS NULL OR COALESCE(r.done, FALSE) = vr_doneState) AND
-					(vr_date_from IS NULL OR r.send_date >= vr_date_from) AND
-					(vr_date_to IS NULL OR r.send_date < vr_date_to) AND
-					(vr_subType IS NULL OR r.subtype = vr_subType OR r.wf_state = vr_subType)
-			) AS x
-		WHERE x.row_number >= COALESCE(vr_lower_boundary, 0)
-		ORDER BY x.row_number ASC
-	END
-END;
-
-
-DROP PROCEDURE IF EXISTS ntfn_p_dashboard_exists;
-
-CREATE PROCEDURE ntfn_p_dashboard_exists
-	vr_application_id		UUID,
-    vr_user_id				UUID,
-	vr_node_id				UUID,
-	vr_dashboard_type		varchar(20),
-	vr_subType			varchar(20),
-	vr_seen			 BOOLEAN,
-	vr_done			 BOOLEAN,
-	vr_lower_date_limit	 TIMESTAMP,
-	vr_upper_date_limit	 TIMESTAMP,
-	vr__result		 INTEGER output
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-	
-	SET vr__result = -1
-	
-	SELECT vr__result = 1
-	WHERE EXISTS (
-		SELECT TOP(1) ID
-		FROM ntfn_dashboards
-		WHERE ApplicationID = vr_application_id AND 
-			(vr_user_id IS NULL OR UserID = vr_user_id) AND
-			(vr_node_id IS NULL OR NodeID = vr_node_id) AND
-			(vr_dashboard_type IS NULL OR type = vr_dashboard_type) AND
-			(vr_subType IS NULL OR SubType = vr_subType) AND
-			(vr_seen IS NULL OR Seen = vr_seen) AND
-			(vr_done IS NULL OR Done = vr_done) AND
-			(vr_lower_date_limit IS NULL OR SendDate >= vr_lower_date_limit) AND
-			(vr_upper_date_limit IS NULL OR SendDate <= vr_upper_date_limit) AND deleted = FALSE
+				SELECT  ROW_NUMBER() OVER (PARTITION BY md.message_id ORDER BY md.id DESC) AS row_number, 
+						ROW_NUMBER() OVER (PARTITION BY md.message_id ORDER BY md.id ASC) AS rev_row_number,
+						md.message_id, md.user_id
+				FROM vr_messageIDs AS r
+					INNER JOIN msg_message_details AS md
+					ON md.message_id = r.value
+				WHERE md.application_id = vr_application_id AND md.is_sender = FALSE
+			) AS ref
+		WHERE ref.row_number > COALESCE(vr_last_id, 0) AND ref.row_number <= (COALESCE(vr_last_id, 0) + COALESCE(vr_count, 3))
 	)
+	SELECT	y.message_id, 
+			y.user_id, 
+			un.username, 
+			un.first_name, 
+			un.last_name,
+			y.rev_row_number
+	FROM Y
+		INNER JOIN users_normal AS un
+		ON un.application_id = vr_application_id AND un.user_id = y.user_id
 END;
 
 
-DROP PROCEDURE IF EXISTS ntfn_dashboard_exists;
+DROP PROCEDURE IF EXISTS msg_get_forwarded_messages;
 
-CREATE PROCEDURE ntfn_dashboard_exists
-	vr_application_id		UUID,
-    vr_user_id				UUID,
-	vr_node_id				UUID,
-	vr_dashboard_type		varchar(20),
-	vr_subType			varchar(20),
-	vr_seen			 BOOLEAN,
-	vr_done			 BOOLEAN,
-	vr_lower_date_limit	 TIMESTAMP,
-	vr_upper_date_limit	 TIMESTAMP
+CREATE PROCEDURE msg_get_forwarded_messages
+	vr_application_id	UUID,
+	vr_messageID		UUID
 WITH ENCRYPTION
 AS
 BEGIN
 	SET NOCOUNT ON
 	
-	DECLARE vr__result INTEGER
+	DECLARE vr_hierarchy_messages AS table (
+		MessageID UUID,
+		IsGroup BOOLEAN,
+		ForwardedFrom UUID,
+		level INTEGER
+	)
 	
-	EXEC ntfn_p_dashboard_exists vr_application_id, vr_user_id, vr_node_id, vr_dashboard_type, 
-		vr_subType, vr_seen, vr_done, vr_lower_date_limit, vr_upper_date_limit, vr__result output
+	;WITH hierarchy (MessageID, ForwardedFrom, level)
+ AS 
+	(
+		SELECT m.message_id AS message_id, ForwardedFrom, 0 AS level
+		FROM msg_messages AS m
+		WHERE m.application_id = vr_application_id AND MessageID = vr_messageID
 		
-	SELECT vr__result
+		UNION ALL
+		
+		SELECT m.message_id AS message_id, m.forwarded_from , level + 1
+		FROM msg_messages AS m
+			INNER JOIN hierarchy AS hr
+			ON m.message_id = hr.forwarded_from
+		WHERE m.application_id = vr_application_id AND m.message_id <> hr.message_id
+	)
+	INSERT INTO vr_hierarchy_messages(
+		MessageID, 
+		IsGroup, 
+		ForwardedFrom, 
+		level
+	)
+	SELECT 
+		ref.message_id AS message_id, 
+		md.is_group, 
+		ref.forwarded_from,
+		ref.level
+	FROM (
+			SELECT hm.message_id, hm.forwarded_from, hm.level , MAX(md.id) AS id
+			FROM hierarchy AS hm
+				INNER JOIN msg_message_details AS md
+				ON md.application_id = vr_application_id AND md.message_id = hm.message_id
+			GROUP BY hm.message_id, hm.forwarded_from, hm.level
+		) AS ref
+		INNER JOIN msg_message_details AS md
+		ON md.application_id = vr_application_id AND md.id = ref.id
+	
+	SELECT 
+		m.message_id,
+		m.message_text,
+		m.title,
+		m.send_date,
+		m.has_attachment,
+		h.forwarded_from,
+		h.level,
+		h.is_group,
+		m.sender_user_id,
+		un.username AS sender_username,
+		un.first_name AS sender_first_name,
+		un.last_name AS sender_last_name
+	FROM vr_hierarchy_messages AS h
+		INNER JOIN msg_messages AS m
+		ON m.application_id = vr_application_id AND m.message_id = h.message_id
+		INNER JOIN users_normal AS un
+		ON un.application_id = vr_application_id AND un.user_id = m.sender_user_id
+	ORDER BY h.level ASC
 END;
 
--- end of Dashboard Procedures
-
-
--- Message Template Procedures
-
-DROP PROCEDURE IF EXISTS ntfn_set_message_template;
-
-CREATE PROCEDURE ntfn_set_message_template
-	vr_application_id		UUID,
-	vr_templateID			UUID,
-	vr_owner_id			UUID,
-	vr_bodyText		 VARCHAR(4000),
-	vr_audienceType		varchar(20),
-	vr_audienceRefOwnerID	UUID,
-	vr_audienceNodeID		UUID,
-	vr_audienceNodeAdmin BOOLEAN,
-	vr_creator_user_id		UUID,
-	vr_creation_date	 TIMESTAMP
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-	
-	IF EXISTS(
-		SELECT TOP(1) * 
-		FROM ntfn_message_templates 
-		WHERE ApplicationID = vr_application_id AND TemplateID = vr_templateID
-	) BEGIN
-		UPDATE ntfn_message_templates
-			SET	BodyText = gfn_verify_string(vr_bodyText),
-				AudienceType = vr_audienceType,
-				AudienceRefOwnerID = vr_audienceRefOwnerID,
-				AudienceNodeID = vr_audienceNodeID,
-				AudienceNodeAdmin = COALESCE(vr_audienceNodeAdmin, 0),
-				LastModifierUserID = vr_creator_user_id,
-				LastModificationDate = vr_creation_date
-		WHERE ApplicationID = vr_application_id AND TemplateID = vr_templateID
-	END
-	ELSE BEGIN
-		INSERT INTO ntfn_message_templates(
-			ApplicationID,
-			TemplateID,
-			OwnerID,
-			BodyText,
-			AudienceType,
-			AudienceRefOwnerID,
-			AudienceNodeID,
-			AudienceNodeAdmin,
-			CreatorUserID,
-			CreationDate,
-			Deleted
-		)
-		VALUES(
-			vr_application_id,
-			vr_templateID,
-			vr_owner_id,
-			gfn_verify_string(vr_bodyText),
-			vr_audienceType,
-			vr_audienceRefOwnerID,
-			vr_audienceNodeID,
-			COALESCE(vr_audienceNodeAdmin, 0),
-			vr_creator_user_id,
-			vr_creation_date,
-			0
-		)
-	END
-	
-	SELECT @vr_rowcount
-END;
-
-
-DROP PROCEDURE IF EXISTS ntfn_arithmetic_delete_message_template;
-
-CREATE PROCEDURE ntfn_arithmetic_delete_message_template
-	vr_application_id			UUID,
-	vr_templateID				UUID,
-	vr_last_modifier_user_id		UUID,
-	vr_last_modification_date TIMESTAMP
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-	
-	UPDATE ntfn_message_templates
-		SET deleted = TRUE,
-			LastModifierUserID = vr_last_modifier_user_id,
-			LastModificationDate = vr_last_modification_date
-	WHERE ApplicationID = vr_application_id AND TemplateID = vr_templateID
-	
-	SELECT @vr_rowcount
-END;
-
-
-DROP PROCEDURE IF EXISTS ntfn_p_get_owner_message_templates;
-
-CREATE PROCEDURE ntfn_p_get_owner_message_templates
-	vr_application_id	UUID,
-	vr_owner_idsTemp	GuidTableType readonly
-WITH ENCRYPTION, RECOMPILE
-AS
-BEGIN
-	SET NOCOUNT ON
-	
-	DECLARE vr_owner_ids GuidTableType
-	INSERT INTO vr_owner_ids SELECT * FROM vr_owner_idsTemp
-	
-	SELECT mt.template_id,
-		   mt.owner_id,
-		   mt.body_text,
-		   mt.audience_type,
-		   mt.audience_ref_owner_id,
-		   mt.audience_node_id,
-		   nd.node_name AS audience_node_name,
-		   nd.node_type_id AS audience_node_type_id,
-		   nd.type_name AS audience_node_type,
-		   mt.audience_node_admin
-	FROM vr_owner_ids AS ref
-		INNER JOIN ntfn_message_templates AS mt
-		ON mt.owner_id = ref.value
-		LEFT JOIN cn_view_nodes_normal AS nd
-		ON nd.application_id = vr_application_id AND nd.node_id = mt.audience_node_id
-	WHERE mt.application_id = vr_application_id AND mt.deleted = FALSE
-END;
-
-
-DROP PROCEDURE IF EXISTS ntfn_get_owner_message_templates;
-
-CREATE PROCEDURE ntfn_get_owner_message_templates
-	vr_application_id	UUID,
-	vr_strOwnerIDs	varchar(max),
-	vr_delimiter		char
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-	
-	DECLARE vr_owner_ids GuidTableType
-	INSERT INTO vr_owner_ids
-	SELECT ref.value FROM gfn_str_to_guid_table(vr_strOwnerIDs, vr_delimiter) AS ref
-	
-	EXEC ntfn_p_get_owner_message_templates vr_application_id, vr_owner_ids
-END;
-
--- end of Message Template Procedures
-
-
--- Notification Messages (EMail & SMS)
-
-DROP PROCEDURE IF EXISTS ntfn_get_notification_messages_info;
-
-CREATE PROCEDURE ntfn_get_notification_messages_info
-	vr_application_id		UUID,
-	vr_ref_app_id			UUID,
-	vr_user_status_pair_temp GuidStringTableType readOnly,
-    vr_subjectType		VARCHAR(50),
-	vr_action				VARCHAR(50)
-WITH ENCRYPTION, RECOMPILE
-AS
-BEGIN
-	SET NOCOUNT ON
-	
-	DECLARE vr_user_status_pair GuidStringTableType
-	INSERT INTO vr_user_status_pair SELECT * FROM vr_user_status_pair_temp
-
-	SELECT	ust.first_value AS user_id, 
-			mt.media,
-			mt.lang,
-			mt.subject,
-			mt.text
-	FROM vr_user_status_pair AS ust
-		INNER JOIN ntfn_user_messaging_activation AS so
-		ON so.application_id = vr_application_id AND so.user_id = ust.first_value
-		RIGHT JOIN ntfn_notification_message_templates AS mt
-		ON mt.application_id = COALESCE(vr_ref_app_id, vr_application_id) AND mt.user_status = ust.second_value AND 
-			mt.action = so.action AND mt.subject_type = so.subject_type AND 
-			mt.media = so.media AND mt.lang = so.lang
-	WHERE mt.application_id = COALESCE(vr_ref_app_id, vr_application_id) AND 
-		mt.action = vr_action AND mt.subject_type = vr_subjectType AND 
-		mt.enable = 1 AND COALESCE(so.enable, 1) = 1 
-END;
-
-
-DROP PROCEDURE IF EXISTS ntfn_set_user_messaging_activation;
-
-CREATE PROCEDURE ntfn_set_user_messaging_activation
-	vr_application_id			UUID,
-	vr_option_id				UUID,
-	vr_user_id					UUID,
-	vr_last_modifier_user_id		UUID,
-	vr_last_modification_date TIMESTAMP,
-	vr_subjectType			VARCHAR(50),
-	vr_user_status				VARCHAR(50),
-	vr_action					VARCHAR(50),
-	vr_media					VARCHAR(50),
-	vr_lang					VARCHAR(50),
-	vr_enable				 BOOLEAN
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-
-	IF(EXISTS(
-		SELECT * 
-		FROM ntfn_user_messaging_activation
-		WHERE ApplicationID = vr_application_id AND OptionID = vr_option_id
-	))BEGIN
-		UPDATE ntfn_user_messaging_activation
-			SET LastModifierUserId = vr_last_modifier_user_id,
-				LastModificationDate = vr_last_modification_date,
-				enable = vr_enable
-		WHERE ApplicationID = vr_application_id AND OptionID = vr_option_id
-	END
-	ELSE BEGIN
-		INSERT INTO ntfn_user_messaging_activation(
-			ApplicationID,
-			OptionID,
-			UserID,
-			SubjectType,
-			UserStatus,
-			action,
-			Media,
-			lang,
-			enable
-		)
-		VALUES(
-			vr_application_id,
-			vr_option_id,
-			vr_user_id,
-			vr_subjectType,
-			vr_user_status,
-			vr_action,
-			vr_media,
-			vr_lang,
-			vr_enable
-		)
-	END
-	
-	SELECT @vr_rowcount
-END;
-
-
-DROP PROCEDURE IF EXISTS ntfn_get_notification_message_templates_info;
-
-CREATE PROCEDURE ntfn_get_notification_message_templates_info
-	vr_application_id	UUID
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-	
-	SELECT	template_id,
-			subject_type,
-			action,
-			media,
-			UserStatus,
-			lang,
-			subject,
-			text,
-			enable
-	FROM ntfn_notification_message_templates
-	WHERE ApplicationID = vr_application_id
-END;
-
-
-DROP PROCEDURE IF EXISTS ntfn_get_user_messaging_activation;
-
-CREATE PROCEDURE ntfn_get_user_messaging_activation
-	vr_application_id	UUID,
-	vr_ref_app_id		UUID,
-	vr_user_id			UUID
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-	
-	SELECT
-		uma.option_id,
-		CASE
-			WHEN uma.subject_type IS NULL THEN nmt.subject_type
-			ELSE uma.subject_type
-		END AS subject_type,
-		uma.user_id,
-		CASE
-			WHEN uma.user_status IS NULL THEN nmt.user_status
-			ELSE uma.user_status
-		END AS user_status,
-		CASE
-			WHEN uma.action IS NULL THEN nmt.action
-			ELSE uma.action
-		END AS action,
-		CASE
-			WHEN uma.media IS NULL THEN nmt.media
-			ELSE uma.media
-		END AS media,
-		CASE
-			WHEN uma.lang IS NULL THEN nmt.lang
-			ELSE uma.lang
-		END AS lang,
-		uma.enable,
-		nmt.enable AS admin_enable
-	FROM ntfn_user_messaging_activation AS uma
-		FULL OUTER JOIN ntfn_notification_message_templates AS nmt
-		ON uma.application_id = vr_application_id AND nmt.application_id = COALESCE(vr_ref_app_id, vr_application_id) AND 
-			uma.user_id = vr_user_id AND nmt.action = uma.action AND 
-			nmt.lang = uma.lang AND nmt.media = uma.media AND 
-			nmt.subject_type = uma.subject_type AND nmt.user_status = uma.user_status
-	WHERE uma.application_id = vr_application_id AND 
-		nmt.application_id = COALESCE(vr_ref_app_id, vr_application_id) AND 
-		uma.user_id IS NULL OR uma.user_id = vr_user_id
-END;
-
-
-DROP PROCEDURE IF EXISTS ntfn_set_admin_messaging_activation;
-
-CREATE PROCEDURE ntfn_set_admin_messaging_activation
-	vr_application_id			UUID,
-	vr_templateID				UUID,
-	vr_last_modifier_user_id		UUID,
-	vr_last_modification_date TIMESTAMP,
-	vr_subjectType			VARCHAR(50),
-	vr_action					VARCHAR(50),
-	vr_media					VARCHAR(50),
-	vr_user_status				VARCHAR(50),
-	vr_lang					VARCHAR(50),
-	vr_enable				 BOOLEAN
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-
-	IF(EXISTS(
-		SELECT * 
-		FROM ntfn_notification_message_templates
-		WHERE ApplicationID = vr_application_id AND TemplateID = vr_templateID
-	))BEGIN
-		UPDATE ntfn_notification_message_templates
-			SET LastModifierUserId = vr_last_modifier_user_id,
-				LastModificationDate = vr_last_modification_date,
-				enable = vr_enable
-		WHERE ApplicationID = vr_application_id AND TemplateID = vr_templateID
-	END
-	ELSE BEGIN
-		INSERT INTO ntfn_notification_message_templates(
-			ApplicationID,
-			TemplateID,
-			SubjectType,
-			action,
-			Media,
-			UserStatus,
-			lang,
-			enable
-		)
-		VALUES(
-			vr_application_id,
-			vr_templateID,
-			vr_subjectType,
-			vr_action,
-			vr_media,
-			vr_user_status,
-			vr_lang,
-			1
-		)
-	END
-	SELECT @vr_rowcount
-END;
-
-
-DROP PROCEDURE IF EXISTS ntfn_set_notification_message_template_text;
-
-CREATE PROCEDURE ntfn_set_notification_message_template_text
-	vr_application_id			UUID,
-	vr_templateID				UUID,
-	vr_last_modifier_user_id		UUID,
-	vr_last_modification_date TIMESTAMP,
-	vr_subject				NVARCHAR (512),
-	vr_text					NVARCHAR (max)
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-
-	UPDATE ntfn_notification_message_templates
-		SET LastModifierUserId = vr_last_modifier_user_id,
-			LastModificationDate = vr_last_modification_date,
-			subject = vr_subject,
-			text = vr_text
-	WHERE ApplicationID = vr_application_id AND TemplateID = vr_templateID
-	
-	SELECT @vr_rowcount
-END;
-
--- end of Notification Messages (EMail & SMS)
 
 DROP PROCEDURE IF EXISTS wf_p_send_dashboards;
 
@@ -4999,857 +4465,6 @@ BEGIN
 		ON h.application_id = vr_application_id AND h.history_id = hfi.history_id
 	WHERE fi.application_id = vr_application_id AND fi.instance_id = vr_formInstanceID
 END;
-
-DROP PROCEDURE IF EXISTS lg_save_log;
-
-CREATE PROCEDURE lg_save_log
-	vr_application_id		UUID,
-	vr_user_id				UUID,
-	vr_host_address		varchar(100),
-	vr_host_name		 VARCHAR(255),
-	vr_action				varchar(100),
-	vr_level				varchar(20),
-	vr_not_authorized	 BOOLEAN,
-	vr_strSubjectIDs		varchar(max),
-	vr_delimiter			char,
-	vr_secondSubjectID	UUID,
-	vr_third_subject_id		UUID,
-	vr_fourth_subject_id	UUID,
-	vr_date			 TIMESTAMP,
-	vr_info			 VARCHAR(max),
-	vr_module_identifier	varchar(20)
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-	
-	DECLARE vr_subjectIDs GuidTableType
-	INSERT INTO vr_subjectIDs
-	SELECT ref.value FROM gfn_str_to_guid_table(vr_strSubjectIDs, vr_delimiter) AS ref
-
-	INSERT INTO lg_logs(
-		ApplicationID,
-		UserID,
-		HostAddress,
-		HostName,
-		action,
-		level,
-		NotAuthorized,
-		SubjectID,
-		SecondSubjectID,
-		ThirdSubjectID,
-		FourthSubjectID,
-		date,
-		Info,
-		ModuleIdentifier
-	)
-	SELECT vr_application_id, vr_user_id, vr_host_address, vr_host_name, vr_action, vr_level, vr_not_authorized, ref.value, 
-		vr_secondSubjectID, vr_third_subject_id, vr_fourth_subject_id, vr_date, vr_info, vr_module_identifier
-	FROM vr_subjectIDs AS ref
-	
-	SELECT @vr_rowcount
-END;
-
-
-DROP PROCEDURE IF EXISTS lg_p_get_logs;
-
-CREATE PROCEDURE lg_p_get_logs
-	vr_application_id	UUID,
-    vr_user_idsTemp	GuidTableType readonly,
-    vr_actionsTemp	StringTableType readonly,
-    vr_beginDate	 TIMESTAMP,
-    vr_finish_date	 TIMESTAMP,
-    vr_last_id			bigint,
-    vr_count		 INTEGER
-WITH ENCRYPTION, RECOMPILE
-AS
-BEGIN
-	SET NOCOUNT ON
-	
-	DECLARE vr_user_ids GuidTableType
-	INSERT INTO vr_user_ids SELECT * FROM vr_user_idsTemp
-	
-    DECLARE vr_actions StringTableType
-    INSERT INTO vr_actions SELECT * FROM vr_actionsTemp
-	
-	DECLARE vr_actionsCount INTEGER = (SELECT COUNT(*) FROM vr_actions)
-	DECLARE vr_usersCount INTEGER = (SELECT COUNT(*) FROM vr_user_ids)
-	SET vr_count = COALESCE(vr_count, 100)
-	
-	IF vr_usersCount = 0 BEGIN
-		SELECT TOP(vr_count) 
-			lg.log_id,
-			lg.user_id,
-			un.username,
-			un.first_name,
-			un.last_name,
-			lg.host_address,
-			lg.host_name,
-			lg.action,
-			lg.date,
-			lg.info,
-			lg.module_identifier
-		FROM lg_logs AS lg
-			LEFT JOIN usr_view_users AS un
-			ON un.user_id = lg.user_id
-		WHERE (vr_application_id IS NULL OR lg.application_id = vr_application_id) AND
-			(vr_last_id IS NULL OR LogID > vr_last_id) AND
-			(vr_finish_date IS NULL OR lg.date < vr_finish_date) AND
-			(vr_beginDate IS NULL OR lg.date > vr_beginDate) AND
-			(vr_actionsCount = 0 OR lg.action IN (SELECT * FROM vr_actions))
-		ORDER BY lg.log_id DESC
-	END
-	ELSE BEGIN
-		SELECT TOP(vr_count)
-			lg.log_id,
-			lg.user_id,
-			un.username,
-			un.first_name,
-			un.last_name,
-			lg.host_address,
-			lg.host_name,
-			lg.action,
-			lg.date,
-			lg.info,
-			lg.module_identifier
-		FROM vr_user_ids AS usr
-			INNER JOIN lg_logs AS lg
-			ON (vr_application_id IS NULL OR lg.application_id = vr_application_id) AND
-				lg.user_id = usr.value
-			LEFT JOIN usr_view_users AS un
-			ON un.user_id = lg.user_id
-		WHERE (vr_last_id IS NULL OR LogID > vr_last_id) AND
-			(vr_finish_date IS NULL OR lg.date < vr_finish_date) AND
-			(vr_beginDate IS NULL OR lg.date > vr_beginDate) AND
-			(vr_actionsCount = 0 OR lg.action IN (SELECT * FROM vr_actions))
-		ORDER BY lg.log_id DESC
-	END
-END;
-
-
-DROP PROCEDURE IF EXISTS lg_get_logs;
-
-CREATE PROCEDURE lg_get_logs
-	vr_application_id	UUID,
-    vr_strUserIDs 	varchar(max),
-    vr_strActions		varchar(max),
-    vr_delimiter		char,
-    vr_beginDate	 TIMESTAMP,
-    vr_finish_date	 TIMESTAMP,
-    vr_last_id			bigint,
-    vr_count		 INTEGER
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-	
-	DECLARE vr_user_ids GuidTableType
-	INSERT INTO vr_user_ids
-	SELECT ref.value FROM gfn_str_to_guid_table(vr_strUserIDs, vr_delimiter) AS ref
-	
-	DECLARE vr_actions StringTableType
-	INSERT INTO vr_actions
-	SELECT ref.value FROM gfn_str_to_string_table(vr_strActions, vr_delimiter) AS ref
-	
-	EXEC lg_p_get_logs vr_application_id, vr_user_ids, 
-		vr_actions, vr_beginDate, vr_finish_date, vr_last_id, vr_count
-END;
-
-
-DROP PROCEDURE IF EXISTS lg_save_error_log;
-
-CREATE PROCEDURE lg_save_error_log
-	vr_application_id		UUID,
-	vr_user_id				UUID,
-	vr_subject			varchar(1000),
-	vr_description	 VARCHAR(2000),
-	vr_date			 TIMESTAMP,
-	vr_module_identifier	varchar(20),
-	vr_level				varchar(20)
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-
-	INSERT INTO lg_error_logs(
-		ApplicationID,
-		UserID,
-		subject,
-		description,
-		date,
-		ModuleIdentifier,
-		level
-	)
-	VALUES (
-		vr_application_id,
-		vr_user_id, 
-		vr_subject, 
-		vr_description, 
-		vr_date, 
-		vr_module_identifier,
-		vr_level
-	)
-	
-	SELECT @vr_rowcount
-END;
-
-DROP PROCEDURE IF EXISTS msg_get_threads;
-
-CREATE PROCEDURE msg_get_threads
-	vr_application_id	UUID,
-    vr_user_id			UUID,
-    vr_count		 INTEGER,
-    vr_last_id		 INTEGER
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-	
-	SELECT TOP(COALESCE(vr_count, 10))
-		d.thread_id, 
-		un.username, 
-		un.first_name, 
-		un.last_name,
-		CAST((CASE WHEN un.user_id IS NULL THEN 1 ELSE 0 END) AS boolean) AS is_group,
-		d.messages_count,
-		d.sent_count,
-		d.not_seen_count,
-		d.row_number
-	FROM (
-			SELECT ROW_NUMBER() OVER (ORDER BY ref.max_id DESC) AS row_number, ref.*
-			FROM (
-					SELECT md.thread_id, MAX(md.id) AS max_id,
-						COUNT(md.id) AS messages_count, 
-						SUM(CAST(md.is_sender AS integer)) AS sent_count,
-						SUM(
-							CAST((CASE WHEN md.is_sender = FALSE AND md.seen = 0 THEN 1 ELSE 0 END) AS integer)
-						) AS not_seen_count
-					FROM msg_message_details AS md
-					WHERE md.application_id = vr_application_id AND 
-						md.user_id = vr_user_id AND md.deleted = FALSE
-					GROUP BY md.thread_id
-				) AS ref
-		) AS d
-		LEFT JOIN users_normal AS un
-		ON un.application_id = vr_application_id AND un.user_id = d.thread_id
-	WHERE (vr_last_id IS NULL OR d.row_number > vr_last_id)
-	ORDER BY d.row_number ASC
-END;
-
-
-DROP PROCEDURE IF EXISTS msg_get_thread_info;
-
-CREATE PROCEDURE msg_get_thread_info
-	vr_application_id	UUID,
-    vr_user_id			UUID,
-    vr_thread_id		UUID
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-	
-	SELECT	COUNT(md.id) AS messages_count, 
-			SUM(CAST(md.is_sender AS integer)) AS sent_count,
-			SUM(
-				CAST((CASE WHEN md.is_sender = FALSE AND md.seen = 0 THEN 1 ELSE 0 END) AS integer)
-			) AS not_seen_count
-	FROM msg_message_details AS md
-	WHERE md.application_id = vr_application_id AND 
-		md.user_id = vr_user_id AND md.thread_id = vr_thread_id AND md.deleted = FALSE
-END;
-
-
-DROP PROCEDURE IF EXISTS msg_get_messages;
-
-CREATE PROCEDURE msg_get_messages
-	vr_application_id	UUID,
-    vr_user_id			UUID,
-    vr_thread_id		UUID,
-    vr_sent		 BOOLEAN,
-    vr_count		 INTEGER,
-    vr_min_id			BIGINT
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-	--vr_sent IS NULL --> Sent and Received Messages
-	--vr_sent IS NOT NULL --> vr_sent = 1 --> Sent Messages
-	--                  --> vr_sent = 0 --> Received Messages
-	
-	SELECT 
-		m.message_id,
-		m.title,
-		m.message_text,
-		m.send_date,
-		m.sender_user_id,
-		m.forwarded_from,
-		d.id,
-		d.is_group,
-		d.is_sender,
-		d.seen,
-		d.thread_id,
-		un.username,
-		un.first_name,
-		un.last_name,
-		m.has_attachment
-	FROM (
-			SELECT TOP(COALESCE(vr_count, 20)) *
-			FROM msg_message_details AS md
-			WHERE md.application_id = vr_application_id AND
-				(vr_min_id IS NULL OR  md.id < vr_min_id) AND 
-				md.user_id = vr_user_id AND
-				(md.thread_id IS NULL OR ThreadID = vr_thread_id) AND 
-				(vr_sent IS NULL OR IsSender = vr_sent) AND 
-				md.deleted = FALSE
-			ORDER BY md.id DESC
-		)AS D
-		INNER JOIN msg_messages AS m
-		ON m.application_id = vr_application_id AND m.message_id = d.message_id
-		INNER JOIN users_normal AS un
-		ON un.application_id = vr_application_id AND un.user_id = m.sender_user_id
-	ORDER BY d.id ASC
-END;
-
-
-DROP PROCEDURE IF EXISTS msg_has_message;
-
-CREATE PROCEDURE msg_has_message
-	vr_application_id	UUID,
-	vr_iD				BIGINT,
-    vr_user_id			UUID,
-    vr_thread_id		UUID,
-    vr_messageID		UUID
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-	
-	SELECT
-		CASE
-			WHEN EXISTS(
-				SELECT TOP(1) ID
-				FROM msg_message_details
-				WHERE ApplicationID = vr_application_id AND (vr_iD IS NULL OR ID = vr_iD) AND
-					UserID = vr_user_id AND 
-					(vr_thread_id IS NULL OR ThreadID = vr_thread_id) AND
-					(vr_messageID IS NULL OR MessageID = vr_messageID)
-			) THEN 1
-			ELSE 0
-		END
-END;
-
-
-DROP PROCEDURE IF EXISTS msg_send_new_message;
-
-CREATE PROCEDURE msg_send_new_message
-	vr_application_id		UUID,
-    vr_user_id				UUID,
-    vr_thread_id			UUID,
-    vr_messageID			UUID,
-    vr_forwarded_from		UUID,
-    vr_title			 VARCHAR(500),
-    vr_messageText	 VARCHAR(MAX),
-    vr_isGroup		 BOOLEAN,
-    vr_now			 TIMESTAMP,
-    vr_receivers_temp		GuidTableType readonly,
-    vr_attachedFilesTemp	DocFileInfoTableType readonly
-WITH ENCRYPTION, RECOMPILE
-AS
-BEGIN TRANSACTION
-	SET NOCOUNT ON
-	
-	DECLARE vr_receivers GuidTableType
-	INSERT INTO vr_receivers SELECT * FROM vr_receivers_temp
-    
-    DECLARE vr_attachedFiles DocFileInfoTableType
-    INSERT INTO vr_attachedFiles SELECT * FROM vr_attachedFilesTemp
-	
-	IF vr_isGroup IS NULL SET vr_isGroup = 0
-	
-	IF vr_thread_id IS NOT NULL BEGIN
-		SET vr_isGroup = COALESCE(
-			(
-				SELECT TOP(1) md.is_group
-				FROM msg_message_details AS md
-				WHERE md.application_id = vr_application_id AND md.thread_id = vr_thread_id
-			), vr_isGroup
-		)
-	END
-	
-	DECLARE vr_receiver_user_ids GuidTableType
-	
-	INSERT INTO vr_receiver_user_ids SELECT * FROM vr_receivers
-	
-	DECLARE vr_count INTEGER = (SELECT COUNT(*) FROM vr_receiver_user_ids)
-	
-	IF vr_count = 1 SET vr_isGroup = 0
-	
-	IF(vr_count > 1) DELETE FROM vr_receiver_user_ids WHERE Value = vr_user_id --Farzane Added
-	
-	IF (vr_thread_id IS NULL AND vr_isGroup = 0) AND vr_count = 0 BEGIN
-		SELECT -1
-		RETURN
-	END
-	
-	IF vr_thread_id IS NOT NULL AND vr_count = 0 AND 
-		EXISTS(
-			SELECT TOP(1) UserID 
-			FROM users_normal 
-			WHERE ApplicationID = vr_application_id AND UserID = vr_thread_id
-	) BEGIN
-		INSERT INTO vr_receiver_user_ids (Value)
-		VALUES (vr_thread_id)
-		
-		SET vr_count = 1
-	END
-	
-	IF vr_isGroup = 1 BEGIN
-		IF vr_count = 1 SET vr_thread_id = (SELECT TOP(1) ref.value FROM vr_receiver_user_ids AS ref)
-		ELSE IF (vr_thread_id IS NULL AND vr_count > 0) SET vr_thread_id = gen_random_uuid()
-	END
-	
-	IF vr_count = 0 BEGIN
-		INSERT INTO vr_receiver_user_ids
-		SELECT DISTINCT md.user_id 
-		FROM msg_message_details AS md
-		WHERE md.application_id = vr_application_id AND md.thread_id = vr_thread_id
-		EXCEPT (SELECT vr_user_id)
-		
-		SET vr_count = (SELECT COUNT(*) FROM vr_receiver_user_ids)
-	END
-	
-	DECLARE vr_attachmentsCount INTEGER = (SELECT COUNT(*) FROM vr_attachedFiles)
-	
-	INSERT INTO msg_messages(
-		ApplicationID,
-		MessageID,
-		Title,
-		MessageText,
-		SenderUserID,
-		SendDate,
-		ForwardedFrom,
-		HasAttachment
-	)
-	VALUES(
-		vr_application_id,
-		vr_messageID,
-		vr_title,
-		vr_messageText,
-		vr_user_id,
-		vr_now,
-		vr_forwarded_from,
-		CASE WHEN vr_attachmentsCount > 0 THEN 1 ELSE 0 END
-	)
-	
-	IF @vr_rowcount <= 0 BEGIN
-		SELECT -1
-		ROLLBACK TRANSACTION
-		RETURN
-	END
-	
-	DECLARE vr__result INTEGER
-	
-	IF vr_attachmentsCount > 0 BEGIN
-		EXEC dct_p_add_files vr_application_id, vr_messageID, 
-			N'Message', vr_attachedFiles, vr_user_id, vr_now, vr__result output
-		
-		IF vr__result <= 0 BEGIN
-			SELECT -1
-			ROLLBACK TRANSACTION
-			RETURN
-		END
-	END
-	
-	IF vr_forwarded_from IS NOT NULL BEGIN
-		EXEC dct_p_copy_attachments vr_application_id, vr_forwarded_from, 
-			vr_messageID, N'Message', vr_user_id, vr_now, vr__result output
-		
-		IF vr__result > 0 BEGIN
-			UPDATE msg_messages
-				SET HasAttachment = 1
-			WHERE ApplicationID = vr_application_id AND MessageID = vr_messageID
-		END 
-	END
-	
-	INSERT INTO msg_message_details(
-		ApplicationID,
-		UserID,
-		ThreadID,
-		MessageID,
-		Seen,
-		IsSender,
-		IsGroup,
-		Deleted
-	)
-	(
-		SELECT	TOP(CASE WHEN vr_isGroup = 1 THEN 1 ELSE 1000000000 END)
-				vr_application_id,
-				vr_user_id,
-				CASE WHEN vr_isGroup = 0 THEN r.value ELSE vr_thread_id END,
-				vr_messageID,
-				1,
-				1,
-				vr_isGroup,
-				0
-		FROM vr_receiver_user_ids AS r
-		
-		UNION ALL
-		
-		SELECT	vr_application_id,
-				r.value,
-				CASE WHEN vr_isGroup = 0 THEN vr_user_id ELSE vr_thread_id END,
-				vr_messageID,
-				0,
-				0,
-				vr_isGroup,
-				0
-		FROM vr_receiver_user_ids AS r
-	)
-	
-	IF @vr_rowcount <= 0 BEGIN
-		SELECT -1
-		ROLLBACK TRANSACTION
-		RETURN
-	END
-	
-	SELECT @vr_iDENTITY - vr_count
-COMMIT TRANSACTION;
-
-
-DROP PROCEDURE IF EXISTS msg_bulk_send_message;
-
-CREATE PROCEDURE msg_bulk_send_message
-	vr_application_id	UUID,
-    vr_messagesTemp	MessageTableType readonly,
-    vr_receivers_temp	GuidPairTableType readonly,
-    vr_now		 TIMESTAMP
-WITH ENCRYPTION, RECOMPILE
-AS
-BEGIN TRANSACTION
-	SET NOCOUNT ON
-	
-	DECLARE vr_messages MessageTableType
-	INSERT INTO vr_messages SELECT * FROM vr_messagesTemp
-    
-    DECLARE vr_receivers GuidPairTableType
-    INSERT INTO vr_receivers SELECT * FROM vr_receivers_temp
-	
-	INSERT INTO msg_messages(
-		ApplicationID,
-		MessageID,
-		Title,
-		MessageText,
-		SenderUserID,
-		SendDate,
-		HasAttachment
-	)
-	SELECT	vr_application_id,
-			m.message_id,
-			m.title,
-			m.message_text,
-			m.sender_user_id,
-			vr_now,
-			0
-	FROM vr_messages AS m
-	WHERE m.message_id IN (SELECT DISTINCT r.first_value FROM vr_receivers AS r)
-	
-	IF @vr_rowcount <= 0 BEGIN
-		SELECT -1
-		ROLLBACK TRANSACTION
-		RETURN
-	END
-	
-	INSERT INTO msg_message_details(
-		ApplicationID,
-		UserID,
-		ThreadID,
-		MessageID,
-		Seen,
-		IsSender,
-		IsGroup,
-		Deleted
-	)
-	SELECT *
-	FROM (
-			SELECT	vr_application_id AS application_id,
-					m.sender_user_id,
-					r.second_value,
-					m.message_id,
-					1 AS seen,
-					1 AS is_sender,
-					0 AS is_group,
-					0 AS deleted
-			FROM vr_messages AS m
-				INNER JOIN vr_receivers AS r
-				ON r.first_value = m.message_id
-			
-			UNION ALL
-			
-			SELECT	vr_application_id,
-					r.second_value,
-					m.sender_user_id,
-					m.message_id,
-					0,
-					0,
-					0,
-					0
-			FROM vr_messages AS m
-				INNER JOIN vr_receivers AS r
-				ON r.first_value = m.message_id
-		) AS ref
-	ORDER BY ref.is_sender DESC
-	
-	IF @vr_rowcount <= 0 BEGIN
-		SELECT -1
-		ROLLBACK TRANSACTION
-		RETURN
-	END
-	
-	SELECT @vr_iDENTITY
-COMMIT TRANSACTION;
-
-
-DROP PROCEDURE IF EXISTS msg_get_thread_users;
-
-CREATE PROCEDURE msg_get_thread_users
-	vr_application_id	UUID,
-	vr_user_id			UUID,
-    vr_strThreadIDs	VARCHAR(MAX),
-    vr_delimiter		CHAR,
-	vr_count		 INTEGER,
-	vr_last_id		 INTEGER
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-
-	DECLARE vr_thread_ids GuidTableType
-
-	INSERT INTO vr_thread_ids
-	SELECT ref.value FROM gfn_str_to_guid_table(vr_strThreadIDs, vr_delimiter) AS ref
-	
-	DECLARE vr_messageIDs GuidPairTableType
-
-	;WITH X AS (
-		SELECT md.thread_id, MIN(md.id) AS min_id
-		FROM vr_thread_ids AS t
-			INNER JOIN msg_message_details AS md
-			ON md.application_id = vr_application_id AND md.thread_id = t.value
-		GROUP BY md.thread_id
-	)
-	INSERT INTO vr_messageIDs(FirstValue, SecondValue)
-	SELECT md.thread_id, md.message_id
-	FROM X
-		INNER JOIN msg_message_details AS md
-		ON md.application_id = vr_application_id AND md.id = x.min_id
-
-	;WITH Y AS (
-		SELECT *
-		FROM (
-				SELECT  ROW_NUMBER() OVER (PARTITION BY md.thread_id ORDER BY md.id DESC) AS row_number, 
-						ROW_NUMBER() OVER (PARTITION BY md.thread_id ORDER BY md.id ASC) AS rev_row_number,
-						md.thread_id, md.user_id
-				FROM vr_messageIDs AS m
-					INNER JOIN msg_message_details AS md
-					ON md.thread_id = m.first_value AND md.message_id = m.second_value
-				WHERE md.application_id = vr_application_id AND md.user_id NOT IN (SELECT vr_user_id)
-			) AS ref
-		WHERE ref.row_number > COALESCE(vr_last_id, 0) AND ref.row_number <= (COALESCE(vr_last_id, 0) + COALESCE(vr_count, 3))
-	)
-	SELECT	y.thread_id, 
-			y.user_id, 
-			un.username, 
-			un.first_name, 
-			un.last_name,
-			y.rev_row_number
-	FROM Y
-		INNER JOIN users_normal AS un
-		ON un.application_id = vr_application_id AND un.user_id = y.user_id
-END;
-
-
-DROP PROCEDURE IF EXISTS msg_remove_messages;
-
-CREATE PROCEDURE msg_remove_messages
-	vr_application_id	UUID,
-    vr_user_id			UUID,
-    vr_thread_id		UUID,
-    vr_iD				BIGINT
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-
-	UPDATE msg_message_details
-		SET deleted = TRUE
-	WHERE ApplicationID = vr_application_id AND (vr_iD IS NOT NULL AND ID = vr_iD) OR  
-		(vr_iD IS NULL AND UserID = vr_user_id AND ThreadID = vr_thread_id)
-		
-		
-	SELECT @vr_rowcount
-END;
-
-
-DROP PROCEDURE IF EXISTS msg_set_messages_as_seen;
-
-CREATE PROCEDURE msg_set_messages_as_seen
-	vr_application_id	UUID,
-    vr_user_id			UUID,
-    vr_thread_id		UUID,
-    vr_now		 TIMESTAMP
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-
-	IF vr_user_id IS NOT NULL AND vr_thread_id IS NOT NULL BEGIN
-		UPDATE MD
-			SET Seen = 1,
-				ViewDate = COALESCE(ViewDate, vr_now)
-		FROM msg_message_details AS md
-		WHERE md.application_id = vr_application_id AND
-			md.user_id = vr_user_id AND md.thread_id = vr_thread_id AND ViewDate IS NULL
-		
-		SELECT 1
-	END
-	ELSE SELECT 0
-END;
-
-
-DROP PROCEDURE IF EXISTS msg_get_not_seen_messages_count;
-
-CREATE PROCEDURE msg_get_not_seen_messages_count
-	vr_application_id	UUID,
-    vr_user_id			UUID
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-
-	SELECT COUNT(md.id)
-	FROM msg_message_details AS md
-	WHERE md.application_id = vr_application_id AND
-		md.user_id = vr_user_id AND md.is_sender = FALSE AND md.seen = 0 AND md.deleted = FALSE
-END;
-
-
-DROP PROCEDURE IF EXISTS msg_get_message_receivers;
-
-CREATE PROCEDURE msg_get_message_receivers
-	vr_application_id	UUID,
-    vr_strMessageIDs VARCHAR(MAX),
-    vr_delimiter		CHAR,
-	vr_count		 INTEGER,
-	vr_last_id		 INTEGER
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-
-	DECLARE vr_messageIDs GuidTableType
-
-	INSERT INTO vr_messageIDs
-	SELECT ref.value FROM gfn_str_to_guid_table(vr_strMessageIDs, vr_delimiter) AS ref
-	
-	;WITH Y AS (
-		SELECT *
-		FROM (
-				SELECT  ROW_NUMBER() OVER (PARTITION BY md.message_id ORDER BY md.id DESC) AS row_number, 
-						ROW_NUMBER() OVER (PARTITION BY md.message_id ORDER BY md.id ASC) AS rev_row_number,
-						md.message_id, md.user_id
-				FROM vr_messageIDs AS r
-					INNER JOIN msg_message_details AS md
-					ON md.message_id = r.value
-				WHERE md.application_id = vr_application_id AND md.is_sender = FALSE
-			) AS ref
-		WHERE ref.row_number > COALESCE(vr_last_id, 0) AND ref.row_number <= (COALESCE(vr_last_id, 0) + COALESCE(vr_count, 3))
-	)
-	SELECT	y.message_id, 
-			y.user_id, 
-			un.username, 
-			un.first_name, 
-			un.last_name,
-			y.rev_row_number
-	FROM Y
-		INNER JOIN users_normal AS un
-		ON un.application_id = vr_application_id AND un.user_id = y.user_id
-END;
-
-
-DROP PROCEDURE IF EXISTS msg_get_forwarded_messages;
-
-CREATE PROCEDURE msg_get_forwarded_messages
-	vr_application_id	UUID,
-	vr_messageID		UUID
-WITH ENCRYPTION
-AS
-BEGIN
-	SET NOCOUNT ON
-	
-	DECLARE vr_hierarchy_messages AS table (
-		MessageID UUID,
-		IsGroup BOOLEAN,
-		ForwardedFrom UUID,
-		level INTEGER
-	)
-	
-	;WITH hierarchy (MessageID, ForwardedFrom, level)
- AS 
-	(
-		SELECT m.message_id AS message_id, ForwardedFrom, 0 AS level
-		FROM msg_messages AS m
-		WHERE m.application_id = vr_application_id AND MessageID = vr_messageID
-		
-		UNION ALL
-		
-		SELECT m.message_id AS message_id, m.forwarded_from , level + 1
-		FROM msg_messages AS m
-			INNER JOIN hierarchy AS hr
-			ON m.message_id = hr.forwarded_from
-		WHERE m.application_id = vr_application_id AND m.message_id <> hr.message_id
-	)
-	INSERT INTO vr_hierarchy_messages(
-		MessageID, 
-		IsGroup, 
-		ForwardedFrom, 
-		level
-	)
-	SELECT 
-		ref.message_id AS message_id, 
-		md.is_group, 
-		ref.forwarded_from,
-		ref.level
-	FROM (
-			SELECT hm.message_id, hm.forwarded_from, hm.level , MAX(md.id) AS id
-			FROM hierarchy AS hm
-				INNER JOIN msg_message_details AS md
-				ON md.application_id = vr_application_id AND md.message_id = hm.message_id
-			GROUP BY hm.message_id, hm.forwarded_from, hm.level
-		) AS ref
-		INNER JOIN msg_message_details AS md
-		ON md.application_id = vr_application_id AND md.id = ref.id
-	
-	SELECT 
-		m.message_id,
-		m.message_text,
-		m.title,
-		m.send_date,
-		m.has_attachment,
-		h.forwarded_from,
-		h.level,
-		h.is_group,
-		m.sender_user_id,
-		un.username AS sender_username,
-		un.first_name AS sender_first_name,
-		un.last_name AS sender_last_name
-	FROM vr_hierarchy_messages AS h
-		INNER JOIN msg_messages AS m
-		ON m.application_id = vr_application_id AND m.message_id = h.message_id
-		INNER JOIN users_normal AS un
-		ON un.application_id = vr_application_id AND un.user_id = m.sender_user_id
-	ORDER BY h.level ASC
-END;
-
 
 
 DROP PROCEDURE IF EXISTS rv_overal_report;
