@@ -1,0 +1,30 @@
+DROP TYPE IF EXISTS wf_workflow_state_ret_composite;
+
+CREATE TYPE wf_workflow_state_ret_composite AS (
+	"id"						UUID,
+	state_id					UUID,
+	workflow_id					UUID,
+	description					VARCHAR,
+	tag							VARCHAR,
+	data_needs_type				VARCHAR,
+	ref_data_needs_state_id		UUID,
+	data_needs_description		VARCHAR,
+	description_needed			BOOLEAN,
+	hide_owner_name				BOOLEAN,
+	edit_permission				BOOLEAN,
+	response_type				VARCHAR,
+	ref_state_id				UUID,
+	node_id						UUID,
+	node_name					VARCHAR,
+	node_type_id				UUID,
+	node_type					VARCHAR,
+	"admin"						BOOLEAN,
+	free_data_need_requests		BOOLEAN,
+	max_allowed_rejections		INTEGER,
+	rejection_title				VARCHAR,
+	rejection_ref_state_id		UUID,
+	rejection_ref_state_title	VARCHAR,
+	poll_id						UUID,
+	poll_name					VARCHAR,
+	total_count					INTEGER
+);
