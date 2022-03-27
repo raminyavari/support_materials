@@ -11,8 +11,8 @@ CREATE OR REPLACE FUNCTION wf_p_send_dashboards
 	vr_director_node_id			UUID,
 	vr_data_need_instance_id	UUID,
 	vr_send_date		 		TIMESTAMP,
-	INOUT vr_result				INTEGER,
-	INOUT vr_dashboards			REFCURSOR
+	OUT "result"				INTEGER,
+	OUT dashboards				REFCURSOR
 )
 AS
 $$
@@ -22,6 +22,7 @@ DECLARE
 	vr_state_title 				VARCHAR(1000);
 	vr_info 					VARCHAR;
 	vr_is_director_node_admin 	BOOLEAN;
+	vr_dash_result				REFCURSOR;
 BEGIN
 	IF vr_data_need_instance_id IS NOT NULL THEN
 		vr_only_send_data_need := TRUE;
@@ -145,29 +146,36 @@ BEGIN
 				);
 		END IF;
 		
-		vr_result := ntfn_p_arithmetic_delete_dashboards(vr_application_id, NULL, vr_node_id, NULL, 'WorkFlow', NULL);
+		SELECT 	ntfn_p_arithmetic_delete_dashboards(vr_application_id, NULL, vr_node_id, NULL, 'WorkFlow', NULL)
+		INTO 	"result";
 		
-		IF vr_result <= 0 THEN
+		IF "result" <= 0 THEN
 			RETURN;
 		END IF;
 	END IF; -- end of 'IF vr_only_send_data_need = 1 BEGIN'
 	
 	IF (SELECT COUNT(*) FROM dashboards_52385) = 0 THEN
-		vr_result := -1::INTEGER;
+		SELECT 	-1::INTEGER
+		INTO	"result";
+		
 		RETURN;
 	END IF;
 	
-	vr_result := ntfn_p_send_dashboards(
-		vr_application_id, 
-		ARRAY(
-			SELECT x 
-			FROM dashboards_52385 AS x
-		));
+	SELECT 	ntfn_p_send_dashboards(
+				vr_application_id, 
+				ARRAY(
+					SELECT x 
+					FROM dashboards_52385 AS x
+				))
+	INTO	"result";
 	
-	IF vr_result > 0 THEN
-		OPEN vr_dashboards FOR
+	IF "result" > 0 THEN
+		OPEN vr_dash_result FOR
 		SELECT * 
 		FROM dashboards_52385;
+		
+		SELECT 	vr_dash_result
+		INTO 	dashboards;
 	END IF;
 END;
 $$ LANGUAGE plpgsql;
