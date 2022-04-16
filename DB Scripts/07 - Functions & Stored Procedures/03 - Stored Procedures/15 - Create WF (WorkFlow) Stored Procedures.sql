@@ -788,6 +788,167 @@ END
 GO
 
 
+IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'[dbo].[WF_AddOrModifyWorkFlowAction]') and 
+	OBJECTPROPERTY(id, N'IsProcedure') = 1)
+DROP PROCEDURE [dbo].[WF_AddOrModifyWorkFlowAction]
+GO
+
+CREATE PROCEDURE [dbo].[WF_AddOrModifyWorkFlowAction]
+	@ApplicationID			uniqueidentifier,
+	@ActionID				uniqueidentifier,
+	@ConnectionID			uniqueidentifier,
+	@Action					varchar(50),
+	@VariableType			varchar(50),
+	@VariableName			nvarchar(255),
+	@VariableDefaultValue	nvarchar(255),
+	@Formula				nvarchar(max),
+	@CurrentUserID			uniqueidentifier,
+	@Now					datetime
+WITH ENCRYPTION, RECOMPILE
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+	DECLARE @NewSeq INT = ISNULL((
+		SELECT MAX(ISNULL(AC.SequenceNumber, 0))
+		FROM [dbo].[WF_Actions] AS AC
+		WHERE AC.ApplicationID = @ApplicationID AND AC.ConnectionID = @ConnectionID AND AC.Deleted = 0
+	), 0) + 1
+
+	IF EXISTS (
+		SELECT TOP(1) 1
+		FROM [dbo].[WF_Actions] AS AC
+		WHERE AC.ApplicationID = @ApplicationID AND AC.ID = @ActionID
+	) BEGIN
+		UPDATE AC
+		SET Deleted = 0,
+			SequenceNumber = CASE WHEN AC.Deleted = 1 THEN @NewSeq ELSE AC.SequenceNumber END,
+			[Action] = @Action,
+			VariableType = ISNULL(@VariableType, AC.VariableType),
+			VariableName = ISNULL(@VariableName, AC.VariableName),
+			VariableDefaultValue = ISNULL(@VariableDefaultValue, AC.VariableDefaultValue),
+			Formula = @Formula,
+			LastModifierUserID = @CurrentUserID,
+			LastModificationDate = @Now
+		FROM [dbo].[WF_Actions] AS AC
+		WHERE AC.ApplicationID = @ApplicationID AND AC.ID = @ActionID
+	END
+	ELSE BEGIN
+		INSERT INTO [dbo].[WF_Actions] (
+			ApplicationID,
+			ID,
+			ConnectionID,
+			[Action],
+			VariableType,
+			VariableName,
+			VariableDefaultValue,
+			Formula,
+			SequenceNumber,
+			CreatorUserID,
+			CreationDate,
+			Deleted
+		)
+		VALUES (
+			@ApplicationID, 
+			@ActionID,
+			@ConnectionID, 
+			@Action,
+			@VariableType,
+			@VariableName,
+			@VariableDefaultValue,
+			@Formula,
+			@NewSeq,
+			@CurrentUserID, 
+			@Now, 
+			0
+		)
+	END
+
+	SELECT @@ROWCOUNT
+END
+
+GO
+
+
+IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'[dbo].[WF_RemoveWorkFlowAction]') and 
+	OBJECTPROPERTY(id, N'IsProcedure') = 1)
+DROP PROCEDURE [dbo].[WF_RemoveWorkFlowAction]
+GO
+
+CREATE PROCEDURE [dbo].[WF_RemoveWorkFlowAction]
+	@ApplicationID	uniqueidentifier,
+	@ActionID		uniqueidentifier,
+	@CurrentUserID	uniqueidentifier,
+	@Now			datetime
+WITH ENCRYPTION, RECOMPILE
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+	UPDATE AC
+	SET Deleted = 1,
+		LastModifierUserID = @CurrentUserID,
+		LastModificationDate = @Now
+	FROM [dbo].[WF_Actions] AS AC
+	WHERE AC.ApplicationID = @ApplicationID AND AC.ID = @ActionID AND AC.Deleted = 0
+
+	SELECT @@ROWCOUNT
+END
+
+GO
+
+
+IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'[dbo].[WF_SetActionsOrder]') and 
+	OBJECTPROPERTY(id, N'IsProcedure') = 1)
+DROP PROCEDURE [dbo].[WF_SetActionsOrder]
+GO
+
+CREATE PROCEDURE [dbo].[WF_SetActionsOrder]
+	@ApplicationID	uniqueidentifier,
+	@ActionIDsTemp	GuidTableType readonly
+WITH ENCRYPTION, RECOMPILE
+AS
+BEGIN
+	SET NOCOUNT ON
+
+	DECLARE @ActionIDs KeyLessGuidTableType
+	INSERT INTO @ActionIDs ([Value])
+	SELECT Ref.[Value]
+	FROM @ActionIDsTemp AS Ref
+	
+	DECLARE @ConnectionID uniqueidentifier
+	
+	SELECT @ConnectionID = AC.ConnectionID
+	FROM [dbo].[WF_Actions] AS AC
+	WHERE AC.ApplicationID = @ApplicationID AND 
+		AC.ID = (SELECT TOP (1) Ref.[Value] FROM @ActionIDs AS Ref)
+	
+	IF @ConnectionID IS NULL BEGIN
+		SELECT -1
+		RETURN
+	END
+	
+	INSERT INTO @ActionIDs ([Value])
+	SELECT AC.ID
+	FROM @ActionIDs AS Ref
+		RIGHT JOIN [dbo].[WF_Actions] AS AC
+		ON AC.ID = Ref.[Value]
+	WHERE AC.ApplicationID = @ApplicationID AND AC.ConnectionID = @ConnectionID AND Ref.[Value] IS NULL
+	ORDER BY AC.SequenceNumber
+	
+	UPDATE AC
+	SET SequenceNumber = Ref.SequenceNumber
+	FROM @ActionIDs AS Ref
+		INNER JOIN [dbo].[WF_Actions] AS AC
+		ON AC.ID = Ref.[Value]
+	WHERE AC.ApplicationID = @ApplicationID AND AC.ConnectionID = @ConnectionID
+	
+	SELECT @@ROWCOUNT
+END
+
+GO
+
+
 IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'[dbo].[WF_GetWorkFlowActions]') and 
 	OBJECTPROPERTY(id, N'IsProcedure') = 1)
 DROP PROCEDURE [dbo].[WF_GetWorkFlowActions]
@@ -804,16 +965,26 @@ BEGIN
 	
 	IF @ConnectionID IS NOT NULL BEGIN
 		SELECT	AC.ConnectionID,
-				AC.[Action]
-		FROM [dbo].[WF_WorkFlowActions] AS AC
+				AC.[Action],
+				AC.SequenceNumber,
+				AC.Formula,
+				AC.VariableType,
+				AC.VariableName,
+				AC.VariableDefaultValue
+		FROM [dbo].[WF_Actions] AS AC
 		WHERE AC.ApplicationID = @ApplicationID AND AC.ConnectionID = @ConnectionID AND AC.Deleted = 0
 		ORDER BY AC.SequenceNumber ASC, AC.CreationDate ASC
 	END
 	ELSE IF @WorkFlowID IS NOT NULL BEGIN
 		SELECT	AC.ConnectionID,
-				AC.[Action]
+				AC.[Action],
+				AC.SequenceNumber,
+				AC.Formula,
+				AC.VariableType,
+				AC.VariableName,
+				AC.VariableDefaultValue
 		FROM [dbo].[WF_StateConnections] AS S
-			INNER JOIN [dbo].[WF_WorkFlowActions] AS AC
+			INNER JOIN [dbo].[WF_Actions] AS AC
 			ON AC.ApplicationID = @ApplicationID AND AC.ConnectionID = S.ID AND AC.Deleted = 0
 		WHERE S.ApplicationID = @ApplicationID AND S.WorkFlowID = @WorkFlowID AND S.Deleted = 0
 		ORDER BY AC.SequenceNumber ASC, AC.CreationDate ASC
@@ -838,12 +1009,17 @@ BEGIN
 	SET NOCOUNT ON
 
 	SELECT	AC.ConnectionID,
-			AC.[Action]
+			AC.[Action],
+			AC.SequenceNumber,
+			AC.Formula,
+			AC.VariableType,
+			AC.VariableName,
+			AC.VariableDefaultValue
 	FROM [dbo].[WF_History] AS H
 		INNER JOIN [dbo].[WF_StateConnections] AS S
 		ON S.ApplicationID = @ApplicationID AND 
 			S.WorkFlowID = H.WorkFlowID AND S.OutStateID = @NextStateID AND S.InStateID = H.StateID
-		INNER JOIN [dbo].[WF_WorkFlowActions] AS AC
+		INNER JOIN [dbo].[WF_Actions] AS AC
 		ON AC.ApplicationID = @ApplicationID AND AC.ConnectionID = S.ID AND AC.Deleted = 0
 	WHERE H.ApplicationID = @ApplicationID AND H.HistoryID = @HistoryID
 	ORDER BY AC.SequenceNumber ASC, AC.CreationDate ASC

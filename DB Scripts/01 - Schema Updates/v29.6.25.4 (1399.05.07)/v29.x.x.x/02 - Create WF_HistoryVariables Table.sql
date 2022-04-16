@@ -10,14 +10,14 @@ GO
 
 CREATE TABLE [dbo].[WF_HistoryVariables](
 	[HistoryID] [uniqueidentifier] NOT NULL,
-	[VariableID] [uniqueidentifier] NOT NULL,
+	[ActionID] [uniqueidentifier] NOT NULL,
 	[TextValue] [uniqueidentifier] NOT NULL,
 	[NumberValue] [uniqueidentifier] NOT NULL,
 	[ApplicationID] [uniqueidentifier] NULL,
  CONSTRAINT [PK_WF_HistoryVariables] PRIMARY KEY CLUSTERED 
 (
 	[HistoryID] ASC,
-	[VariableID] ASC
+	[ActionID] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
@@ -36,9 +36,9 @@ GO
 ALTER TABLE [dbo].[WF_HistoryVariables] CHECK CONSTRAINT [FK_WF_HistoryVariables_aspnet_Applications]
 GO
 
-ALTER TABLE [dbo].[WF_HistoryVariables]  WITH CHECK ADD  CONSTRAINT [FK_WF_HistoryVariables_WF_Variables] FOREIGN KEY([VariableID])
-REFERENCES [dbo].[WF_Variables] ([ID])
+ALTER TABLE [dbo].[WF_HistoryVariables]  WITH CHECK ADD  CONSTRAINT [FK_WF_HistoryVariables_WF_Actions] FOREIGN KEY([ActionID])
+REFERENCES [dbo].[WF_Actions] ([ID])
 GO
 
-ALTER TABLE [dbo].[WF_HistoryVariables] CHECK CONSTRAINT [FK_WF_HistoryVariables_WF_Variables]
+ALTER TABLE [dbo].[WF_HistoryVariables] CHECK CONSTRAINT [FK_WF_HistoryVariables_WF_Actions]
 GO
