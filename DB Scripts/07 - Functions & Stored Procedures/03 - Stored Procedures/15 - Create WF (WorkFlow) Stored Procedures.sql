@@ -853,10 +853,10 @@ BEGIN
 			@ActionID,
 			@ConnectionID, 
 			@Action,
-			@VariableType,
-			@VariableName,
-			@VariableDefaultValue,
-			@Formula,
+			ISNULL(@VariableType, N''),
+			ISNULL(@VariableName, N''),
+			ISNULL(@VariableDefaultValue, N''),
+			ISNULL(@Formula, N''),
 			@NewSeq,
 			@CurrentUserID, 
 			@Now, 
@@ -964,7 +964,8 @@ BEGIN
 	SET NOCOUNT ON
 	
 	IF @ConnectionID IS NOT NULL BEGIN
-		SELECT	AC.ConnectionID,
+		SELECT	AC.ID AS ActionID,
+				AC.ConnectionID,
 				AC.[Action],
 				AC.SequenceNumber,
 				AC.Formula,
@@ -976,7 +977,8 @@ BEGIN
 		ORDER BY AC.SequenceNumber ASC, AC.CreationDate ASC
 	END
 	ELSE IF @WorkFlowID IS NOT NULL BEGIN
-		SELECT	AC.ConnectionID,
+		SELECT	AC.ID AS ActionID,
+				AC.ConnectionID,
 				AC.[Action],
 				AC.SequenceNumber,
 				AC.Formula,
@@ -1008,7 +1010,8 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	SELECT	AC.ConnectionID,
+	SELECT	AC.ID AS ActionID,
+			AC.ConnectionID,
 			AC.[Action],
 			AC.SequenceNumber,
 			AC.Formula,
