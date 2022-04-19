@@ -10,5 +10,5 @@ GO
 
 
 UPDATE [dbo].[AppSetting]
-	SET [Version] = 'v29.10.4.2' -- 14001202
+	SET [Version] = 'v29.10.4.3' -- 14010130
 GO
