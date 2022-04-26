@@ -741,53 +741,6 @@ END
 GO
 
 
-IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'[dbo].[WF_SaveWorkFlowActions]') and 
-	OBJECTPROPERTY(id, N'IsProcedure') = 1)
-DROP PROCEDURE [dbo].[WF_SaveWorkFlowActions]
-GO
-
-CREATE PROCEDURE [dbo].[WF_SaveWorkFlowActions]
-	@ApplicationID	uniqueidentifier,
-	@ConnectionID	uniqueidentifier,
-	@ActionsTemp	StringTableType readonly,
-	@CurrentUserID	uniqueidentifier,
-	@Now			datetime
-WITH ENCRYPTION, RECOMPILE
-AS
-BEGIN
-	SET NOCOUNT ON
-	
-	DECLARE @Actions StringTableType
-	INSERT INTO @Actions SELECT * FROM @ActionsTemp 
-
-	INSERT INTO [dbo].[WF_WorkFlowActions] (ApplicationID, ConnectionID, [Action], CreatorUserID, CreationDate, Deleted)
-	SELECT @ApplicationID, @ConnectionID, C.[Value], @CurrentUserID, @Now, 0
-	FROM @Actions AS C
-		LEFT JOIN [dbo].[WF_WorkFlowActions] AS AC
-		ON AC.ApplicationID = @ApplicationID AND AC.ConnectionID = @ConnectionID AND LOWER(AC.[Action]) = LOWER(C.[Value])
-	WHERE AC.ConnectionID IS NULL
-
-	;WITH [Data] AS (
-		SELECT	ROW_NUMBER() OVER (ORDER BY (SELECT 1) ASC) AS Seq,
-				A.[Value] AS [Action]
-		FROM @Actions AS A
-	)
-	UPDATE AC
-	SET Deleted = CASE WHEN C.[Action] IS NULL THEN 1 ELSE 0 END,
-		SequenceNumber = ISNULL(C.Seq, AC.SequenceNumber),
-		LastModifierUserID = @CurrentUserID,
-		LastModificationDate = @Now
-	FROM [dbo].[WF_WorkFlowActions] AS AC
-		LEFT JOIN [Data] AS C
-		ON LOWER(C.[Action]) = LOWER(AC.[Action])
-	WHERE AC.ApplicationID = @ApplicationID AND AC.ConnectionID = @ConnectionID
-	
-	SELECT 1
-END
-
-GO
-
-
 IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'[dbo].[WF_AddOrModifyWorkFlowAction]') and 
 	OBJECTPROPERTY(id, N'IsProcedure') = 1)
 DROP PROCEDURE [dbo].[WF_AddOrModifyWorkFlowAction]
