@@ -949,6 +949,36 @@ END
 GO
 
 
+IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'[dbo].[WF_GetCalculatedWorkFlowVariables]') and 
+	OBJECTPROPERTY(id, N'IsProcedure') = 1)
+DROP PROCEDURE [dbo].[WF_GetCalculatedWorkFlowVariables]
+GO
+
+CREATE PROCEDURE [dbo].[WF_GetCalculatedWorkFlowVariables]
+	@ApplicationID	uniqueidentifier,
+	@WorkFlowID		uniqueidentifier,
+	@OwnerID		uniqueidentifier
+WITH ENCRYPTION, RECOMPILE
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+	SELECT *
+	FROM (
+			SELECT	ROW_NUMBER() OVER (PARTITION BY V.ActionID ORDER BY H.ID DESC) AS Seq,
+					V.ActionID,
+					V.NumberValue
+			FROM [dbo].[WF_History] AS H
+				INNER JOIN [dbo].[WF_HistoryVariables] AS V
+				ON V.ApplicationID = @ApplicationID AND V.HistoryID = H.HistoryID
+			WHERE H.WorkFlowID = @WorkFlowID AND H.OwnerID = @OwnerID
+		) AS X
+	WHERE X.Seq = 1
+END
+
+GO
+
+
 IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'[dbo].[WF_GetNextStateActions]') and 
 	OBJECTPROPERTY(id, N'IsProcedure') = 1)
 DROP PROCEDURE [dbo].[WF_GetNextStateActions]
@@ -3325,7 +3355,10 @@ CREATE PROCEDURE [dbo].[WF_SendToNextState]
     @Reject				bit,
     @SenderUserID		uniqueidentifier,
     @SendDate			datetime,
-	@AttachedFilesTemp	DocFileInfoTableType ReadOnly
+	@AttachedFilesTemp	DocFileInfoTableType ReadOnly,
+	@VariablesTemp		GuidFloatTableType readonly,
+	@Score				float,
+	@Publish			bit
 WITH ENCRYPTION, RECOMPILE
 AS
 BEGIN TRANSACTION
@@ -3333,6 +3366,9 @@ BEGIN TRANSACTION
 	
 	DECLARE @AttachedFiles DocFileInfoTableType
 	INSERT INTO @AttachedFiles SELECT * FROM @AttachedFilesTemp
+
+	DECLARE @Variables GuidFloatTableType
+	INSERT INTO @Variables SELECT * FROM @VariablesTemp
 	
 	SET @Description = [dbo].[GFN_VerifyString](@Description)
 	
@@ -3503,6 +3539,30 @@ BEGIN TRANSACTION
 			RETURN
 		END
 	END
+
+
+	-- Save variables
+	INSERT INTO [dbo].[WF_HistoryVariables] (
+		ApplicationID,
+		HistoryID,
+		ActionID,
+		NumberValue
+	)
+	SELECT @ApplicationID, @PrevHistoryID, V.FirstValue, V.SecondValue
+	FROM @Variables AS V
+	-- end of: Save variables
+
+
+	-- Set score and published status
+	IF @Score IS NOT NULL OR @Publish IS NOT NULL BEGIN
+		UPDATE [dbo].[CN_Nodes]
+		SET Score = ISNULL(@Score, Score),
+			Searchable = ISNULL(@Publish, Searchable),
+			PublicationDate = CASE WHEN PublicationDate IS NULL AND @Publish = 1 THEN 1 ELSE PublicationDate END
+		WHERE ApplicationID = @ApplicationID AND NodeID = @OwnerID
+	END
+	-- end of: Set score and published status
+
 	
 	-- Update WFState in CN_Nodes Table
 	DECLARE @StateTitle nvarchar(1000) = (
