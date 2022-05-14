@@ -252,7 +252,8 @@ BEGIN
 				F.Size
 		FROM @Files AS F
 			INNER JOIN [dbo].[CN_View_Nodes_Normal] AS ND
-			ON ND.ApplicationID = @ApplicationID AND ND.NodeID = F.OwnerID AND ND.Deleted = 0
+			ON ND.ApplicationID = @ApplicationID AND ND.NodeID = F.OwnerID AND 
+				ISNULL(ND.Searchable, 1) = 1 AND ND.Deleted = 0
 		WHERE F.OwnerType = N'Node' OR F.OwnerType = N'WikiContent'
 
 		UNION ALL
@@ -273,7 +274,8 @@ BEGIN
 			INNER JOIN [dbo].[FG_FormInstances] AS I
 			ON I.ApplicationID = @ApplicationID AND I.InstanceID = E.InstanceID AND I.Deleted = 0
 			INNER JOIN [dbo].[CN_View_Nodes_Normal] AS ND
-			ON ND.ApplicationID = @ApplicationID AND ND.NodeID = I.OwnerID AND ND.Deleted = 0
+			ON ND.ApplicationID = @ApplicationID AND ND.NodeID = I.OwnerID AND 
+				ISNULL(ND.Searchable, 1) = 1 AND ND.Deleted = 0
 		WHERE F.OwnerType = N'FormElement'
 	)
 	

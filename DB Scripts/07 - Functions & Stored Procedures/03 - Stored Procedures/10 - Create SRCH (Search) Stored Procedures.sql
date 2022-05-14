@@ -148,7 +148,14 @@ BEGIN
 					SELECT A.ID, MAX(A.[Type]) AS [Type], MAX(A.Title) AS Title, 
 						MAX(A.FileContent) AS FileContent, MIN(A.Deleted) AS Deleted
 					FROM (
-							SELECT X.ID, X.[Type], X.Title, X.FileContent, ND.Deleted
+							SELECT	X.ID, 
+									X.[Type], 
+									X.Title, 
+									X.FileContent, 
+									CASE
+										WHEN ND.Deleted = 1 OR ISNULL(ND.Searchable, 1) = 0 THEN CAST(1 AS bit)
+										ELSE CAST(0 AS bit)
+									END AS Deleted
 							FROM X
 								INNER JOIN [dbo].[CN_Nodes] AS ND
 								ON ND.ApplicationID = @ApplicationID AND ND.NodeID = X.OwnerID
@@ -156,7 +163,7 @@ BEGIN
 							UNION ALL
 							
 							SELECT X.ID, X.[Type], X.Title, X.FileContent,
-								(CASE WHEN E.Deleted = 1 OR I.Deleted = 1 OR ND.Deleted = 1 THEN 1 ELSE 0 END)
+								(CASE WHEN E.Deleted = 1 OR I.Deleted = 1 OR ISNULL(ND.Searchable, 1) = 0 THEN 1 ELSE 0 END)
 							FROM X
 								INNER JOIN [dbo].[FG_InstanceElements] AS E
 								ON E.ApplicationID = @ApplicationID AND E.ElementID = X.OwnerID
