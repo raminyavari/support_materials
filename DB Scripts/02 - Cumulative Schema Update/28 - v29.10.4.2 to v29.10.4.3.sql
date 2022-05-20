@@ -70,9 +70,10 @@ GO
 
 IF (SELECT TOP(1) X.[Version] FROM [dbo].[AppSetting] AS X) = N'v29.10.4.2' BEGIN
 	INSERT INTO [dbo].[WF_Actions] (ID, ApplicationID, ConnectionID, [Action], SequenceNumber, CreatorUserID, 
-												CreationDate, LastModifierUserID, LastModificationDate, Deleted)
+												CreationDate, LastModifierUserID, LastModificationDate, Deleted,
+												VariableType, VariableName)
 	SELECT	NEWID(), A.ApplicationID, A.ConnectionID, A.[Action], A.SequenceNumber, A.CreatorUserID, 
-			A.CreationDate, A.LastModifierUserID, A.LastModificationDate, A.Deleted
+			A.CreationDate, A.LastModifierUserID, A.LastModificationDate, A.Deleted, '', ''
 	FROM [dbo].[WF_WorkFlowActionsTemp] AS A
 END
 GO

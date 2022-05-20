@@ -60,9 +60,10 @@ CREATE TABLE [dbo].[WF_Actions](
 GO
 
 INSERT INTO [dbo].[WF_Actions] (ID, ApplicationID, ConnectionID, [Action], SequenceNumber, CreatorUserID, 
-											CreationDate, LastModifierUserID, LastModificationDate, Deleted)
+											CreationDate, LastModifierUserID, LastModificationDate, Deleted,
+											VariableType, VariableName)
 SELECT	NEWID(), A.ApplicationID, A.ConnectionID, A.[Action], A.SequenceNumber, A.CreatorUserID, 
-		A.CreationDate, A.LastModifierUserID, A.LastModificationDate, A.Deleted
+		A.CreationDate, A.LastModifierUserID, A.LastModificationDate, A.Deleted, '', ''
 FROM [dbo].[WF_WorkFlowActionsTemp] AS A
 GO
 
