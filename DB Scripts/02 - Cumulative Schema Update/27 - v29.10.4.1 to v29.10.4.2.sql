@@ -33,7 +33,7 @@ END
 GO
 
 IF (SELECT TOP(1) X.[Version] FROM [dbo].[AppSetting] AS X) = N'v29.10.4.1' BEGIN
-	DROP TABLE IF EXISTS [dbo].[RV_WorkSpaces]
+	DROP TABLE [dbo].[RV_WorkSpaces]
 END
 GO
 

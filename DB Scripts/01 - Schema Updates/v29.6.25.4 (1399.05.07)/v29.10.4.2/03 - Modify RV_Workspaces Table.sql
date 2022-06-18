@@ -9,7 +9,7 @@ SET QUOTED_IDENTIFIER ON
 GO
 
 
-DROP TABLE IF EXISTS [dbo].[RV_WorkSpaces]
+DROP TABLE [dbo].[RV_WorkSpaces]
 GO
 
 
