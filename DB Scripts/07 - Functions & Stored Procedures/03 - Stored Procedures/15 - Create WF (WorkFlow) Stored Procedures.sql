@@ -926,6 +926,12 @@ BEGIN
 				AC.VariableName,
 				AC.VariableDefaultValue
 		FROM [dbo].[WF_Actions] AS AC
+			INNER JOIN [dbo].[WF_StateConnections] AS C
+			ON C.ApplicationID = @ApplicationID AND C.ID = AC.ConnectionID AND C.Deleted = 0
+			INNER JOIN [dbo].[WF_WorkFlowStates] AS ST
+			ON ST.ApplicationID = @ApplicationID AND ST.StateID = C.InStateID AND ST.Deleted = 0
+			INNER JOIN [dbo].[WF_WorkFlowStates] AS ST2
+			ON ST2.ApplicationID = @ApplicationID AND ST2.StateID = C.OutStateID AND ST2.Deleted = 0
 		WHERE AC.ApplicationID = @ApplicationID AND AC.ConnectionID = @ConnectionID AND AC.Deleted = 0
 		ORDER BY AC.SequenceNumber ASC, AC.CreationDate ASC
 	END
@@ -938,10 +944,14 @@ BEGIN
 				AC.VariableType,
 				AC.VariableName,
 				AC.VariableDefaultValue
-		FROM [dbo].[WF_StateConnections] AS S
+		FROM [dbo].[WF_StateConnections] AS C
 			INNER JOIN [dbo].[WF_Actions] AS AC
-			ON AC.ApplicationID = @ApplicationID AND AC.ConnectionID = S.ID AND AC.Deleted = 0
-		WHERE S.ApplicationID = @ApplicationID AND S.WorkFlowID = @WorkFlowID AND S.Deleted = 0
+			ON AC.ApplicationID = @ApplicationID AND AC.ConnectionID = C.ID AND AC.Deleted = 0
+			INNER JOIN [dbo].[WF_WorkFlowStates] AS ST
+			ON ST.ApplicationID = @ApplicationID AND ST.StateID = C.InStateID AND ST.Deleted = 0
+			INNER JOIN [dbo].[WF_WorkFlowStates] AS ST2
+			ON ST2.ApplicationID = @ApplicationID AND ST2.StateID = C.OutStateID AND ST2.Deleted = 0
+		WHERE C.ApplicationID = @ApplicationID AND C.WorkFlowID = @WorkFlowID AND C.Deleted = 0
 		ORDER BY AC.SequenceNumber ASC, AC.CreationDate ASC
 	END
 END

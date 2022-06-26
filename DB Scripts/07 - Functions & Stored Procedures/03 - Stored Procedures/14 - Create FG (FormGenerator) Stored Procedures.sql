@@ -2757,7 +2757,8 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	SELECT	SUM(X.[Weight]) AS [WeightSum],
+	SELECT	MAX(X.FilledInstancesCount) AS FilledInstancesCount,
+			SUM(X.[Weight]) AS [WeightSum],
 			SUM(X.[Avg]) AS [Sum],
 			SUM(X.[WeightedAvg]) AS [WeightedSum],
 			AVG(X.[Avg]) AS [Avg],
@@ -2771,6 +2772,7 @@ BEGIN
 			STDEV(X.[AVG]) AS [StDev]
 	FROM (
 			SELECT	EFE.ElementID,
+					COUNT(DISTINCT FI.InstanceID) AS FilledInstancesCount,
 					ISNULL(MAX(EFE.[Weight]), 0) AS [Weight],
 					MIN(IE.FloatValue) AS [Min],
 					MAX(IE.FloatValue) AS [Max],
