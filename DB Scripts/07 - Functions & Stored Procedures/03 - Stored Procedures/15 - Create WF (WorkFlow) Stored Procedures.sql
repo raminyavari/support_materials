@@ -917,42 +917,50 @@ BEGIN
 	SET NOCOUNT ON
 	
 	IF @ConnectionID IS NOT NULL BEGIN
-		SELECT	AC.ID AS ActionID,
-				AC.ConnectionID,
-				AC.[Action],
-				AC.SequenceNumber,
-				AC.Formula,
-				AC.VariableType,
-				AC.VariableName,
-				AC.VariableDefaultValue
-		FROM [dbo].[WF_Actions] AS AC
-			INNER JOIN [dbo].[WF_StateConnections] AS C
-			ON C.ApplicationID = @ApplicationID AND C.ID = AC.ConnectionID AND C.Deleted = 0
-			INNER JOIN [dbo].[WF_WorkFlowStates] AS ST
-			ON ST.ApplicationID = @ApplicationID AND ST.StateID = C.InStateID AND ST.Deleted = 0
-			INNER JOIN [dbo].[WF_WorkFlowStates] AS ST2
-			ON ST2.ApplicationID = @ApplicationID AND ST2.StateID = C.OutStateID AND ST2.Deleted = 0
-		WHERE AC.ApplicationID = @ApplicationID AND AC.ConnectionID = @ConnectionID AND AC.Deleted = 0
-		ORDER BY AC.SequenceNumber ASC, AC.CreationDate ASC
+		SELECT DISTINCT	*
+		FROM (
+				SELECT	AC.ID AS ActionID,
+						AC.ConnectionID,
+						AC.[Action],
+						AC.SequenceNumber,
+						AC.Formula,
+						AC.VariableType,
+						AC.VariableName,
+						AC.VariableDefaultValue,
+						AC.CreationDate
+				FROM [dbo].[WF_Actions] AS AC
+					INNER JOIN [dbo].[WF_StateConnections] AS C
+					ON C.ApplicationID = @ApplicationID AND C.ID = AC.ConnectionID AND C.Deleted = 0
+					INNER JOIN [dbo].[WF_WorkFlowStates] AS ST
+					ON ST.ApplicationID = @ApplicationID AND ST.StateID = C.InStateID AND ST.Deleted = 0
+					INNER JOIN [dbo].[WF_WorkFlowStates] AS ST2
+					ON ST2.ApplicationID = @ApplicationID AND ST2.StateID = C.OutStateID AND ST2.Deleted = 0
+				WHERE AC.ApplicationID = @ApplicationID AND AC.ConnectionID = @ConnectionID AND AC.Deleted = 0
+			) AS X
+		ORDER BY X.SequenceNumber ASC, X.CreationDate ASC
 	END
 	ELSE IF @WorkFlowID IS NOT NULL BEGIN
-		SELECT	AC.ID AS ActionID,
-				AC.ConnectionID,
-				AC.[Action],
-				AC.SequenceNumber,
-				AC.Formula,
-				AC.VariableType,
-				AC.VariableName,
-				AC.VariableDefaultValue
-		FROM [dbo].[WF_StateConnections] AS C
-			INNER JOIN [dbo].[WF_Actions] AS AC
-			ON AC.ApplicationID = @ApplicationID AND AC.ConnectionID = C.ID AND AC.Deleted = 0
-			INNER JOIN [dbo].[WF_WorkFlowStates] AS ST
-			ON ST.ApplicationID = @ApplicationID AND ST.StateID = C.InStateID AND ST.Deleted = 0
-			INNER JOIN [dbo].[WF_WorkFlowStates] AS ST2
-			ON ST2.ApplicationID = @ApplicationID AND ST2.StateID = C.OutStateID AND ST2.Deleted = 0
-		WHERE C.ApplicationID = @ApplicationID AND C.WorkFlowID = @WorkFlowID AND C.Deleted = 0
-		ORDER BY AC.SequenceNumber ASC, AC.CreationDate ASC
+		SELECT DISTINCT	*
+		FROM (
+				SELECT	AC.ID AS ActionID,
+						AC.ConnectionID,
+						AC.[Action],
+						AC.SequenceNumber,
+						AC.Formula,
+						AC.VariableType,
+						AC.VariableName,
+						AC.VariableDefaultValue,
+						AC.CreationDate
+				FROM [dbo].[WF_StateConnections] AS C
+					INNER JOIN [dbo].[WF_Actions] AS AC
+					ON AC.ApplicationID = @ApplicationID AND AC.ConnectionID = C.ID AND AC.Deleted = 0
+					INNER JOIN [dbo].[WF_WorkFlowStates] AS ST
+					ON ST.ApplicationID = @ApplicationID AND ST.StateID = C.InStateID AND ST.Deleted = 0
+					INNER JOIN [dbo].[WF_WorkFlowStates] AS ST2
+					ON ST2.ApplicationID = @ApplicationID AND ST2.StateID = C.OutStateID AND ST2.Deleted = 0
+				WHERE C.ApplicationID = @ApplicationID AND C.WorkFlowID = @WorkFlowID AND C.Deleted = 0
+			) AS X
+		ORDER BY X.SequenceNumber ASC, X.CreationDate ASC
 	END
 END
 
