@@ -755,6 +755,7 @@ CREATE PROCEDURE [dbo].[WF_AddOrModifyWorkFlowAction]
 	@VariableName			nvarchar(255),
 	@VariableDefaultValue	nvarchar(255),
 	@Formula				nvarchar(max),
+	@SaveToFormElementID	uniqueidentifier,
 	@CurrentUserID			uniqueidentifier,
 	@Now					datetime
 WITH ENCRYPTION, RECOMPILE
@@ -781,6 +782,7 @@ BEGIN
 			VariableName = ISNULL(@VariableName, AC.VariableName),
 			VariableDefaultValue = ISNULL(@VariableDefaultValue, AC.VariableDefaultValue),
 			Formula = @Formula,
+			SaveToFormElementID = @SaveToFormElementID,
 			LastModifierUserID = @CurrentUserID,
 			LastModificationDate = @Now
 		FROM [dbo].[WF_Actions] AS AC
@@ -796,6 +798,7 @@ BEGIN
 			VariableName,
 			VariableDefaultValue,
 			Formula,
+			SaveToFormElementID,
 			SequenceNumber,
 			CreatorUserID,
 			CreationDate,
@@ -810,6 +813,7 @@ BEGIN
 			ISNULL(@VariableName, N''),
 			ISNULL(@VariableDefaultValue, N''),
 			ISNULL(@Formula, N''),
+			@SaveToFormElementID,
 			@NewSeq,
 			@CurrentUserID, 
 			@Now, 
@@ -927,6 +931,8 @@ BEGIN
 						AC.VariableType,
 						AC.VariableName,
 						AC.VariableDefaultValue,
+						AC.SaveToFormElementID,
+						EFE.Title AS SaveToFormElementTitle,
 						AC.CreationDate
 				FROM [dbo].[WF_Actions] AS AC
 					INNER JOIN [dbo].[WF_StateConnections] AS C
@@ -935,6 +941,8 @@ BEGIN
 					ON ST.ApplicationID = @ApplicationID AND ST.StateID = C.InStateID AND ST.Deleted = 0
 					INNER JOIN [dbo].[WF_WorkFlowStates] AS ST2
 					ON ST2.ApplicationID = @ApplicationID AND ST2.StateID = C.OutStateID AND ST2.Deleted = 0
+					LEFT JOIN [dbo].[FG_ExtendedFormElements] AS EFE
+					ON EFE.ApplicationID = @ApplicationID AND EFE.ElementID = AC.SaveToFormElementID
 				WHERE AC.ApplicationID = @ApplicationID AND AC.ConnectionID = @ConnectionID AND AC.Deleted = 0
 			) AS X
 		ORDER BY X.SequenceNumber ASC, X.CreationDate ASC
@@ -950,6 +958,8 @@ BEGIN
 						AC.VariableType,
 						AC.VariableName,
 						AC.VariableDefaultValue,
+						AC.SaveToFormElementID,
+						EFE.Title AS SaveToFormElementTitle,
 						AC.CreationDate
 				FROM [dbo].[WF_StateConnections] AS C
 					INNER JOIN [dbo].[WF_Actions] AS AC
@@ -958,6 +968,8 @@ BEGIN
 					ON ST.ApplicationID = @ApplicationID AND ST.StateID = C.InStateID AND ST.Deleted = 0
 					INNER JOIN [dbo].[WF_WorkFlowStates] AS ST2
 					ON ST2.ApplicationID = @ApplicationID AND ST2.StateID = C.OutStateID AND ST2.Deleted = 0
+					LEFT JOIN [dbo].[FG_ExtendedFormElements] AS EFE
+					ON EFE.ApplicationID = @ApplicationID AND EFE.ElementID = AC.SaveToFormElementID
 				WHERE C.ApplicationID = @ApplicationID AND C.WorkFlowID = @WorkFlowID AND C.Deleted = 0
 			) AS X
 		ORDER BY X.SequenceNumber ASC, X.CreationDate ASC
@@ -1018,7 +1030,8 @@ BEGIN
 			AC.Formula,
 			AC.VariableType,
 			AC.VariableName,
-			AC.VariableDefaultValue
+			AC.VariableDefaultValue,
+			AC.SaveToFormElementID
 	FROM [dbo].[WF_History] AS H
 		INNER JOIN [dbo].[WF_StateConnections] AS S
 		ON S.ApplicationID = @ApplicationID AND 

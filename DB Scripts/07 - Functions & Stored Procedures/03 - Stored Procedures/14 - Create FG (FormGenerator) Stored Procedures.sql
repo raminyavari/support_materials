@@ -769,7 +769,7 @@ BEGIN
 		   FE.[Weight]
 	FROM @ElementIDs AS Ref
 		INNER JOIN [dbo].[FG_ExtendedFormElements] AS FE
-		ON FE.ApplicationID = @ApplicationID AND FE.ElementID = Ref.Value
+		ON FE.ApplicationID = @ApplicationID AND FE.ElementID = Ref.[Value]
 	ORDER BY FE.SequenceNumber ASC
 END
 
@@ -811,11 +811,16 @@ CREATE PROCEDURE [dbo].[FG_GetFormElements]
 	@ApplicationID	uniqueidentifier,
 	@FormID			uniqueidentifier,
 	@OwnerID		uniqueidentifier,
-	@Type			varchar(50)
+	@TypesTemp		StringTableType readonly
 WITH ENCRYPTION
 AS
 BEGIN
 	SET NOCOUNT ON
+
+	DECLARE @Types StringTableType
+	INSERT INTO @Types SELECT * FROM @TypesTemp
+
+	DECLARE @TypesCount int = (SELECT COUNT(*) FROM @Types)
 	
 	IF @FormID IS NULL AND @OwnerID IS NOT NULL BEGIN
 		SELECT TOP(1) @FormID = FormID
@@ -830,7 +835,7 @@ BEGIN
 	SELECT ElementID
 	FROM [dbo].[FG_ExtendedFormElements]
 	WHERE ApplicationID = @ApplicationID AND FormID = @FormID AND 
-		(@Type IS NULL OR [Type] = @Type) AND Deleted = 0
+		(@TypesCount = 0 OR [Type] IN (SELECT T.[Value] FROM @Types AS T)) AND Deleted = 0
 	
 	EXEC [dbo].[FG_P_GetFormElements] @ApplicationID, @ElementIDs
 END
