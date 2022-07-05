@@ -428,7 +428,7 @@ BEGIN
 		TemplateElementID,
 		FormID,
 		Title,
-		Name,
+		[Name],
 		Help,
 		SequenceNumber,
 		[Type],
@@ -684,8 +684,9 @@ BEGIN
 			Deleted = CASE WHEN E.ElementID IS NULL THEN 1 ELSE 0 END,
 			Necessary = CASE WHEN E.ElementID IS NULL THEN X.Necessary ELSE E.Necessary END,
 			[Weight] = CASE WHEN E.ElementID IS NULL THEN X.[Weight] ELSE E.[Weight] END,
-			Name = CASE WHEN E.ElementID IS NULL THEN X.Name ELSE E.Name END,
+			[Name] = CASE WHEN E.ElementID IS NULL THEN X.[Name] ELSE E.Name END,
 			UniqueValue = CASE WHEN E.ElementID IS NULL THEN X.UniqueValue ELSE E.UniqueValue END,
+			IsWorkFlowField = CASE WHEN E.IsWorkFlowField IS NULL THEN X.IsWorkFlowField ELSE E.IsWorkFlowField END,
 			Help = CASE WHEN E.ElementID IS NULL THEN X.Help ELSE E.Help END
 	FROM [dbo].[FG_ExtendedFormElements] AS X
 		LEFT JOIN @Elements AS E
@@ -708,8 +709,9 @@ BEGIN
 		Deleted,
 		Necessary,
 		[Weight],
-		Name,
+		[Name],
 		UniqueValue,
+		IsWorkFlowField,
 		Help
 	)
 	SELECT	@ApplicationID,
@@ -725,8 +727,9 @@ BEGIN
 			0,
 			E.Necessary,
 			E.[Weight],
-			E.Name,
+			E.[Name],
 			E.UniqueValue,
+			E.IsWorkFlowField,
 			E.Help
 	FROM @Elements AS E
 		LEFT JOIN [dbo].[FG_ExtendedFormElements] AS X
@@ -759,10 +762,11 @@ BEGIN
 	SELECT FE.ElementID,
 		   FE.FormID,
 		   FE.Title,
-		   FE.Name,
+		   FE.[Name],
 		   FE.Help,
 		   ISNULL(FE.Necessary, CAST(0 AS bit)) AS Necessary,
 		   ISNULL(FE.UniqueValue, CAST(0 AS bit)) AS UniqueValue,
+		   ISNULL(FE.IsWorkFlowField, CAST(0 AS bit)) AS IsWorkFlowField,
 		   FE.SequenceNumber,
 		   FE.[Type],
 		   FE.Info,
@@ -1414,7 +1418,8 @@ CREATE PROCEDURE [dbo].[FG_SaveFormInstanceElements]
 	@ElementsToClearTemp	GuidTableType readonly,
 	@FilesTemp				DocFileInfoTableType readonly,
 	@CreatorUserID			uniqueidentifier,
-	@CreationDate			datetime
+	@CreationDate			datetime,
+	@AutoFilledInWorkFlow	bit
 WITH ENCRYPTION, RECOMPILE
 AS
 BEGIN
@@ -1472,9 +1477,9 @@ BEGIN
 	
 	-- Save Changes
 	INSERT INTO [dbo].[FG_Changes] (ApplicationID, ElementID, TextValue, 
-		FloatValue, BitValue, DateValue, CreatorUserID, CreationDate, Deleted)
+		FloatValue, BitValue, DateValue, CreatorUserID, CreationDate, Deleted, AutoFilledInWorkFlow)
 	SELECT @ApplicationID, ISNULL(E.ElementID, X.ElementID), [dbo].[GFN_VerifyString](X.TextValue), 
-		X.FloatValue, X.BitValue, X.DateValue, @CreatorUserID, @CreationDate, 0
+		X.FloatValue, X.BitValue, X.DateValue, @CreatorUserID, @CreationDate, 0, X.AutoFilledInWorkFlow
 	FROM (
 			SELECT	C.Value AS ElementID, 
 					I.RefElementID AS RefElementID,
@@ -1482,7 +1487,8 @@ BEGIN
 					CAST(NULL AS varchar(max)) AS TextValue,
 					CAST(NULL AS float) AS FloatValue,
 					CAST(NULL AS bit) AS BitValue,
-					CAST(NULL AS datetime) AS DateValue
+					CAST(NULL AS datetime) AS DateValue,
+					CAST(NULL AS bit) AS AutoFilledInWorkFlow
 			FROM @ElementsToClear AS C
 				LEFT JOIN @Elements AS E
 				ON E.ElementID = C.Value
@@ -1493,7 +1499,7 @@ BEGIN
 			UNION ALL
 			
 			SELECT E.ElementID, E.RefElementID, E.InstanceID,
-				E.TextValue, E.FloatValue, E.BitValue, E.DateValue
+				E.TextValue, E.FloatValue, E.BitValue, E.DateValue, @AutoFilledInWorkFlow
 			FROM @Elements AS E
 		) AS X
 		LEFT JOIN [dbo].[FG_InstanceElements] AS E -- First part checks ElementID. We split them for performance reasons
@@ -1748,6 +1754,7 @@ BEGIN
 			CAST(1 AS bit) AS Filled,
 			ISNULL(EFE.Necessary, 0) AS Necessary,
 			EFE.UniqueValue,
+			ISNULL(EFE.IsWorkFlowField, 0) AS IsWorkFlowField,
 			CAST((
 				SELECT COUNT(C.ID)
 				FROM [dbo].[FG_Changes] AS C
@@ -1788,6 +1795,7 @@ BEGIN
 			CAST(0 AS bit) AS Filled,
 			ISNULL(EFE.Necessary, 0) AS Necessary,
 			EFE.UniqueValue,
+			ISNULL(EFE.IsWorkFlowField, 0) AS IsWorkFlowField,
 			CAST(0 AS int) AS EditionsCount,
 			NULL AS CreatorUserID,
 			NULL AS CreatorUserName,
@@ -1874,6 +1882,7 @@ BEGIN
 					C.DateValue,
 					C.CreationDate,
 					C.CreatorUserID,
+					C.AutoFilledInWorkFlow,
 					UN.UserName AS CreatorUserName,
 					UN.FirstName AS CreatorFirstName,
 					UN.LastName AS CreatorLastName,
