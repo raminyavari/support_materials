@@ -1584,12 +1584,16 @@ CREATE PROCEDURE [dbo].[QA_AddQuestion]
     @delimiter			char,
     @WorkFlowID			uniqueidentifier,
     @AdminID			uniqueidentifier,
+	@AttachedFilesTemp	DocFileInfoTableType readonly,
     @CurrentUserID		uniqueidentifier,
     @Now   				datetime
-WITH ENCRYPTION
+WITH ENCRYPTION, RECOMPILE
 AS
 BEGIN TRANSACTION
 	SET NOCOUNT ON
+
+	DECLARE @AttachedFiles DocFileInfoTableType
+    INSERT INTO @AttachedFiles SELECT * FROM @AttachedFilesTemp
 
 	SET @Title = [dbo].[GFN_VerifyString](@Title)
 	SET @Description = [dbo].[GFN_VerifyString](@Description)
@@ -1647,6 +1651,21 @@ BEGIN TRANSACTION
 		RETURN
     END
     /*     end of insert related nodes     */
+
+	DECLARE @_Result int = 0
+
+	-- save attachments
+	IF (SELECT COUNT(*) FROM @AttachedFiles) > 0 BEGIN
+		EXEC [dbo].[DCT_P_SaveAllOwnerFiles] @ApplicationID, @QuestionID, 
+			N'Question', @AttachedFiles, @CurrentUserID, @Now, @_Result output
+		
+		IF @_Result <= 0 BEGIN
+			SELECT -1
+			ROLLBACK TRANSACTION
+			RETURN
+		END
+	END
+	-- end of save attachments
     
     
     SELECT (1 + @_NodesCount)
@@ -1657,8 +1676,6 @@ BEGIN TRANSACTION
 		
 		INSERT INTO @Dashboards(UserID, NodeID, RefItemID, [Type], SubType, Removable, SendDate)
 		VALUES (@AdminID, @QuestionID, @QuestionID, N'Question', N'Admin', 0, @Now)
-		
-		DECLARE @_Result int = 0
 		
 		EXEC [dbo].[NTFN_P_SendDashboards] @ApplicationID, @Dashboards, @_Result output
 		
@@ -1714,15 +1731,21 @@ DROP PROCEDURE [dbo].[QA_EditQuestionDescription]
 GO
 
 CREATE PROCEDURE [dbo].[QA_EditQuestionDescription]
-	@ApplicationID	uniqueidentifier,
-    @QuestionID		uniqueidentifier,
-	@Description	nvarchar(max),
-	@CurrentUserID	uniqueidentifier,
-	@Now			datetime
-WITH ENCRYPTION
+	@ApplicationID		uniqueidentifier,
+    @QuestionID			uniqueidentifier,
+	@Description		nvarchar(max),
+	@AttachedFilesTemp	DocFileInfoTableType readonly,
+	@CurrentUserID		uniqueidentifier,
+	@Now				datetime
+WITH ENCRYPTION, RECOMPILE
 AS
-BEGIN
+BEGIN TRANSACTION
 	SET NOCOUNT ON
+
+	DECLARE @AttachedFiles DocFileInfoTableType
+    INSERT INTO @AttachedFiles SELECT * FROM @AttachedFilesTemp
+
+	DECLARE @_Result int = 0
 	
 	SET @Description = [dbo].[GFN_VerifyString](@Description)
 	
@@ -1732,8 +1755,23 @@ BEGIN
 			LastModificationDate = @Now
 	WHERE ApplicationID = @ApplicationID AND QuestionID = @QuestionID
 	
-	SELECT @@ROWCOUNT
-END
+	SET @_Result = @@ROWCOUNT
+
+	-- save attachments
+	IF (SELECT COUNT(*) FROM @AttachedFiles) > 0 BEGIN
+		EXEC [dbo].[DCT_P_SaveAllOwnerFiles] @ApplicationID, @QuestionID, 
+			N'Question', @AttachedFiles, @CurrentUserID, @Now, @_Result output
+		
+		IF @_Result <= 0 BEGIN
+			SELECT -1
+			ROLLBACK TRANSACTION
+			RETURN
+		END
+	END
+	-- end of save attachments
+
+	SELECT @_Result
+COMMIT TRANSACTION
 
 GO
 
@@ -2846,7 +2884,10 @@ BEGIN
 	FROM [dbo].[QA_RelatedNodes] AS N
 		INNER JOIN [dbo].[QA_Questions] AS Q
 		ON Q.ApplicationID = @ApplicationID AND Q.QuestionID = N.QuestionID AND 
-			Q.PublicationDate IS NOT NULL AND Q.Deleted = 0
+			(
+				(@QuestionID IS NOT NULL AND Q.QuestionID = @QuestionID) OR 
+				Q.PublicationDate IS NOT NULL
+			) AND Q.Deleted = 0
 	WHERE N.ApplicationID = @ApplicationID AND N.Deleted = 0
 	GROUP BY N.NodeID
 	
@@ -3469,16 +3510,22 @@ DROP PROCEDURE [dbo].[QA_SendAnswer]
 GO
 
 CREATE PROCEDURE [dbo].[QA_SendAnswer]
-	@ApplicationID	uniqueidentifier,
-	@AnswerID	 	uniqueidentifier,
-    @QuestionID 	uniqueidentifier,
-    @AnswerBody		nvarchar(max),
-    @CurrentUserID	uniqueidentifier,
-    @Now			datetime
-WITH ENCRYPTION
+	@ApplicationID		uniqueidentifier,
+	@AnswerID	 		uniqueidentifier,
+    @QuestionID 		uniqueidentifier,
+    @AnswerBody			nvarchar(max),
+	@AttachedFilesTemp	DocFileInfoTableType readonly,
+    @CurrentUserID		uniqueidentifier,
+    @Now				datetime
+WITH ENCRYPTION, RECOMPILE
 AS
-BEGIN
+BEGIN TRANSACTION
 	SET NOCOUNT ON
+
+	DECLARE @AttachedFiles DocFileInfoTableType
+    INSERT INTO @AttachedFiles SELECT * FROM @AttachedFilesTemp
+
+	DECLARE @_Result int = 0
 
 	SET @AnswerBody = [dbo].[GFN_VerifyString](@AnswerBody)
 
@@ -3501,8 +3548,23 @@ BEGIN
         0
     )
     
-    SELECT @@ROWCOUNT
-END
+    SET @_Result = @@ROWCOUNT
+
+	-- save attachments
+	IF (SELECT COUNT(*) FROM @AttachedFiles) > 0 BEGIN
+		EXEC [dbo].[DCT_P_SaveAllOwnerFiles] @ApplicationID, @AnswerID, 
+			N'Answer', @AttachedFiles, @CurrentUserID, @Now, @_Result output
+		
+		IF @_Result <= 0 BEGIN
+			SELECT -1
+			ROLLBACK TRANSACTION
+			RETURN
+		END
+	END
+	-- end of save attachments
+
+	SELECT @_Result
+COMMIT TRANSACTION
 
 GO
 
@@ -3513,15 +3575,21 @@ DROP PROCEDURE [dbo].[QA_EditAnswer]
 GO
 
 CREATE PROCEDURE [dbo].[QA_EditAnswer]
-	@ApplicationID	uniqueidentifier,
-	@AnswerID	 	uniqueidentifier,
-	@AnswerBody		nvarchar(max),
-    @CurrentUserID	uniqueidentifier,
-    @Now			datetime
-WITH ENCRYPTION
+	@ApplicationID		uniqueidentifier,
+	@AnswerID	 		uniqueidentifier,
+	@AnswerBody			nvarchar(max),
+	@AttachedFilesTemp	DocFileInfoTableType readonly,
+    @CurrentUserID		uniqueidentifier,
+    @Now				datetime
+WITH ENCRYPTION, RECOMPILE
 AS
-BEGIN
+BEGIN TRANSACTION
 	SET NOCOUNT ON
+
+	DECLARE @AttachedFiles DocFileInfoTableType
+    INSERT INTO @AttachedFiles SELECT * FROM @AttachedFilesTemp
+
+	DECLARE @_Result int = 0
 
 	SET @AnswerBody = [dbo].[GFN_VerifyString](@AnswerBody)
 	
@@ -3531,8 +3599,23 @@ BEGIN
 			LastModificationDate = @Now
 	WHERE ApplicationID = @ApplicationID AND AnswerID = @AnswerID
 
-    SELECT @@ROWCOUNT
-END
+    SET @_Result = @@ROWCOUNT
+
+	-- save attachments
+	IF (SELECT COUNT(*) FROM @AttachedFiles) > 0 BEGIN
+		EXEC [dbo].[DCT_P_SaveAllOwnerFiles] @ApplicationID, @AnswerID, 
+			N'Answer', @AttachedFiles, @CurrentUserID, @Now, @_Result output
+		
+		IF @_Result <= 0 BEGIN
+			SELECT -1
+			ROLLBACK TRANSACTION
+			RETURN
+		END
+	END
+	-- end of save attachments
+
+	SELECT @_Result
+COMMIT TRANSACTION
 
 GO
 

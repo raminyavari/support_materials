@@ -135,6 +135,70 @@ END
 GO
 
 
+IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'[dbo].[WF_SendPollDashboards]') and 
+	OBJECTPROPERTY(id, N'IsProcedure') = 1)
+DROP PROCEDURE [dbo].[WF_SendPollDashboards]
+GO
+
+CREATE PROCEDURE [dbo].[WF_SendPollDashboards]
+	@ApplicationID		uniqueidentifier,
+	@HistoryID			uniqueidentifier,
+	@UserIDsTemp		GuidTableType readonly,
+	@Now				datetime
+WITH ENCRYPTION
+AS
+BEGIN
+	SET NOCOUNT ON
+
+	DECLARE @UserIDs GuidTableType
+	INSERT INTO @UserIDs SELECT * FROM @UserIDsTemp
+	
+	DECLARE @Dashboards DashboardTableType
+
+	DECLARE @StateID uniqueidentifier
+	DECLARE @NodeID uniqueidentifier
+	DECLARE @WorkFlowID uniqueidentifier
+
+	SELECT @StateID = H.StateID, @NodeID = H.OwnerID, @WorkFlowID = H.WorkFlowID
+	FROM [dbo].[WF_History] AS H
+	WHERE H.ApplicationID = @ApplicationID AND H.HistoryID = @HistoryID
+	
+	DECLARE @WorkFlowName nvarchar(1000) = (
+		SELECT TOP(1) Name 
+		FROM [dbo].[WF_WorkFlows] 
+		WHERE ApplicationID = @ApplicationID AND WorkFlowID = @WorkFlowID
+	)
+	
+	DECLARE @StateTitle nvarchar(1000) = (
+		SELECT TOP(1) Title 
+		FROM [dbo].[WF_States] 
+		WHERE ApplicationID = @ApplicationID AND StateID = @StateID
+	)
+	
+	INSERT INTO @Dashboards (UserID, NodeID, RefItemID, [Type], SubType, Info, Removable, SendDate)
+	SELECT	U.[Value], 
+			@NodeID, 
+			@HistoryID, 
+			N'WorkFlow',
+			N'Poll',
+			[dbo].[WF_FN_GetDashboardInfo](@WorkFlowName, @StateTitle, NULL),
+			0,
+			@Now
+	FROM @UserIDs AS U
+	
+	DECLARE @_Result int = 0
+
+	EXEC [dbo].[NTFN_P_SendDashboards] @ApplicationID, @Dashboards, @_Result output
+	
+	IF @_Result > 0 BEGIN
+		SELECT * 
+		FROM @Dashboards
+	END
+END
+
+GO
+
+
 IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'[dbo].[WF_CreateState]') and 
 	OBJECTPROPERTY(id, N'IsProcedure') = 1)
 DROP PROCEDURE [dbo].[WF_CreateState]
@@ -1101,6 +1165,39 @@ BEGIN
 	
 	UPDATE [dbo].[WF_WorkFlowStates]
 		SET PollID = @PollID,
+			LastModifierUserID = @CurrentUserID,
+			LastModificationDate = @Now
+	WHERE ApplicationID = @ApplicationID AND WorkFlowID = @WorkFlowID AND StateID = @StateID
+	
+	SELECT @@ROWCOUNT
+END
+
+GO
+
+
+IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = object_id(N'[dbo].[WF_SetStatePollAudienceType]') and 
+	OBJECTPROPERTY(id, N'IsProcedure') = 1)
+DROP PROCEDURE [dbo].[WF_SetStatePollAudienceType]
+GO
+
+CREATE PROCEDURE [dbo].[WF_SetStatePollAudienceType]
+	@ApplicationID	uniqueidentifier,
+	@WorkFlowID		uniqueidentifier,
+	@StateID		uniqueidentifier,
+	@AudienceID		uniqueidentifier,
+	@AudienceType	varchar(50),
+	@RefStateID		uniqueidentifier,
+	@CurrentUserID	uniqueidentifier,
+	@Now			datetime
+WITH ENCRYPTION
+AS
+BEGIN
+	SET NOCOUNT ON
+	
+	UPDATE [dbo].[WF_WorkFlowStates]
+		SET PollAudienceID = ISNULL(PollAudienceID, @AudienceID),
+			PollAudienceType = @AudienceType,
+			PollAudienceRefStateID = ISNULL(@RefStateID, PollAudienceRefStateID),
 			LastModifierUserID = @CurrentUserID,
 			LastModificationDate = @Now
 	WHERE ApplicationID = @ApplicationID AND WorkFlowID = @WorkFlowID AND StateID = @StateID
@@ -2262,7 +2359,11 @@ BEGIN
 		   WFS.RejectionRefStateID,
 		   RS.Title AS RejectionRefStateTitle,
 		   PL.PollID,
-		   PL.[Name] AS PollName
+		   PL.[Name] AS PollName,
+		   WFS.PollAudienceID,
+		   WFS.PollAudienceType,
+		   WFS.PollAudienceRefStateID,
+		   PollRefST.Title AS PollAudienceRefStateTitle
 	FROM @StateIDs AS ExternalIDs
 		INNER JOIN [dbo].[WF_WorkFlowStates] AS WFS
 		ON WFS.StateID = ExternalIDs.Value
@@ -2276,6 +2377,8 @@ BEGIN
 		ON PL.ApplicationID = @ApplicationID AND PL.PollID = WFS.PollID
 		LEFT JOIN [dbo].[Users_Normal] AS UN
 		ON UN.ApplicationID = @ApplicationID AND UN.UserID = WFS.UserID
+		LEFT JOIN [dbo].[WF_States] AS PollRefST
+		ON PollRefST.ApplicationID = @ApplicationID AND PollRefST.StateID = WFS.PollAudienceRefStateID
 	WHERE WFS.ApplicationID = @ApplicationID AND WFS.WorkFlowID = @WorkFlowID
 END
 
@@ -2890,12 +2993,12 @@ BEGIN
 		   SC.InStateID AS InStateID,
 		   SC.OutStateID AS OutStateID,
 		   SC.SequenceNumber AS SequenceNumber,
-		   SC.Label AS ConnectionLabel,
+		   SC.[Label] AS ConnectionLabel,
 		   SC.AttachmentRequired AS AttachmentRequired,
 		   SC.AttachmentTitle AS AttachmentTitle,
 		   SC.NodeRequired AS NodeRequired,
 		   SC.NodeTypeID AS NodeTypeID,
-		   NT.Name AS NodeType,
+		   NT.[Name] AS NodeType,
 		   SC.NodeTypeDescription AS NodeTypeDescription
 	FROM @InStateIDs AS ExternalIDs
 		INNER JOIN [dbo].[WF_StateConnections] AS SC
@@ -3043,6 +3146,8 @@ BEGIN
 		   N.TypeName AS DirectorNodeType,
 		   H.StateID AS StateID,
 		   S.Title AS StateTitle,
+		   WS.ID AS WorkFlowStateID,
+		   FO.FormID AS WorkFlowStateFormID,
 		   H.SelectedOutStateID AS SelectedOutStateID,
 		   H.[Description] AS [Description],
 		   H.ActorUserID AS SenderUserID,
@@ -3073,10 +3178,14 @@ BEGIN
 		ON H.ApplicationID = @ApplicationID AND H.HistoryID = ExternalIDs.Value
 		INNER JOIN [dbo].[WF_States] AS S
 		ON S.ApplicationID = @ApplicationID AND S.StateID = H.StateID
+		INNER JOIN [dbo].[WF_WorkFlowStates] as WS
+		ON WS.ApplicationID = @ApplicationID AND WS.WorkFlowID = H.WorkFlowID AND WS.StateID = S.StateID
 		LEFT JOIN [dbo].[CN_View_Nodes_Normal] AS N
 		ON N.ApplicationID = @ApplicationID AND N.NodeID = H.DirectorNodeID
 		LEFT JOIN [dbo].[Users_Normal] AS U
 		ON U.ApplicationID = @ApplicationID AND U.UserID = H.ActorUserID
+		LEFT JOIN [dbo].[FG_FormOwners] AS FO
+		ON FO.ApplicationID = @ApplicationID AND FO.OwnerID = WS.ID AND FO.Deleted = 0
 	ORDER BY H.ID DESC
 END
 
@@ -3379,6 +3488,7 @@ GO
 CREATE PROCEDURE [dbo].[WF_SendToNextState]
 	@ApplicationID		uniqueidentifier,
     @PrevHistoryID		uniqueidentifier,
+	@HistoryID			uniqueidentifier,
     @StateID			uniqueidentifier,
     @DirectorNodeID		uniqueidentifier,
     @DirectorUserID		uniqueidentifier,
@@ -3405,11 +3515,9 @@ BEGIN TRANSACTION
 	
 	IF @Reject IS NULL SET @Reject = 0
 	
-	DECLARE @HistoryID uniqueidentifier, @OwnerID uniqueidentifier,
-		@WorkFlowID uniqueidentifier, @PrevStateID uniqueidentifier
+	DECLARE @OwnerID uniqueidentifier, @WorkFlowID uniqueidentifier, @PrevStateID uniqueidentifier
 	
-	SELECT @HistoryID = NEWID(), @OwnerID = OwnerID, 
-		@WorkFlowID = WorkFlowID, @PrevStateID = StateID
+	SELECT @OwnerID = OwnerID, @WorkFlowID = WorkFlowID, @PrevStateID = StateID
 	FROM [dbo].[WF_History]
 	WHERE ApplicationID = @ApplicationID AND HistoryID = @PrevHistoryID
 	
