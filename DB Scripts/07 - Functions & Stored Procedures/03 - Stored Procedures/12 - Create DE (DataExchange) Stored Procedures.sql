@@ -296,7 +296,7 @@ BEGIN
 	
 	INSERT INTO @NewUsers (UserID, UserName, FirstName, LastName, 
 		[Password], PasswordSalt, EncryptedPassword)
-	SELECT NEWID(), Ref.UserName, Ref.FirstName, Ref.LastName, 
+	SELECT NEWID(), Ref.UserName, [dbo].[GFN_VerifyString](Ref.FirstName), [dbo].[GFN_VerifyString](Ref.LastName), 
 		Ref.[Password], Ref.PasswordSalt, Ref.EncryptedPassword
 	FROM @Users AS Ref
 		LEFT JOIN [dbo].[Users_Normal] AS UN
@@ -348,14 +348,14 @@ BEGIN
 	
 	
 	UPDATE P
-		SET FirstName = Ref.FirstName
+		SET FirstName = [dbo].[GFN_VerifyString](Ref.FirstName)
 	FROM @TempUsers AS Ref
 		INNER JOIN [dbo].[USR_Profile] AS P
 		ON P.[UserID] = Ref.UserID
 	WHERE ISNULL(Ref.FirstName, N'') <> N''
 	
 	UPDATE P
-		SET LastName = Ref.LastName
+		SET LastName = [dbo].[GFN_VerifyString](Ref.LastName)
 	FROM @TempUsers AS Ref
 		INNER JOIN [dbo].[USR_Profile] AS P
 		ON P.[UserID] = Ref.UserID
@@ -745,7 +745,7 @@ BEGIN
 	FROM (SELECT DISTINCT NodeID FROM @Shares) AS S
 		INNER JOIN [dbo].[CN_NodeCreators] AS NC
 		ON NC.ApplicationID = @ApplicationID AND NC.NodeID = S.NodeID
-		
+	
 	UPDATE NC
 		SET Deleted = 0,
 			CollaborationShare = CAST(S.Percentage AS float),
@@ -756,7 +756,7 @@ BEGIN
 		ON NC.ApplicationID = @ApplicationID AND NC.NodeID = S.NodeID AND NC.UserID = S.UserID
 	
 	DECLARE @CNT int = @@ROWCOUNT
-	
+	select * from @shares
 	INSERT INTO [dbo].[CN_NodeCreators] (ApplicationID, NodeID, UserID, CollaborationShare,
 		CreatorUserID, CreationDate, Deleted, UniqueID)
 	SELECT	@ApplicationID, S.NodeID, S.UserID, CAST(S.Percentage AS float), 
