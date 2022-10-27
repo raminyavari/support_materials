@@ -3862,9 +3862,11 @@ BEGIN
 		SELECT N'Director'
 	ELSE BEGIN
 		DECLARE @IsAdminFromWorkFlow bit, @IsNodeMember bit, @IsAdmin bit = 0
+
+		DECLARE @_isAdmin bit = CASE WHEN @IsAdmin = 0 THEN NULL ELSE 1 END
 		
 		EXEC [dbo].[CN_P_IsNodeMember] @ApplicationID, 
-			@DirectorNodeID, @UserID, @IsAdmin, 'Accepted', @IsNodeMember output
+			@DirectorNodeID, @UserID, @_isAdmin, 'Accepted', @IsNodeMember output
 		
 		IF @IsNodeMember = 1 BEGIN
 			SET @IsAdminFromWorkFlow = (
