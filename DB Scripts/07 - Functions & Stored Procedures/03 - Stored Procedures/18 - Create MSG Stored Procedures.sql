@@ -1,4 +1,4 @@
-USE [EKM_App]
+USE [Miliad]
 GO
 
 SET ANSI_NULLS ON
@@ -15,7 +15,7 @@ DROP PROCEDURE [dbo].[MSG_GetThreads]
 GO
 
 CREATE PROCEDURE [dbo].[MSG_GetThreads]
-	@ApplicationID	uniqueidentifier,
+	@ApplicationID	UNIQUEIDENTIFIER,
     @UserID			UNIQUEIDENTIFIER,
     @Count			INT,
     @LastID			INT
@@ -24,37 +24,73 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	SELECT TOP(ISNULL(@Count, 10))
-		D.ThreadID, 
-		UN.UserName, 
-		UN.FirstName, 
-		UN.LastName,
-		UN.AvatarName,
-		UN.UseAvatar,
-		CAST((CASE WHEN UN.UserID IS NULL THEN 1 ELSE 0 END) AS bit) AS IsGroup,
-		D.MessagesCount,
-		D.SentCount,
-		D.NotSeenCount,
-		D.RowNumber
-	FROM (
-			SELECT ROW_NUMBER() OVER (ORDER BY Ref.MaxID DESC) AS RowNumber, Ref.*
-			FROM (
-					SELECT MD.ThreadID, MAX(MD.ID) AS MaxID,
-						COUNT(MD.ID) AS MessagesCount, 
-						SUM(CAST(MD.IsSender AS int)) AS SentCount,
-						SUM(
-							CAST((CASE WHEN MD.IsSender = 0 AND MD.Seen = 0 THEN 1 ELSE 0 END) AS int)
-						) AS NotSeenCount
-					FROM [dbo].[MSG_MessageDetails] AS MD
-					WHERE MD.ApplicationID = @ApplicationID AND 
-						MD.UserID = @UserID AND MD.Deleted = 0
-					GROUP BY MD.ThreadID
-				) AS Ref
-		) AS D
-		LEFT JOIN [dbo].[Users_Normal] AS UN
-		ON UN.ApplicationID = @ApplicationID AND UN.UserID = D.ThreadID
-	WHERE (@LastID IS NULL OR D.RowNumber > @LastID)
-	ORDER BY D.RowNumber ASC
+	;WITH BaseData AS (
+		SELECT TOP(ISNULL(@Count, 10))
+			D.ThreadID, 
+			TN.[Name] AS ThreadName,
+			UN.UserName, 
+			UN.FirstName, 
+			UN.LastName,
+			UN.AvatarName,
+			UN.UseAvatar,
+			CAST((CASE WHEN UN.UserID IS NULL THEN 1 ELSE 0 END) AS bit) AS IsGroup,
+			D.MessagesCount,
+			D.SentCount,
+			D.NotSeenCount,
+			D.RowNumber
+		FROM (
+				SELECT ROW_NUMBER() OVER (ORDER BY Ref.MaxID DESC) AS RowNumber, Ref.*
+				FROM (
+						SELECT	MD.ThreadID, 
+								MAX(MD.ID) AS MaxID,
+								MIN(MD.ID) AS MinID,
+								COUNT(MD.ID) AS MessagesCount, 
+								SUM(CAST(MD.IsSender AS int)) AS SentCount,
+								SUM(
+									CAST((CASE WHEN MD.IsSender = 0 AND MD.Seen = 0 THEN 1 ELSE 0 END) AS int)
+								) AS NotSeenCount
+						FROM [dbo].[MSG_MessageDetails] AS MD
+						WHERE MD.ApplicationID = @ApplicationID AND 
+							MD.UserID = @UserID AND MD.Deleted = 0
+						GROUP BY MD.ThreadID
+					) AS Ref
+			) AS D
+			LEFT JOIN [dbo].[Users_Normal] AS UN
+			ON UN.ApplicationID = @ApplicationID AND UN.UserID = D.ThreadID
+			LEFT JOIN [dbo].[MSG_ThreadNames] AS TN
+			ON TN.ApplicationID = @ApplicationID AND TN.ThreadID = D.ThreadID
+		WHERE (@LastID IS NULL OR D.RowNumber > @LastID)
+	),
+	ExtremeIDs AS (
+		SELECT B.ThreadID, MIN(D.ID) AS MinID, MAX(D.ID) AS MaxID
+		FROM BaseData AS B
+			INNER JOIN [dbo].[MSG_MessageDetails] AS D
+			ON D.ApplicationID = @ApplicationID AND D.ThreadID = B.ThreadID
+		GROUP BY B.ThreadID
+	)
+	SELECT	B.*,
+			CAST(CASE
+				WHEN B.IsGroup = 1 AND FirstMD.SenderUserID IS NOT NULL AND 
+					@UserID IS NOT NULL AND FirstMD.SenderUserID = @UserID THEN 1
+				ELSE 0
+			END AS bit) AS IsCreator,
+			CAST(CASE
+				WHEN B.IsGroup = 1 AND TRDUser.UserID IS NULL THEN 1
+				ELSE 0
+			END AS bit) AS RemovedFromGroup
+	FROM BaseData AS B
+		INNER JOIN ExtremeIDs AS E
+		ON E.ThreadID = B.ThreadID
+		LEFT JOIN [dbo].[MSG_MessageDetails] AS FirstMSG
+		ON FirstMSG.ApplicationID = @ApplicationID AND FirstMSG.ID = E.MinID
+		LEFT JOIN [dbo].[MSG_Messages] AS FirstMD
+		ON FirstMD.ApplicationID = @ApplicationID AND FirstMD.MessageID = FirstMSG.MessageID
+		LEFT JOIN [dbo].[MSG_MessageDetails] AS LastMSG
+		ON LastMSG.ApplicationID = @ApplicationID AND LastMSG.ID = E.MaxID
+		LEFT JOIN [dbo].[MSG_MessageDetails] AS TRDUser
+		ON TRDUser.ApplicationID = @ApplicationID AND 
+			TRDUser.MessageID = LastMSG.MessageID AND TRDUser.UserID = @UserID
+	ORDER BY B.RowNumber ASC
 END
 
 GO
@@ -183,7 +219,7 @@ DROP PROCEDURE [dbo].[MSG_SendNewMessage]
 GO
 
 CREATE PROCEDURE [dbo].[MSG_SendNewMessage]
-	@ApplicationID		uniqueidentifier,
+	@ApplicationID		UNIQUEIDENTIFIER,
     @UserID				UNIQUEIDENTIFIER,
     @ThreadID			UNIQUEIDENTIFIER,
     @MessageID			UNIQUEIDENTIFIER,
@@ -193,28 +229,49 @@ CREATE PROCEDURE [dbo].[MSG_SendNewMessage]
     @IsGroup			BIT,
     @Now				DATETIME,
     @ReceiversTemp		GuidTableType readonly,
-    @AttachedFilesTemp	DocFileInfoTableType readonly
+    @AttachedFilesTemp	DocFileInfoTableType readonly,
+	@AddUserIDsTemp		GuidTableType readonly,
+	@RemoveUserIDsTemp	GuidTableType readonly,
+	@NewThreadName		NVARCHAR(500)
 WITH ENCRYPTION, RECOMPILE
 AS
 BEGIN TRANSACTION
 	SET NOCOUNT ON
+
+	SET @NewThreadName = [dbo].[GFN_VerifyString](@NewThreadName)
 	
 	DECLARE @Receivers GuidTableType
 	INSERT INTO @Receivers SELECT * FROM @ReceiversTemp
+
+	DECLARE @AddUserIDs GuidTableType
+	INSERT INTO @AddUserIDs SELECT * FROM @AddUserIDsTemp
+
+	DECLARE @RemoveUserIDs GuidTableType
+	INSERT INTO @RemoveUserIDs SELECT * FROM @RemoveUserIDsTemp
     
     DECLARE @AttachedFiles DocFileInfoTableType
     INSERT INTO @AttachedFiles SELECT * FROM @AttachedFilesTemp
+
+	DECLARE @AddUsersCount int = (SELECT COUNT(*) FROM @AddUserIDs)
+	DECLARE @RemoveUsersCount int = (SELECT COUNT(*) FROM @RemoveUserIDs)
+	DECLARE @AttachmentsCount int = (SELECT COUNT(*) FROM @AttachedFiles)
 	
 	IF @IsGroup IS NULL SET @IsGroup = 0
 	
 	IF @ThreadID IS NOT NULL BEGIN
-		SET @IsGroup = ISNULL(
-			(
-				SELECT TOP(1) MD.IsGroup
-				FROM [dbo].[MSG_MessageDetails] AS MD
-				WHERE MD.ApplicationID = @ApplicationID AND MD.ThreadID = @ThreadID
-			), @IsGroup
-		)
+		SET @IsGroup = ISNULL((
+			SELECT TOP(1) MD.IsGroup
+			FROM [dbo].[MSG_MessageDetails] AS MD
+			WHERE MD.ApplicationID = @ApplicationID AND MD.ThreadID = @ThreadID
+		), @IsGroup)
+	END
+
+	IF @ThreadID IS NULL OR EXISTS (
+		SELECT TOP(1) 1
+		FROM [dbo].[USR_View_Users] AS U
+		WHERE U.UserID = @ThreadID
+	) BEGIN
+		SET @NewThreadName = NULL
 	END
 	
 	DECLARE @ReceiverUserIDs GuidTableType
@@ -232,11 +289,10 @@ BEGIN TRANSACTION
 		RETURN
 	END
 	
-	IF @ThreadID IS NOT NULL AND @Count = 0 AND 
-		EXISTS(
-			SELECT TOP(1) UserID 
-			FROM [dbo].[Users_Normal] 
-			WHERE ApplicationID = @ApplicationID AND UserID = @ThreadID
+	IF @ThreadID IS NOT NULL AND @Count = 0 AND EXISTS (
+		SELECT TOP(1) UserID 
+		FROM [dbo].[Users_Normal] 
+		WHERE ApplicationID = @ApplicationID AND UserID = @ThreadID
 	) BEGIN
 		INSERT INTO @ReceiverUserIDs (Value)
 		VALUES (@ThreadID)
@@ -250,18 +306,18 @@ BEGIN TRANSACTION
 	END
 	
 	IF @Count = 0 BEGIN
-		INSERT INTO @ReceiverUserIDs
-		SELECT DISTINCT MD.UserID 
-		FROM [dbo].[MSG_MessageDetails] AS MD
-		WHERE MD.ApplicationID = @ApplicationID AND MD.ThreadID = @ThreadID
-		EXCEPT (SELECT @UserID)
-		
+		DECLARE @TempThreadIDs GuidTableType
+		INSERT INTO @TempThreadIDs ([Value]) VALUES (@ThreadID)
+
+		INSERT INTO @ReceiverUserIDs ([Value])
+		SELECT X.UserID
+		FROM [dbo].[MSG_FN_GetThreadUsers](@ApplicationID, @TempThreadIDs) AS X
+		WHERE X.UserID NOT IN (@UserID)
+
 		SET @Count = (SELECT COUNT(*) FROM @ReceiverUserIDs)
 	END
 	
-	DECLARE @AttachmentsCount int = (SELECT COUNT(*) FROM @AttachedFiles)
-	
-	INSERT INTO [dbo].[MSG_Messages](
+	INSERT INTO [dbo].[MSG_Messages] (
 		ApplicationID,
 		MessageID,
 		Title,
@@ -271,7 +327,7 @@ BEGIN TRANSACTION
 		ForwardedFrom,
 		HasAttachment
 	)
-	VALUES(
+	VALUES (
 		@ApplicationID,
 		@MessageID,
 		@Title,
@@ -333,6 +389,7 @@ BEGIN TRANSACTION
 				@IsGroup,
 				0
 		FROM @ReceiverUserIDs AS R
+		WHERE @AddUsersCount = 0 AND @RemoveUsersCount = 0 AND ISNULL(@NewThreadName, N'') = N''
 		
 		UNION ALL
 		
@@ -345,15 +402,72 @@ BEGIN TRANSACTION
 				@IsGroup,
 				0
 		FROM @ReceiverUserIDs AS R
+		WHERE @AddUsersCount = 0 AND @RemoveUsersCount = 0 AND ISNULL(@NewThreadName, N'') = N''
+
+		UNION ALL
+
+		SELECT	@ApplicationID,
+				R.UserID,
+				CASE WHEN @IsGroup = 0 THEN @UserID ELSE @ThreadID END,
+				@MessageID,
+				0,
+				0,
+				@IsGroup,
+				0
+		FROM (
+				SELECT X.[Value] AS UserID
+				FROM @ReceiverUserIDs AS X
+				WHERE X.[Value] NOT IN (SELECT A.[Value] FROM @RemoveUserIDs AS A)
+
+				UNION
+
+				SELECT @UserID AS UserID
+				WHERE @UserID NOT IN (SELECT A.[Value] FROM @RemoveUserIDs AS A)
+
+				UNION
+
+				SELECT A.[Value] AS UserID
+				FROM @AddUserIDs AS A
+			) AS R
+		WHERE @AddUsersCount > 0 OR @RemoveUsersCount > 0 OR ISNULL(@NewThreadName, N'') <> N''
 	)
+
+	DECLARE @LastCreatedID bigint = @@IDENTITY;
 	
 	IF @@ROWCOUNT <= 0 BEGIN
 		SELECT -1
 		ROLLBACK TRANSACTION
 		RETURN
 	END
+
+	IF ISNULL(@NewThreadName, N'') <> N'' BEGIN
+		UPDATE TN
+		SET [Name] = @NewThreadName,
+			LastModifierUserID = @UserID,
+			LastModificationDate = @Now
+		FROM [dbo].[MSG_ThreadNames] AS TN
+		WHERE TN.ApplicationID = @ApplicationID AND TN.ThreadID = @ThreadID
+
+		INSERT INTO [dbo].[MSG_ThreadNames] (
+			ApplicationID,
+			ThreadID,
+			[Name],
+			LastModifierUserID,
+			LastModificationDate
+		)
+		SELECT	@ApplicationID,
+				@ThreadID,
+				@NewThreadName,
+				@UserID,
+				@Now
+		WHERE NOT EXISTS (
+			SELECT TOP(1) 1
+			FROM [dbo].[MSG_ThreadNames] AS TN
+			WHERE TN.ApplicationID = @ApplicationID AND TN.ThreadID = @ThreadID
+		)
+	END
 	
-	SELECT @@IDENTITY - @Count
+	SELECT @LastCreatedID - @Count
 COMMIT TRANSACTION
 
 GO
@@ -465,57 +579,47 @@ GO
 CREATE PROCEDURE [dbo].[MSG_GetThreadUsers]
 	@ApplicationID	uniqueidentifier,
 	@UserID			UNIQUEIDENTIFIER,
-    @strThreadIDs	VARCHAR(MAX),
-    @delimiter		CHAR,
+    @ThreadIDsTemp	GuidTableType readonly,
 	@Count			INT,
 	@LastID			INT
-WITH ENCRYPTION
+WITH ENCRYPTION, RECOMPILE
 AS
 BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @ThreadIDs GuidTableType
+	INSERT INTO @ThreadIDs SELECT * FROM @ThreadIDsTemp
 
-	INSERT INTO @ThreadIDs
-	SELECT Ref.Value FROM [dbo].[GFN_StrToGuidTable](@strThreadIDs, @delimiter) AS Ref
-	
-	DECLARE @MessageIDs GuidPairTableType
-
-	;WITH X AS (
-		SELECT MD.ThreadID, MIN(MD.ID) AS MinID
-		FROM @ThreadIDs AS T
-			INNER JOIN [dbo].[MSG_MessageDetails] AS MD
-			ON MD.ApplicationID = @ApplicationID AND MD.ThreadID = T.Value
-		GROUP BY MD.ThreadID
-	)
-	INSERT INTO @MessageIDs(FirstValue, SecondValue)
-	SELECT MD.ThreadID, MD.MessageID
-	FROM X
-		INNER JOIN [dbo].[MSG_MessageDetails] AS MD
-		ON MD.ApplicationID = @ApplicationID AND MD.ID = X.MinID
-
-	;WITH Y AS (
-		SELECT *
+	;WITH Threads AS (
+		SELECT	Ref.RowNumber, Ref.ThreadID, Ref.UserID
 		FROM (
-				SELECT  ROW_NUMBER() OVER (PARTITION BY MD.ThreadID ORDER BY MD.ID DESC) AS RowNumber, 
-						ROW_NUMBER() OVER (PARTITION BY MD.ThreadID ORDER BY MD.ID ASC) AS RevRowNumber,
-						MD.ThreadID, MD.UserID
-				FROM @MessageIDs AS M
-					INNER JOIN [dbo].[MSG_MessageDetails] AS MD
-					ON MD.ThreadID = M.FirstValue AND MD.MessageID = M.SecondValue
-				WHERE MD.ApplicationID = @ApplicationID AND MD.UserID NOT IN (SELECT @UserID)
+				SELECT	ROW_NUMBER() OVER (PARTITION BY X.ThreadID ORDER BY X.SequenceNumber ASC) AS RowNumber,
+						X.ThreadID,
+						X.UserID
+				FROM (
+						SELECT	U.SequenceNumber,
+								U.ThreadID,
+								U.UserID
+						FROM [dbo].[MSG_FN_GetThreadUsers](@ApplicationID, @ThreadIDs) AS U
+						WHERE @UserID IS NULL OR U.UserID NOT IN (@UserID)
+					) AS X
 			) AS Ref
 		WHERE Ref.RowNumber > ISNULL(@LastID, 0) AND Ref.RowNumber <= (ISNULL(@LastID, 0) + ISNULL(@Count, 3))
+	),
+	Total AS (
+		SELECT COUNT(T.ThreadID) AS [Value]
+		FROM Threads AS T
 	)
 	SELECT	Y.ThreadID, 
 			Y.UserID, 
 			UN.UserName, 
 			UN.FirstName, 
 			UN.LastName,
-			Y.RevRowNumber
-	FROM Y
+			(T.[Value] - Y.RowNumber + 1) AS RevRowNumber
+	FROM Threads AS Y
 		INNER JOIN [dbo].[Users_Normal] AS UN
 		ON UN.ApplicationID = @ApplicationID AND UN.UserID = Y.UserID
+		CROSS JOIN Total AS T
 END
 
 GO
