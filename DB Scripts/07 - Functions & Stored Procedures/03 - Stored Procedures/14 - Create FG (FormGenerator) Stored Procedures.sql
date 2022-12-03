@@ -1767,14 +1767,17 @@ BEGIN
 			UN.AvatarName AS CreatorAvatarName,
 			UN.UseAvatar AS CreatorUseAvatar
 	FROM @InstanceIDs AS INS
+		INNER JOIN [dbo].[FG_FormInstances] AS I
+		ON I.ApplicationID = @ApplicationID AND I.InstanceID = INS.[Value]
 		INNER JOIN [dbo].[FG_InstanceElements] AS IE
-		ON IE.ApplicationID = @ApplicationID AND IE.InstanceID = INS.Value
+		ON IE.ApplicationID = @ApplicationID AND IE.InstanceID = INS.[Value]
 		LEFT JOIN [dbo].[FG_ExtendedFormElements] AS EFE
 		ON EFE.ApplicationID = @ApplicationID AND EFE.ElementID = IE.RefElementID
 		LEFT JOIN [dbo].[Users_Normal] AS UN
 		ON UN.ApplicationID = @ApplicationID AND UN.UserID = IE.CreatorUserID
 	WHERE (@Filled IS NULL OR @Filled = 1) AND IE.Deleted = 0 AND
-		(@ELCount = 0 OR IE.ElementID IN (SELECT Ref.Value FROM @ElementIDs AS Ref))
+		(@ELCount = 0 OR IE.ElementID IN (SELECT Ref.[Value] FROM @ElementIDs AS Ref)) AND
+		(EFE.Deleted = 0 OR ISNULL(I.IsTemporary, 0) = 0)
 	
 	UNION ALL
 	
