@@ -276,28 +276,57 @@ BEGIN
 	
 	DECLARE @_Result int = 0
 	
-	DECLARE @TempUsers TABLE(ID int IDENTITY(1,1) PRIMARY KEY CLUSTERED, 
-		UserID uniqueidentifier, NewUserName nvarchar(255),
-		FirstName nvarchar(255), LastName nvarchar(255), EmploymentType varchar(50))
+	DECLARE @TempUsers TABLE (
+		ID int IDENTITY(1,1) PRIMARY KEY CLUSTERED, 
+		UserID uniqueidentifier, 
+		NewUserName nvarchar(255), 
+		NationalID nvarchar(20),
+		PersonnelID nvarchar(20),
+		FirstName nvarchar(255), 
+		LastName nvarchar(255), 
+		EmploymentType varchar(50)
+	)
 	
 	INSERT INTO @TempUsers(
-		UserID, NewUserName, FirstName, LastName, EmploymentType)
-	SELECT USR.UserID, Ref.NewUserName, [dbo].[GFN_VerifyString](Ref.FirstName),
-		[dbo].[GFN_VerifyString](Ref.LastName), Ref.EmploymentType
+		UserID, NewUserName, NationalID, PersonnelID, FirstName, LastName, EmploymentType)
+	SELECT	USR.UserID, 
+			Ref.NewUserName, 
+			LTRIM(RTRIM(ISNULL(Ref.NationalID, N''))), 
+			LTRIM(RTRIM(ISNULL(Ref.PersonnelID, N''))), 
+			[dbo].[GFN_VerifyString](Ref.FirstName), 
+			[dbo].[GFN_VerifyString](Ref.LastName), 
+			Ref.EmploymentType
 	FROM @Users AS Ref
 		INNER JOIN [dbo].[aspnet_Users] AS USR
 		ON USR.LoweredUserName = LOWER(Ref.UserName)
 		INNER JOIN [dbo].[USR_UserApplications] AS App
 		ON App.ApplicationID = @ApplicationID AND App.UserID = USR.UserID
+
+	-- Remove Invalid NationalIDs
+	UPDATE T
+	SET NationalID = N''
+	FROM @TempUsers AS T
+		INNER JOIN [dbo].[USR_Profile] AS P
+		ON LOWER(ISNULL(P.NationalID, N'')) = LOWER(T.NationalID) AND P.UserID <> T.UserID
+	WHERE ISNULL(T.NationalID, N'') <> N''
+
+	-- Remove Invalid PersonnelIDs
+	UPDATE T
+	SET PersonnelID = N''
+	FROM @TempUsers AS T
+		INNER JOIN [dbo].[USR_Profile] AS P
+		ON LOWER(ISNULL(P.PersonnelID, N'')) = LOWER(T.PersonnelID) AND P.UserID <> T.UserID
+	WHERE ISNULL(T.PersonnelID, N'') <> N''
 	
 	-- Create New Users
 	DECLARE @NewUsers ExchangeUserTableType
 	DECLARE @FirstPasswords GuidStringTableType
 	
-	INSERT INTO @NewUsers (UserID, UserName, FirstName, LastName, 
+	INSERT INTO @NewUsers (UserID, UserName, NationalID, PersonnelID, FirstName, LastName, 
 		[Password], PasswordSalt, EncryptedPassword)
-	SELECT NEWID(), Ref.UserName, [dbo].[GFN_VerifyString](Ref.FirstName), [dbo].[GFN_VerifyString](Ref.LastName), 
-		Ref.[Password], Ref.PasswordSalt, Ref.EncryptedPassword
+	SELECT	NEWID(), Ref.UserName, Ref.NationalID, Ref.PersonnelID,
+			[dbo].[GFN_VerifyString](Ref.FirstName), [dbo].[GFN_VerifyString](Ref.LastName), 
+			Ref.[Password], Ref.PasswordSalt, Ref.EncryptedPassword
 	FROM @Users AS Ref
 		LEFT JOIN [dbo].[Users_Normal] AS UN
 		ON UN.ApplicationID = @ApplicationID AND LOWER(UN.UserName) = LOWER(Ref.UserName) AND
@@ -347,20 +376,27 @@ BEGIN
 	-- end of Reset passwords
 	
 	
+	-- Update User Info
 	UPDATE P
-		SET FirstName = [dbo].[GFN_VerifyString](Ref.FirstName)
+	SET FirstName = 
+			CASE 
+				WHEN ISNULL(Ref.FirstName, N'') <> N'' THEN [dbo].[GFN_VerifyString](Ref.FirstName) 
+				ELSE P.FirstName 
+			END,
+		LastName = 
+			CASE 
+				WHEN ISNULL(Ref.LastName, N'') <> N'' THEN [dbo].[GFN_VerifyString](Ref.LastName) 
+				ELSE P.LastName 
+			END,
+		NationalID = CASE  WHEN ISNULL(Ref.NationalID, N'') <> N'' THEN Ref.NationalID ELSE P.NationalID END,
+		PersonnelID = CASE  WHEN ISNULL(Ref.PersonnelID, N'') <> N'' THEN Ref.PersonnelID ELSE P.PersonnelID END
 	FROM @TempUsers AS Ref
 		INNER JOIN [dbo].[USR_Profile] AS P
 		ON P.[UserID] = Ref.UserID
-	WHERE ISNULL(Ref.FirstName, N'') <> N''
+	-- end of: Update User Info
+
 	
-	UPDATE P
-		SET LastName = [dbo].[GFN_VerifyString](Ref.LastName)
-	FROM @TempUsers AS Ref
-		INNER JOIN [dbo].[USR_Profile] AS P
-		ON P.[UserID] = Ref.UserID
-	WHERE ISNULL(Ref.LastName, N'') <> N''
-	
+	-- Update EmploymentType
 	UPDATE P
 		SET EmploymentType = Ref.EmploymentType
 	FROM @TempUsers AS Ref
@@ -368,6 +404,8 @@ BEGIN
 		ON P.ApplicationID = @ApplicationID AND P.[UserID] = Ref.UserID
 	WHERE ISNULL(Ref.EmploymentType, N'') <> N''
 	
+
+	-- Update UserNames
 	UPDATE USR
 		SET UserName = X.NewUserName,
 			LoweredUserName = LOWER(X.NewUserName)
@@ -381,6 +419,8 @@ BEGIN
 		) AS X
 		INNER JOIN [dbo].[aspnet_Users] AS USR
 		ON USR.UserId = X.UserID
+	-- end of: Update UserNames
+
 	
 	SELECT 1
 END

@@ -207,6 +207,8 @@ CREATE TYPE [dbo].[ExchangeUserTableType] AS TABLE(
 	UserID	uniqueidentifier NULL,
 	UserName nvarchar(50) NULL,
 	NewUserName nvarchar(50) NULL,
+	NationalID nvarchar(20) NULL,
+	PersonnelID nvarchar(20) NULL,
 	FirstName nvarchar(500) NULL,
 	LastName nvarchar(500) NULL,
 	EmploymentType varchar(50) NULL,

@@ -16,6 +16,8 @@ AS
 SELECT  U.UserId AS UserID, 
 		U.UserName, 
 		U.LoweredUserName,
+		P.NationalID,
+		P.PersonnelID,
 		P.FirstName, 
 		P.LastName, 
 		P.AvatarName,
