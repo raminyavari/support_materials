@@ -1,0 +1,22 @@
+﻿<div style="line-height:1.8;">
+    <br />
+    <span style="font-size:larger; font-weight: bold;" >سلام ~[[InvitedName]]؛</span>
+	<br />
+    <span>به کلیک‌مایند خوش آمدید!</span>
+</div>
+<div style="text-align:center; clear:both;">
+	<a href="~[[LoginURL]]" >
+		<img src="http://www.cliqmind.com/files/welcome_email_image.png" style="width: 600; ">
+	</a>
+</div>
+<div style="text-align:center; clear:both; margin-bottom:40;">
+	<br />
+	    <span>همه چیز آماده است تا در کلیک‌مایند شروع به کار کنید:</span>
+	<br />
+</div>
+<div style="text-align:center">
+<a href="~[[LoginURL]]" >
+<span style="text-align:center; background-color: #2B388F; font-weight:500; font-size: 18px; padding: 20px; border-radius: 5px; width: auto;
+ color: #fff; fill: #fff; box-sizing: border-box; margin: 0; outline: 0; vertical-align: baseline; box-shadow: none; text-decoration: none;">شروع به کار در کلیک‌مایند</span>
+    </a>
+</div>

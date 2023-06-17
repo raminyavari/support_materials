@@ -1,0 +1,11 @@
+﻿<div dir=rtl style="text-decoration:none; margin:20px auto 0px auto; width:600px; font-family: tahoma;">
+	<div style="text-align:center;">
+		<img src="http://www.cliqmind.com/files/Logo_tr.png" style="width: 220px; text-align:center;">
+		<br />
+	</div>
+	<div style="margin-bottom:30px;">
+		~[[Content]]
+	</div>
+	<div><img src="http://www.cliqmind.com/files/Logo_tr.png" style="width:130px; "></div>
+	<div style="margin-top:10px;">مغز تیم‌های حرفه‌ای</div>
+</div>

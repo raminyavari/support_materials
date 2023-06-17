@@ -1,0 +1,21 @@
+﻿<div style="line-height:1.8; font-size:14px;">
+    <div>~[[FullName]] گرامی؛</div>
+    <div>به کلیک‌مایند خوش آمدید!</div>
+	<div>از همراهی با شما خوشحالیم؛ لطفا برای تایید حساب کاربری،
+		<a href="~[[LoginURL]]?ac=~[[ActivationCode]]" style="text-decoration: none;">ایمیل خود را تایید کنید</a>.
+	</div>
+</div>
+<div style="text-align:center; margin-top:40px;">
+	<a href="~[[LoginURL]]?ac=~[[ActivationCode]]">
+		<span style="text-align:center; background-color: #2B388F; font-weight:500; font-size: 18px; padding: 16px 24px 21px 24px; border-radius: 5px; width: auto;
+			color: #fff; fill: #fff; box-sizing: border-box; margin: 0; outline: 0; vertical-align: baseline; box-shadow: none; text-decoration: none;">
+			تاییــد ایــمیل
+		</span>
+    </a>
+</div>
+
+
+
+
+
+

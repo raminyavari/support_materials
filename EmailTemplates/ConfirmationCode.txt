@@ -1,0 +1,5 @@
+﻿<div style="line-height:1.8; font-size:14px;">
+	<span> کد تایید شما </span>
+	<span style='margin:0px 10px; font-weight:bold; color:rgb(100,100,100);'> ~[[Code]] </span>
+	<span>است</span>
+</div>

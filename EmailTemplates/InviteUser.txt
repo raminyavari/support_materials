@@ -1,0 +1,16 @@
+﻿<div style="line-height:1.8; font-size:14px;">
+    <div style="font-size:larger; font-weight: bold;" >~[[InvitedFullName]] گرامی؛</div>
+    <div>~[[SenderFullName]] از شما برای عضویت در ~[[TeamName]] در کلیک‌مایند دعوت کرده است.</div>
+    <div>روزانه اطلاعات، اسناد و ارتباطات متعددی در محیط کاری شکل می‌گیرد که با حفظ، نگهداری و استفاده به‌هنگام از آن‌ها به کمک کلیک‌مایند می‌توانید مزیت رقابتی ویژه‌ای برای سازمان خود ایجاد کنید.</div>
+</div>
+<div style="background-color:rgba(255, 255, 255, 0.65); border-width: 1px; border-radius:3px; margin-top:8px; display:none;">
+    <span>~[[MessageText]] </span>
+</div>
+<div style="text-align:center; margin-top:40px;">
+	<a href="~[[LoginURL]]?em=~[[InvitedEmailBase64]]&inv=~[[InvitationID]]" >
+		<span style="text-align:center; background-color: #2B388F; font-weight:500; font-size: 18px; padding: 16px 24px 21px 24px; border-radius: 5px; width: auto;
+			color: #fff; fill: #fff; box-sizing: border-box; margin: 0; outline: 0; vertical-align: baseline; box-shadow: none; text-decoration: none;">
+			می‌خواهم عضو ~[[TeamName]] شوم
+		</span>
+    </a>
+</div>

@@ -1,0 +1,8 @@
+﻿<div>
+    <span>~[[InvitedEmail]] گرامی، ~[[SenderFullName]] شما را به عضویت در بنکی دو دعوت کرده است.</span>
+    <span>برای عضویت</span>
+    <a href="~[[LoginURL]]?em=~[[InvitedEmailBase64]]&inv=~[[InvitationID]]">اینجـــا</a>
+    <span>را کلیک کنید</span>
+</div>
+<div style="float:left; color:Gray; font-size:x-small; margin:4px;">~[[PNow]]</div>
+<div style="clear:both;"></div>
